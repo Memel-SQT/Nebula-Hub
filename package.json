@@ -25,7 +25,8 @@
     "test": "jest",
     "typecheck": "tsc --noEmit",
     "lint": "eslint \"src/**/*.{ts,tsx}\" \"tests/**/*.{ts,tsx}\" \"packages/*/src/**/*.{ts,tsx}\" \"scripts/**/*.ts\"",
-    "catalog:sign": "ts-node --transpile-only -O \"{\\\"module\\\":\\\"commonjs\\\",\\\"moduleResolution\\\":\\\"node\\\"}\" scripts/sign-catalog.ts"
+    "catalog:sign": "ts-node --transpile-only -O \"{\\\"module\\\":\\\"commonjs\\\",\\\"moduleResolution\\\":\\\"node\\\"}\" scripts/sign-catalog.ts",
+    "catalog:verify": "ts-node --transpile-only -O \"{\\\"module\\\":\\\"commonjs\\\",\\\"moduleResolution\\\":\\\"node\\\"}\" scripts/verify-catalog.ts"
   },
   "dependencies": {
     "electron-updater": "^6.8.9",

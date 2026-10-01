@@ -1,0 +1,73 @@
+name: Release
+
+# Pushing a tag vX.Y.Z publishes the Windows installer as a GitHub release, fully automatically:
+#   git tag -a v0.2.0 -F notes.md   # the tag message becomes the release notes (the only place
+#   git push origin v0.2.0          # where release notes live, as in Nebula Finterest)
+# A version with a pre-release part (v0.2.0-beta.1) is published as a pre-release, which only
+# Hubs on the beta channel offer.
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build and publish
+    runs-on: windows-latest
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Tag matches package.json
+        shell: pwsh
+        run: |
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          if ("v$version" -ne "${{ github.ref_name }}") { throw "Tag ${{ github.ref_name }} does not match package.json version $version." }
+
+      - name: Quality gates
+        run: |
+          npm run typecheck
+          npm run lint
+          npm run catalog:verify
+          npm test -- --ci
+
+      - name: Build the installer
+        run: npm run dist:win
+
+      - name: Publish the release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $version = $tag.Substring(1)
+          $notes = git tag -l --format='%(contents)' $tag | Out-String
+          if (-not $notes.Trim()) { $notes = "Nebula Hub $version" }
+          Set-Content -Path release-notes.md -Value $notes -Encoding utf8
+          $assets = @(
+            "install/windows/Nebula-Hub-Setup-$version.exe",
+            "install/windows/Nebula-Hub-Setup-$version.exe.blockmap",
+            "install/windows/latest.yml",
+            "catalog/nebula-catalog.json",
+            "catalog/nebula-catalog.json.sig"
+          )
+          foreach ($asset in $assets) { if (-not (Test-Path $asset)) { throw "Missing release asset: $asset" } }
+          $flags = @()
+          if ($version.Contains('-')) { $flags += '--prerelease' }
+          gh release create $tag @assets --title "Nebula Hub $version" --notes-file release-notes.md @flags

@@ -4,9 +4,9 @@
 les applications de la famille Nebula — Nebula Finterest, Nebula Clock, Nebula News — sur
 Windows, sans compte et sans télémétrie.
 
-> Projet en cours de développement (jalon M1 : squelette, direction artistique et
-> personnalisation). Les fonctions d'installation, de mise à jour et d'intégration arrivent
-> dans les jalons suivants.
+> Projet en cours de développement : le catalogue signé, les fiches des apps et toute la
+> personnalisation sont en place ; la détection, l’installation, les mises à jour et
+> Nebula Link arrivent dans les jalons suivants.
 
 ## Ce que fait Nebula Hub
 
@@ -67,4 +67,19 @@ npm run dist:win   # installeur Windows dans install/windows/
 - Architecture et règles pour les agents : [`CLAUDE.md`](CLAUDE.md)
 - Décisions techniques : [`docs/DECISIONS.md`](docs/DECISIONS.md)
 - Journal des changements techniques : [`DEV_CHANGES.md`](DEV_CHANGES.md)
+- Le catalogue des apps et sa signature : [`docs/CATALOG.md`](docs/CATALOG.md)
 - Les notes de version sont publiées uniquement dans les releases GitHub.
+
+### Publier une version
+
+La CI (GitHub Actions) vérifie chaque push. Pour publier, il suffit d’un tag annoté dont le
+message contient les notes de version :
+
+```bash
+npm version 0.2.0 --no-git-tag-version   # puis commit
+git tag -a v0.2.0 -F notes.md
+git push origin main v0.2.0
+```
+
+Le workflow `release.yml` construit l’installeur et publie la release avec `latest.yml` (mises à
+jour automatiques du Hub) et le catalogue signé. Une version `-beta.N` part en pré-version.
