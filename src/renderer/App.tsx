@@ -3,6 +3,7 @@ import { setSoundsSuppressed, type NebulaAppearance } from '@nebula/design';
 import { BackgroundFx, Splash, useAppliedAppearance, useInterfaceEffects, useResolvedTheme } from '@nebula/design/react';
 import { EMPTY_CATALOG_VIEW, type CatalogView } from '@shared/catalog-view';
 import { EMPTY_INSTALLED_VIEW, type InstalledView } from '@shared/installed-view';
+import type { DownloadsView } from '@shared/install-state';
 import { playSound } from '@nebula/design';
 import type { HubSettings, SettingsPatch } from '@shared/settings';
 import { familyEntries } from './catalog';
@@ -34,6 +35,7 @@ export function App() {
   const [catalog, setCatalog] = useState<CatalogView>(EMPTY_CATALOG_VIEW);
   const [installed, setInstalled] = useState<InstalledView>(EMPTY_INSTALLED_VIEW);
   const [launchError, setLaunchError] = useState<string | null>(null);
+  const [downloads, setDownloads] = useState<DownloadsView | undefined>(undefined);
   const appearance = settings.appearance;
   const language = appearance.language;
 
@@ -97,6 +99,42 @@ export function App() {
     );
   }, [bridge, catalog.entries, language]);
 
+  // Install queue and history (M4), then every change pushed by the main process.
+  useEffect(() => {
+    let active = true;
+    void bridge.getDownloads().then((view) => active && setDownloads(view));
+    const unsubscribe = bridge.onDownloadsChanged(setDownloads);
+    return () => {
+      active = false;
+      unsubscribe();
+    };
+  }, [bridge]);
+
+  const installApp = useCallback((appId: string) => {
+    const name = catalog.entries.find((entry) => entry.app.id === appId)?.app.name ?? appId;
+    void bridge.installApp(appId).then(
+      (result) => {
+        if (result === 'queued') {
+          setLaunchError(null);
+        } else {
+          setLaunchError(translate(language, `install.enqueue.${result}`, { name }));
+          playSound('error');
+        }
+      },
+      () => setLaunchError(translate(language, 'install.failure.internal')),
+    );
+  }, [bridge, catalog.entries, language]);
+
+  const cancelOperation = useCallback((operationId: string) => {
+    void bridge.cancelOperation(operationId);
+  }, [bridge]);
+
+  const dismissOperation = useCallback((operationId: string) => {
+    void bridge.dismissOperation(operationId);
+  }, [bridge]);
+
+  const exportHistory = useCallback(() => bridge.exportHistory(), [bridge]);
+
   const showFolder = useCallback((appId: string) => {
     void bridge.showAppFolder(appId);
   }, [bridge]);
@@ -113,6 +151,10 @@ export function App() {
     setSettings(fresh);
     setSaveError(false);
   }, []);
+
+  const pickInstallDirectory = useCallback(() => {
+    void bridge.pickInstallDirectory().then((fresh) => fresh && handleSaved(fresh), () => setSaveError(true));
+  }, [bridge, handleSaved]);
 
   // Applied immediately (optimistic), then re-synced from the main process' answer.
   const updateAppearance = useCallback((patch: Partial<NebulaAppearance>) => {
@@ -150,14 +192,25 @@ export function App() {
   }
 
   const screenProps = { status: 'empty' as const, onNavigate: setRoute };
-  const catalogProps = { catalog, installed, onNavigate: setRoute, onRefresh: refreshCatalog, onLaunch: launchApp, onShowFolder: showFolder };
+  const catalogProps = {
+    catalog,
+    installed,
+    downloads,
+    onNavigate: setRoute,
+    onRefresh: refreshCatalog,
+    onLaunch: launchApp,
+    onShowFolder: showFolder,
+    onInstall: installApp,
+    onCancelOperation: cancelOperation,
+    onDismissOperation: dismissOperation,
+  };
 
   return (
     <LanguageContext.Provider value={language}>
       {background}
       <div className="titlebar-drag" aria-hidden="true" />
       <main className="app-shell">
-        <Sidebar active={sectionOf(route)} version={initial.appVersion} launcher={familyEntries(catalog)} installed={installed} onNavigate={setRoute} onLaunch={launchApp} />
+        <Sidebar active={sectionOf(route)} version={initial.appVersion} launcher={familyEntries(catalog)} installed={installed} downloads={downloads} onNavigate={setRoute} onLaunch={launchApp} />
         <div className="workspace-column">
           {saveError ? <ErrorState message={t('error.saveSettings')} /> : null}
           {launchError ? <ErrorState message={launchError} onRetry={() => setLaunchError(null)} /> : null}
@@ -165,10 +218,10 @@ export function App() {
           {route.screen === 'discover' ? <DiscoverScreen {...catalogProps} /> : null}
           {route.screen === 'app' ? <AppDetailScreen key={route.appId} {...catalogProps} appId={route.appId} loadAsset={loadAsset} onOpenLink={openLink} /> : null}
           {route.screen === 'my-apps' ? <MyAppsScreen {...catalogProps} onRefreshInstalled={refreshInstalled} /> : null}
-          {route.screen === 'downloads' ? <DownloadsScreen {...screenProps} /> : null}
+          {route.screen === 'downloads' ? <DownloadsScreen {...catalogProps} onExportHistory={exportHistory} /> : null}
           {route.screen === 'integrations' ? <IntegrationsScreen {...screenProps} /> : null}
           {route.screen === 'settings' ? (
-            <SettingsScreen settings={settings} resolvedTheme={resolvedTheme} version={initial.appVersion} catalog={catalog} onAppearanceChange={updateAppearance} onSettingsChange={updateSettings} onRefreshCatalog={refreshCatalog} />
+            <SettingsScreen settings={settings} resolvedTheme={resolvedTheme} version={initial.appVersion} catalog={catalog} onAppearanceChange={updateAppearance} onSettingsChange={updateSettings} onRefreshCatalog={refreshCatalog} onPickInstallDirectory={pickInstallDirectory} />
           ) : null}
         </div>
       </main>

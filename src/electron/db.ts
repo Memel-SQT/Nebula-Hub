@@ -18,6 +18,10 @@ const MIGRATIONS: string[][] = [
     'CREATE TABLE IF NOT EXISTS catalog_cache (id INTEGER PRIMARY KEY CHECK (id = 1), source TEXT NOT NULL, body BLOB NOT NULL, signature TEXT NOT NULL, generated_at TEXT NOT NULL, verified_at TEXT NOT NULL)',
     'CREATE TABLE IF NOT EXISTS sync_state (key TEXT PRIMARY KEY, value TEXT NOT NULL)',
   ],
+  // 2 — M4: finished install operations (Downloads screen, exportable journal).
+  [
+    'CREATE TABLE IF NOT EXISTS install_history (id INTEGER PRIMARY KEY AUTOINCREMENT, app_id TEXT NOT NULL, kind TEXT NOT NULL, version TEXT NOT NULL, from_version TEXT, outcome TEXT NOT NULL, failure TEXT, detail TEXT, started_at TEXT NOT NULL, finished_at TEXT NOT NULL)',
+  ],
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;

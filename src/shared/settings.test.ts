@@ -46,3 +46,13 @@ describe('mergeSettings', () => {
     expect(mergeSettings(current, { channel: 'alpha', closeToTray: 1 })).toEqual(current);
   });
 });
+
+describe('install folder setting', () => {
+  it('keeps a safe folder, clears with null, and refuses anything else', () => {
+    expect(parseSettings({ installDirectory: 'D:\\Apps' }).installDirectory).toBe('D:\\Apps');
+    expect(parseSettings({ installDirectory: 'D:\\Apps\\..\\Windows' }).installDirectory).toBeNull();
+    const current = { ...DEFAULT_SETTINGS, installDirectory: 'D:\\Apps' };
+    expect(mergeSettings(current, { installDirectory: null }).installDirectory).toBeNull();
+    expect(mergeSettings(current, { installDirectory: 'relative' }).installDirectory).toBe('D:\\Apps');
+  });
+});

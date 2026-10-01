@@ -65,3 +65,13 @@ export function useT(): Translate {
   const language = useLanguage();
   return (key, params) => translate(language, key, params);
 }
+
+/** A short duration for "time left": seconds under a minute, then minutes, then hours. */
+export function formatDuration(language: Language, seconds: number): string {
+  const [value, unit] = seconds < 60 ? [Math.max(1, Math.round(seconds)), 'second'] : seconds < 3600 ? [Math.round(seconds / 60), 'minute'] : [Math.round(seconds / 360) / 10, 'hour'];
+  return new Intl.NumberFormat(locale(language), { style: 'unit', unit, unitDisplay: 'short', maximumFractionDigits: 1 }).format(value);
+}
+
+export function formatPercent(language: Language, ratio: number): string {
+  return new Intl.NumberFormat(locale(language), { style: 'percent', maximumFractionDigits: 0 }).format(ratio);
+}

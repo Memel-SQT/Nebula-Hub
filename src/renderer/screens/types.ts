@@ -1,4 +1,5 @@
 import type { CatalogView } from '@shared/catalog-view';
+import type { DownloadsView } from '@shared/install-state';
 import type { InstalledView } from '@shared/installed-view';
 import type { LoadState } from '../components/ScreenState';
 import type { Route } from '../navigation';
@@ -20,4 +21,9 @@ export interface CatalogScreenProps {
   installed?: InstalledView;
   onLaunch?: (appId: string) => void;
   onShowFolder?: (appId: string) => void;
+  /** Install operations (M4). */
+  downloads?: DownloadsView;
+  onInstall?: (appId: string) => void;
+  onCancelOperation?: (operationId: string) => void;
+  onDismissOperation?: (operationId: string) => void;
 }

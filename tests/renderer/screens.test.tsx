@@ -9,10 +9,12 @@ import { DownloadsScreen } from '../../src/renderer/screens/DownloadsScreen';
 import { HomeScreen } from '../../src/renderer/screens/HomeScreen';
 import { IntegrationsScreen } from '../../src/renderer/screens/IntegrationsScreen';
 import { MyAppsScreen } from '../../src/renderer/screens/MyAppsScreen';
+import { SettingsScreen } from '../../src/renderer/screens/SettingsScreen';
+import { DEFAULT_SETTINGS } from '../../src/shared/settings';
 import type { CatalogScreenProps, DataScreenProps } from '../../src/renderer/screens/types';
 import type { CatalogView } from '../../src/shared/catalog-view';
 import { EMPTY_INSTALLED_VIEW } from '../../src/shared/installed-view';
-import { catalogView, installedView } from './fixtures';
+import { catalogView, downloadsView, historyEntry, installedView, operation } from './fixtures';
 
 function wrap(node: JSX.Element) {
   return render(<LanguageContext.Provider value="fr">{node}</LanguageContext.Provider>);
@@ -21,7 +23,6 @@ function wrap(node: JSX.Element) {
 // ---- Screens whose data arrives in later milestones: the four states. ----
 
 const DATA_SCREENS: Array<[string, ComponentType<DataScreenProps>, RegExp]> = [
-  ['Downloads', DownloadsScreen, /Téléchargements/],
   ['Integrations', IntegrationsScreen, /Intégrations/],
 ];
 
@@ -297,5 +298,145 @@ describe('App page with an installed app', () => {
     expect(onLaunch).toHaveBeenCalledWith('nebula.finterest');
     await userEvent.click(screen.getByRole('button', { name: /Afficher le dossier/ }));
     expect(onShowFolder).toHaveBeenCalledWith('nebula.finterest');
+  });
+});
+
+// ---- Download and install (M4). ----
+
+describe('Install from the app page', () => {
+  const notInstalled = installedView({ apps: [] });
+
+  function renderPage(extra: Partial<CatalogScreenProps> = {}, appId = 'nebula.finterest') {
+    const props = { onInstall: jest.fn(), onCancelOperation: jest.fn(), onDismissOperation: jest.fn() };
+    wrap(<AppDetailScreen catalog={catalogView()} installed={notInstalled} onNavigate={jest.fn()} onRefresh={jest.fn()} appId={appId} loadAsset={loadAsset} onOpenLink={jest.fn()} {...props} {...extra} />);
+    return props;
+  }
+
+  it('offers to install an app that is not installed, with the SmartScreen line the first time', async () => {
+    const props = renderPage({ downloads: downloadsView({ operations: [], history: [] }) });
+    expect(screen.getByText(/ne sont pas signées numériquement/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Installer Nebula Finterest' }));
+    expect(props.onInstall).toHaveBeenCalledWith('nebula.finterest');
+  });
+
+  it('drops the SmartScreen line once an install succeeded', () => {
+    renderPage({ downloads: downloadsView({ operations: [] }) });
+    expect(screen.queryByText(/ne sont pas signées numériquement/)).not.toBeInTheDocument();
+  });
+
+  it('does not offer to install without a published installer', () => {
+    renderPage({}, 'nebula.clock');
+    expect(screen.queryByRole('button', { name: /Installer/ })).not.toBeInTheDocument();
+  });
+
+  it('shows the download progress in bytes, speed and time left, and can cancel', async () => {
+    const props = renderPage({ downloads: downloadsView() });
+    const bar = screen.getByRole('progressbar', { name: /Nebula Finterest — Téléchargement/ });
+    expect(bar).toHaveAttribute('aria-valuenow', '50');
+    expect(screen.getByText(/42,3 Mo sur 84,5 Mo · 3 Mo\/s · environ 14 s restantes/)).toBeInTheDocument();
+    expect(screen.getByText('Téléchargement 50 %')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Installer Nebula Finterest' })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Annuler l’installation de Nebula Finterest' }));
+    expect(props.onCancelOperation).toHaveBeenCalledWith('op-1');
+  });
+
+  it('asks the user to close the app, never closes it', () => {
+    renderPage({ downloads: downloadsView({ operations: [operation({ phase: 'waiting-for-app-exit' })] }) });
+    expect(screen.getByText('Fermez Nebula Finterest pour continuer : le Hub ne ferme jamais une app à votre place.')).toBeInTheDocument();
+  });
+
+  it('cannot cancel a running installer', () => {
+    renderPage({ downloads: downloadsView({ operations: [operation({ phase: 'installing' })] }) });
+    expect(screen.queryByRole('button', { name: /Annuler/ })).not.toBeInTheDocument();
+    expect(screen.getByText('Taille et empreinte SHA-512 vérifiées.')).toBeInTheDocument();
+  });
+
+  it('explains a failure in plain words and offers to retry', async () => {
+    const props = renderPage({ downloads: downloadsView({ operations: [operation({ phase: 'failed', failure: 'hash-mismatch' })] }) });
+    expect(screen.getByRole('alert')).toHaveTextContent('ne correspond pas à l’empreinte publiée (SHA-512) : il a été supprimé et rien n’a été installé.');
+    await userEvent.click(screen.getByRole('button', { name: /Réessayer/ }));
+    expect(props.onInstall).toHaveBeenCalledWith('nebula.finterest');
+    await userEvent.click(screen.getByRole('button', { name: 'Retirer Nebula Finterest de la liste' }));
+    expect(props.onDismissOperation).toHaveBeenCalledWith('op-1');
+  });
+});
+
+describe('Downloads', () => {
+  function renderDownloads(extra: Partial<CatalogScreenProps> = {}, onExportHistory = jest.fn(async () => 'saved' as const)) {
+    const props = { onNavigate: jest.fn(), onInstall: jest.fn(), onLaunch: jest.fn(), onCancelOperation: jest.fn(), onDismissOperation: jest.fn() };
+    wrap(<DownloadsScreen catalog={catalogView()} onRefresh={jest.fn()} onExportHistory={onExportHistory} {...props} {...extra} />);
+    return { ...props, onExportHistory };
+  }
+
+  it('has a level-1 title and skeletons while loading', () => {
+    renderDownloads();
+    expect(screen.getByRole('heading', { level: 1, name: 'Téléchargements' })).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveAttribute('aria-busy', 'true');
+  });
+
+  it('has a useful empty state', async () => {
+    const props = renderDownloads({ downloads: { operations: [], history: [] } });
+    expect(screen.getByRole('heading', { level: 3, name: 'Aucun téléchargement' })).toBeInTheDocument();
+    expect(screen.getByText('Aucune opération terminée pour l’instant.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Exporter le journal/ })).toBeDisabled();
+    await userEvent.click(screen.getByRole('button', { name: /Découvrir les apps/ }));
+    expect(props.onNavigate).toHaveBeenCalledWith({ screen: 'discover' });
+  });
+
+  it('shows the queue with its progress and counts', () => {
+    renderDownloads({ downloads: downloadsView({ operations: [operation(), operation({ id: 'op-2', appId: 'nebula.news', phase: 'queued', received: 0 })] }) });
+    const card = (label: string) => within(screen.getAllByText(label).map((element) => element.closest('article.summary-card')).find(Boolean) as HTMLElement);
+    expect(card('En cours').getByText('1')).toBeInTheDocument();
+    expect(card('En attente').getByText('1')).toBeInTheDocument();
+    expect(card('Terminés').getByText('1')).toBeInTheDocument();
+    expect(screen.getAllByRole('progressbar')).toHaveLength(2);
+    expect(screen.getByText('Une opération à la fois.')).toBeInTheDocument();
+  });
+
+  it('opens an app right after its install', async () => {
+    const props = renderDownloads({ downloads: downloadsView({ operations: [operation({ phase: 'installed', received: 88_626_634 })] }) });
+    expect(screen.getByText('Nebula Finterest v0.1.36 est installée.')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /Ouvrir/ }));
+    expect(props.onLaunch).toHaveBeenCalledWith('nebula.finterest');
+  });
+
+  it('lists the history and exports the journal', async () => {
+    const { onExportHistory } = renderDownloads({
+      downloads: downloadsView({
+        operations: [],
+        history: [historyEntry({ id: 2, appId: 'nebula.finterest', version: '0.1.36', outcome: 'failed', failure: 'http', detail: '404' }), historyEntry()],
+      }),
+    });
+    const rows = screen.getAllByRole('listitem');
+    expect(within(rows[0]).getByText('Échec')).toBeInTheDocument();
+    expect(within(rows[0]).getByText('Le serveur a refusé le téléchargement (code 404).')).toBeInTheDocument();
+    expect(within(rows[1]).getByText('Réussie')).toBeInTheDocument();
+    expect(within(rows[1]).getByText('Installation · v1.1.3')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /Exporter le journal/ }));
+    expect(onExportHistory).toHaveBeenCalled();
+    expect(await screen.findByText('Journal enregistré.')).toBeInTheDocument();
+  });
+});
+
+describe('Settings: install folder', () => {
+  function renderSettings(installDirectory: string | null) {
+    const props = { onAppearanceChange: jest.fn(), onSettingsChange: jest.fn(), onRefreshCatalog: jest.fn(), onPickInstallDirectory: jest.fn() };
+    wrap(<SettingsScreen settings={{ ...DEFAULT_SETTINGS, installDirectory }} resolvedTheme="nebula-dark" version="0.1.0" catalog={catalogView()} {...props} />);
+    return props;
+  }
+
+  it('uses each app’s folder by default and lets the user choose one', async () => {
+    const props = renderSettings(null);
+    expect(screen.getByText('Dossier proposé par chaque app (recommandé)')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Revenir au dossier proposé/ })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /Choisir un dossier/ }));
+    expect(props.onPickInstallDirectory).toHaveBeenCalled();
+  });
+
+  it('shows the chosen folder and goes back to the default', async () => {
+    const props = renderSettings('D:\\Apps');
+    expect(screen.getByText('D:\\Apps')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /Revenir au dossier proposé/ }));
+    expect(props.onSettingsChange).toHaveBeenCalledWith({ installDirectory: null });
   });
 });

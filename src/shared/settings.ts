@@ -1,4 +1,5 @@
 import { DEFAULT_NEBULA_APPEARANCE, parseNebulaAppearance, type NebulaAppearance } from '@nebula/design';
+import { isSafeInstallDirectory } from './installer-args';
 
 /** Release channel for app updates (brief §9.7). */
 export type UpdateChannel = 'stable' | 'beta';
@@ -12,6 +13,8 @@ export interface HubSettings {
   launchAtLogin: boolean;
   channel: UpdateChannel;
   onboardingCompleted: boolean;
+  /** Base folder for new installs (each app in its own subfolder); null = the installer's default. */
+  installDirectory: string | null;
 }
 
 export const DEFAULT_SETTINGS: HubSettings = {
@@ -20,6 +23,7 @@ export const DEFAULT_SETTINGS: HubSettings = {
   launchAtLogin: false,
   channel: 'stable',
   onboardingCompleted: false,
+  installDirectory: null,
 };
 
 export type SettingsPatch = Partial<Omit<HubSettings, 'appearance'>>;
@@ -44,6 +48,7 @@ export function parseSettings(value: unknown, fallback: HubSettings = DEFAULT_SE
     launchAtLogin: bool(record.launchAtLogin, fallback.launchAtLogin),
     channel: record.channel === 'beta' || record.channel === 'stable' ? record.channel : fallback.channel,
     onboardingCompleted: bool(record.onboardingCompleted, fallback.onboardingCompleted),
+    installDirectory: record.installDirectory === null || isSafeInstallDirectory(record.installDirectory) ? (record.installDirectory as string | null) : fallback.installDirectory,
   };
 }
 

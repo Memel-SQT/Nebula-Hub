@@ -1,4 +1,5 @@
 import type { CatalogEntry, CatalogView } from '@shared/catalog-view';
+import { isActive, type DownloadsView, type OperationView } from '@shared/install-state';
 import { updateAvailable, type InstalledApp, type InstalledView } from '@shared/installed-view';
 import type { LoadState } from './components/ScreenState';
 
@@ -28,4 +29,20 @@ export function installedSummary(catalog: CatalogView, installed: InstalledView 
   const family = familyEntries(catalog);
   const found = family.map((entry) => ({ entry, app: installedOf(installed, entry.app.id) })).filter((pair) => pair.app);
   return { installed: found.length, updates: found.filter((pair) => updateAvailable(pair.entry, pair.app)).length };
+}
+
+/** The operation shown for an app: the running one, else its last finished one (until dismissed). */
+export function operationOf(downloads: DownloadsView | undefined, appId: string): OperationView | undefined {
+  const operations = downloads?.operations.filter((operation) => operation.appId === appId) ?? [];
+  return operations.find((operation) => isActive(operation.phase)) ?? operations[operations.length - 1];
+}
+
+/** The Hub can install this app now: published Windows installer, not the Hub, Hub recent enough. */
+export function installable(entry: CatalogEntry): boolean {
+  return entry.app.role !== 'hub' && Boolean(entry.release?.installer) && !entry.requiresNewerHub;
+}
+
+/** Brief 7.4: the SmartScreen line is shown until the first successful install. */
+export function hasInstalledOnce(downloads: DownloadsView | undefined): boolean {
+  return Boolean(downloads?.history.some((entry) => entry.outcome === 'success'));
 }

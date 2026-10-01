@@ -1,5 +1,6 @@
 import type { NebulaAppearance } from '@nebula/design';
 import type { CatalogView } from './catalog-view';
+import type { DownloadsView, EnqueueResult } from './install-state';
 import type { InstalledView, LaunchResult } from './installed-view';
 import type { HubSettings, SettingsPatch } from './settings';
 
@@ -20,7 +21,17 @@ export const CHANNELS = {
   installedChanged: 'installed:changed',
   appLaunch: 'apps:launch',
   appShowFolder: 'apps:show-folder',
+  appInstall: 'apps:install',
+  downloadsGet: 'downloads:get',
+  downloadsChanged: 'downloads:changed',
+  operationCancel: 'operations:cancel',
+  operationDismiss: 'operations:dismiss',
+  historyExport: 'history:export',
+  pickInstallDirectory: 'settings:pick-install-directory',
 } as const;
+
+/** Result of exporting the operations journal. */
+export type ExportResult = 'saved' | 'cancelled' | 'failed';
 
 /** Read once, synchronously, by the preload so the first paint has the right theme. */
 export interface InitialState {
@@ -59,4 +70,17 @@ export interface NebulaHubBridge {
   launchApp(appId: string): Promise<LaunchResult>;
   /** Shows the app's executable in File Explorer. */
   showAppFolder(appId: string): Promise<boolean>;
+  /** Queues the download and silent install of a catalog app (brief §7.3–7.4). */
+  installApp(appId: string): Promise<EnqueueResult>;
+  /** Queue, progress and history of install operations. */
+  getDownloads(): Promise<DownloadsView>;
+  onDownloadsChanged(callback: (view: DownloadsView) => void): () => void;
+  /** Cancels an operation that has not reached the installer yet. */
+  cancelOperation(operationId: string): Promise<boolean>;
+  /** Removes a finished operation from the queue (it stays in the history). */
+  dismissOperation(operationId: string): Promise<boolean>;
+  /** Saves the operations journal where the user chooses (JSON). */
+  exportHistory(): Promise<ExportResult>;
+  /** Lets the user pick the base install folder; resolves with the saved settings, or null if cancelled. */
+  pickInstallDirectory(): Promise<HubSettings | null>;
 }

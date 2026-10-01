@@ -4,9 +4,9 @@
 les applications de la famille Nebula — Nebula Finterest, Nebula Clock, Nebula News — sur
 Windows, sans compte et sans télémétrie.
 
-> Projet en cours de développement : le catalogue signé, les fiches des apps et toute la
-> personnalisation sont en place ; la détection, l’installation, les mises à jour et
-> Nebula Link arrivent dans les jalons suivants.
+> Projet en cours de développement : le catalogue signé, les fiches des apps, la
+> personnalisation, le lanceur et l’installation des apps sont en place ; les mises à jour,
+> la réparation, la désinstallation et Nebula Link arrivent dans les jalons suivants.
 
 ## Ce que fait Nebula Hub
 
@@ -52,6 +52,11 @@ puis **Exécuter quand même**.
   l'app la propose via Nebula Link et que vous l'avez autorisée.
 - Le réseau ne sert qu'à lire le catalogue signé et à télécharger les installeurs, sur une liste
   fermée d'adresses GitHub.
+- Chaque installeur est vérifié (taille et empreinte SHA-512 publiées avec la release) avant
+  d'être lancé. Il est téléchargé dans `%LOCALAPPDATA%\Nebula Hub\downloads\`, puis supprimé
+  après l'installation ; ce dossier est vidé à chaque démarrage du Hub.
+- Le Hub ne ferme jamais une app à votre place : si elle est ouverte, il attend que vous la
+  fermiez.
 
 ## Développeurs
 
@@ -68,6 +73,8 @@ npm run dist:win   # installeur Windows dans install/windows/
 - Décisions techniques : [`docs/DECISIONS.md`](docs/DECISIONS.md)
 - Journal des changements techniques : [`DEV_CHANGES.md`](DEV_CHANGES.md)
 - Le catalogue des apps et sa signature : [`docs/CATALOG.md`](docs/CATALOG.md)
+- Recette manuelle dans Windows Sandbox : [`docs/TEST_PLAN_WINDOWS.md`](docs/TEST_PLAN_WINDOWS.md)
+  (`scripts/sandbox.ps1` ouvre une sandbox avec l’installeur fraîchement construit)
 - Les notes de version sont publiées uniquement dans les releases GitHub.
 
 ### Publier une version

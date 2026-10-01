@@ -2,8 +2,10 @@ import { useRef, type CSSProperties, type ReactNode } from 'react';
 import { Icon, spawnRipple, type IconName } from '@nebula/design/react';
 import { localize, type AppStatus } from '@shared/catalog';
 import type { CatalogEntry } from '@shared/catalog-view';
+import { isActive, type OperationView } from '@shared/install-state';
 import { updateAvailable, type InstalledApp } from '@shared/installed-view';
-import { useLanguage, useT } from '../i18n';
+import { progressRatio } from '@shared/progress';
+import { formatPercent, useLanguage, useT } from '../i18n';
 
 export type Tone = 'accent' | 'positive' | 'gold' | 'warning' | 'danger';
 
@@ -66,8 +68,15 @@ export function StatusChip({ status }: { status: AppStatus }) {
  * What the user should know about an app at a glance: incomplete install, update available
  * (one soft pulse when it appears, then static), open, installed — or its catalog status.
  */
-export function AppStateChip({ entry, installed }: { entry: CatalogEntry; installed?: InstalledApp }) {
+export function AppStateChip({ entry, installed, operation }: { entry: CatalogEntry; installed?: InstalledApp; operation?: OperationView }) {
   const t = useT();
+  const language = useLanguage();
+  if (operation && isActive(operation.phase)) {
+    const label = operation.phase === 'downloading'
+      ? t('install.chip.downloading', { percent: formatPercent(language, progressRatio(operation.received, operation.total)) })
+      : t(`install.phase.${operation.phase}`);
+    return <span className="status-chip status-update"><Icon name="download" size={12} /><span className="tabular">{label}</span></span>;
+  }
   if (installed && !installed.exeFound) {
     return <span className="status-chip status-deprecated"><Icon name="alert" size={12} />{t('app.state.broken')}</span>;
   }
@@ -94,9 +103,10 @@ function waveTile(tile: HTMLElement | null): void {
  * Launcher / catalog tile. In `launch` mode an installed app starts in one click (the Hub is a
  * launcher, ADR-013) and its page stays one button away; otherwise the tile opens the page.
  */
-export function AppTile({ entry, installed, mode = 'browse', onOpen, onLaunch }: {
+export function AppTile({ entry, installed, operation, mode = 'browse', onOpen, onLaunch }: {
   entry: CatalogEntry;
   installed?: InstalledApp;
+  operation?: OperationView;
   mode?: 'launch' | 'browse';
   onOpen: () => void;
   onLaunch?: () => void;
@@ -126,7 +136,7 @@ export function AppTile({ entry, installed, mode = 'browse', onOpen, onLaunch }:
       >
         <span className="app-tile-head">
           <AppIcon src={entry.icon} />
-          <AppStateChip entry={entry} installed={installed} />
+          <AppStateChip entry={entry} installed={installed} operation={operation} />
         </span>
         <strong>{app.name}</strong>
         <span className="app-tile-tagline">{localize(app.tagline, language)}</span>

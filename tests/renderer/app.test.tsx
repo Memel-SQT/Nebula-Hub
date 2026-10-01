@@ -2,8 +2,9 @@ import { act, render as rtlRender, screen, within } from '@testing-library/react
 import userEvent from '@testing-library/user-event';
 import { DEFAULT_SETTINGS, type HubSettings } from '../../src/shared/settings';
 import type { NebulaHubBridge } from '../../src/shared/bridge';
+import type { DownloadsView } from '../../src/shared/install-state';
 import { App } from '../../src/renderer/App';
-import { catalogView, installedView } from './fixtures';
+import { catalogView, downloadsView, installedView, operation } from './fixtures';
 
 /** Renders and lets the initial catalog request resolve inside act(). */
 async function render(node: JSX.Element) {
@@ -14,9 +15,10 @@ async function render(node: JSX.Element) {
   return result;
 }
 
-function installBridge(overrides: Partial<HubSettings> = {}, startedHidden = true) {
+function installBridge(overrides: Partial<HubSettings> = {}, startedHidden = true, installed = installedView()) {
   let settings: HubSettings = { ...DEFAULT_SETTINGS, ...overrides };
   const listeners: Array<(value: boolean) => void> = [];
+  const downloadListeners: Array<(view: DownloadsView) => void> = [];
   const bridge: NebulaHubBridge = {
     getInitialState: () => ({ settings, appVersion: '0.1.0', startedHidden }),
     updateAppearance: jest.fn(async (patch) => {
@@ -37,14 +39,28 @@ function installBridge(overrides: Partial<HubSettings> = {}, startedHidden = tru
     refreshCatalog: jest.fn(async () => catalogView()),
     getCatalogAsset: jest.fn(async () => null),
     onCatalogChanged: () => () => undefined,
-    getInstalled: jest.fn(async () => installedView()),
+    getInstalled: jest.fn(async () => installed),
     refreshInstalled: jest.fn(async () => installedView()),
     onInstalledChanged: () => () => undefined,
     launchApp: jest.fn(async () => 'launched' as const),
     showAppFolder: jest.fn(async () => true),
+    installApp: jest.fn(async () => 'queued' as const),
+    getDownloads: jest.fn(async () => downloadsView({ operations: [], history: [] })),
+    onDownloadsChanged: (callback) => {
+      downloadListeners.push(callback);
+      return () => undefined;
+    },
+    cancelOperation: jest.fn(async () => true),
+    dismissOperation: jest.fn(async () => true),
+    exportHistory: jest.fn(async () => 'saved' as const),
+    pickInstallDirectory: jest.fn(async () => null),
   };
   window.nebulaHub = bridge;
-  return { bridge, setVisible: (visible: boolean) => listeners.forEach((listener) => listener(visible)) };
+  return {
+    bridge,
+    setVisible: (visible: boolean) => listeners.forEach((listener) => listener(visible)),
+    pushDownloads: (view: DownloadsView) => act(() => downloadListeners.forEach((listener) => listener(view))),
+  };
 }
 
 beforeAll(() => {
@@ -120,6 +136,26 @@ describe('App', () => {
     await render(<App />);
     await userEvent.click(within(screen.getByRole('group', { name: 'Lancer une app' })).getByRole('button', { name: 'Ouvrir Nebula Clock' }));
     expect(await screen.findByText('Nebula Clock semble mal installée : son exécutable est introuvable.')).toBeInTheDocument();
+  });
+
+  it('installs an app from its page and shows the operation as it progresses', async () => {
+    const { bridge, pushDownloads } = installBridge({}, true, installedView({ apps: [] }));
+    await render(<App />);
+    await userEvent.click(within(screen.getByRole('group', { name: 'Lancer une app' })).getByRole('button', { name: 'Voir la fiche de Nebula Finterest' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Installer Nebula Finterest' }));
+    expect(bridge.installApp).toHaveBeenCalledWith('nebula.finterest');
+    await pushDownloads(downloadsView({ operations: [operation()], history: [] }));
+    expect(screen.getByRole('progressbar', { name: /Nebula Finterest/ })).toBeInTheDocument();
+    expect(screen.getByLabelText('1 en cours')).toBeInTheDocument();
+  });
+
+  it('explains a refused install', async () => {
+    const { bridge } = installBridge({}, true, installedView({ apps: [] }));
+    (bridge.installApp as jest.Mock).mockResolvedValueOnce('already-queued');
+    await render(<App />);
+    await userEvent.click(within(screen.getByRole('group', { name: 'Lancer une app' })).getByRole('button', { name: 'Voir la fiche de Nebula Finterest' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Installer Nebula Finterest' }));
+    expect(await screen.findByText('Nebula Finterest est déjà dans la file d’attente.')).toBeInTheDocument();
   });
 
   it('reacts to the window being hidden in the tray', async () => {

@@ -1,6 +1,7 @@
 import { Icon } from '@nebula/design/react';
 import type { CatalogEntry } from '@shared/catalog-view';
 import type { InstalledView } from '@shared/installed-view';
+import { isActive, type DownloadsView } from '@shared/install-state';
 import { installedOf } from '../catalog';
 import { HubMark } from '../brand/HubMark';
 import { useT } from '../i18n';
@@ -12,15 +13,17 @@ import { AppIcon } from './Cards';
  * the Nebula Link state), the section navigation, then the launcher rail ("waffle") with the
  * family apps, and the local-only footer.
  */
-export function Sidebar({ active, version, launcher, installed, onNavigate, onLaunch }: {
+export function Sidebar({ active, version, launcher, installed, downloads, onNavigate, onLaunch }: {
   active: Section;
   version: string;
   launcher: CatalogEntry[];
   installed?: InstalledView;
+  downloads?: DownloadsView;
   onNavigate: (route: Route) => void;
   onLaunch?: (appId: string) => void;
 }) {
   const t = useT();
+  const running = downloads?.operations.filter((operation) => isActive(operation.phase)).length ?? 0;
   return (
     <aside className="sidebar nebula-surface nebula-sidebar">
       <div className="brand-lockup">
@@ -52,6 +55,9 @@ export function Sidebar({ active, version, launcher, installed, onNavigate, onLa
             >
               <span className="nav-icon"><Icon name={section.icon} size={19} /></span>
               <span className="nav-label">{t(section.labelKey)}</span>
+              {section.id === 'downloads' && running > 0 ? (
+                <span className="nav-badge tabular" aria-label={t('nav.downloadsActive', { count: String(running) })}>{running}</span>
+              ) : null}
               {isActive ? <b><Icon name="chevronRight" size={14} /></b> : null}
             </button>
           );

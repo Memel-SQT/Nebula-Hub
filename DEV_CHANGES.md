@@ -2,6 +2,19 @@
 
 Technical log, newest session first. Release notes live only in the GitHub release body.
 
+## [2026-10-01] - Nebula Hub Session #5 — v0.1.0 published, M4: download and install
+
+- **v0.1.0** published on GitHub by an annotated tag (release workflow green: installer, blockmap, latest.yml, signed catalog). The workflow now fetches the tag object explicitly before reading its message (actions/checkout may leave a tag without its annotation).
+- **State machine** (`src/shared/install-state.ts`, ADR-021): brief §7.2 table, `transition` throws on illegal moves, tested on every pair of phases; operation, history and downloads view types; `restingPhase` from the detection.
+- **Installer arguments** (`src/shared/installer-args.ts`): ADR-004 arrays, `/D=` last and only for a safe user-chosen folder, `--delete-app-data` refused; `progress.ts` (speed over a sliding window, time left).
+- **Downloader** (`src/electron/net/download.ts`): streaming to `.part`, allowlist on every redirect hop, size cap from latest.yml, HTTP Range resume (restart from zero when the server ignores or misanswers it), stall timeout, cancel; `verifyFile` checks size + SHA-512 and deletes a bad file. `http.ts` exports its user agent and offline codes.
+- **InstallManager** (`src/electron/install/`): one operation at a time; download → verify → rename → wait for the app to be closed by the user (never closed by the Hub) → silent install → detection decides; failures mapped to plain-language reasons; cancel until the installer starts; history in `install_history` (migration 2); downloads folder emptied at startup, installer deleted after success. `spawnInstallerRunner`: spawn without shell, stops waiting after 10 min without killing.
+- **Settings**: `installDirectory` (null = each installer's default), picked with the Windows folder dialog, validated field by field.
+- **UI**: Install button on the app page with the SmartScreen line until the first success; live operation status (phase, progress bar animated with `transform` only, bytes, speed, time left, resumed, waiting for the app, verified, failure reason, retry, cancel, dismiss); state chip and tiles show the operation; Downloads screen rewritten (counts, queue, history, JSON journal export); sidebar badge on Downloads; Settings install folder.
+- **Sandbox kit**: `scripts/sandbox.ps1` (generates the .wsb in %TEMP%, installers mapped read-only) and `docs/TEST_PLAN_WINDOWS.md` (M4 recipe, M5 placeholders). Windows Sandbox is not enabled on the development machine.
+- **Live checks**: real Finterest 0.1.36 installer downloaded from GitHub, cut at 40 %, resumed with Range in 2.5 s, SHA-512 equal to the release latest.yml, tampered copy refused and deleted (nothing executed). In the dev Hub: install refusals (already installed, Hub, no installer, unknown app) from the real manager; queue, progress, failure, history, settings and app page rendered with a view injected through the main-process inspector; no console error.
+- Validation: typecheck, lint, 600 tests, build, dist:win.
+
 ## [2026-10-01] - Nebula Hub Session #4 — M3: detection and launch
 
 - **Detection** (ADR-003, ADR-020): `reg.exe export` (UTF-16LE) of the Uninstall keys, HKCU then HKLM then HKLM WOW6432Node, parsed by the pure `src/shared/reg-file.ts` (escaped strings, dword, hex(2) expand strings) and matched by `src/shared/detection.ts` (`DisplayName` = productName or productName + space; location from `Software\<key>\InstallLocation`, else the UninstallString folder; version from `DisplayVersion`). Fixtures are anonymized real exports plus a synthetic HKLM 32-bit one.

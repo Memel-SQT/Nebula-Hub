@@ -39,7 +39,7 @@ const LANGUAGE_LABELS: Record<Language, string> = { fr: 'Français', en: 'Englis
  * fingerprint) arrives with M2; notifications, backups (ADR-016) and the Hub's own updates
  * with later milestones.
  */
-export function SettingsScreen({ settings, resolvedTheme, version, catalog, onAppearanceChange, onSettingsChange, onRefreshCatalog }: {
+export function SettingsScreen({ settings, resolvedTheme, version, catalog, onAppearanceChange, onSettingsChange, onRefreshCatalog, onPickInstallDirectory }: {
   settings: HubSettings;
   resolvedTheme: ResolvedTheme;
   version: string;
@@ -47,6 +47,7 @@ export function SettingsScreen({ settings, resolvedTheme, version, catalog, onAp
   onAppearanceChange: (patch: Partial<NebulaAppearance>) => void;
   onSettingsChange: (patch: SettingsPatch) => void;
   onRefreshCatalog: () => void;
+  onPickInstallDirectory?: () => void;
 }) {
   const t = useT();
   const language = useLanguage();
@@ -212,6 +213,24 @@ export function SettingsScreen({ settings, resolvedTheme, version, catalog, onAp
             <i aria-hidden="true" />
             <span>{t('settings.closeToTray')}</span>
           </button>
+
+          <p className="settings-label" id="settings-install-dir-label">{t('settings.installDir')}</p>
+          <div className="install-dir" aria-labelledby="settings-install-dir-label" role="group">
+            {settings.installDirectory ? <code className="install-dir-path">{settings.installDirectory}</code> : <span className="install-dir-default">{t('settings.installDir.default')}</span>}
+            <div className="settings-actions">
+              {onPickInstallDirectory ? (
+                <button type="button" className="ghost small" onClick={onPickInstallDirectory}>
+                  <Icon name="folderSync" size={15} />{t('settings.installDir.choose')}
+                </button>
+              ) : null}
+              {settings.installDirectory ? (
+                <button type="button" className="ghost small" onClick={() => onSettingsChange({ installDirectory: null })}>
+                  <Icon name="refresh" size={15} />{t('settings.installDir.reset')}
+                </button>
+              ) : null}
+            </div>
+          </div>
+          <small className="path-note">{t('settings.installDir.hint')}</small>
         </div>
 
         <div className="settings-section">

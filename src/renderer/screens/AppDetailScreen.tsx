@@ -1,9 +1,10 @@
 import { Icon } from '@nebula/design/react';
 import { localize } from '@shared/catalog';
-import { catalogLoadState, findEntry, installedOf } from '../catalog';
+import { catalogLoadState, findEntry, hasInstalledOnce, installable, installedOf, operationOf } from '../catalog';
 import { AppIcon, AppStateChip, Panel, SnapshotRow, StatusChip } from '../components/Cards';
 import { CatalogNotices } from '../components/CatalogNotices';
 import { Markdown } from '../components/Markdown';
+import { OperationStatus } from '../components/Operation';
 import { Screenshots } from '../components/Screenshots';
 import { EmptyState, StateView } from '../components/ScreenState';
 import { ScreenFrame } from '../components/ScreenFrame';
@@ -13,9 +14,10 @@ import type { CatalogScreenProps } from './types';
 /**
  * App page: screenshots, description, the version on the user's channel with its date and
  * size, the release notes (rendered from tokens, R12), the data notice and the facts. Install,
- * update, repair and uninstall actions arrive in M4–M5; integrations (manifest) in M6.
+ * Install (M4) runs from here with its live progress; update, repair and uninstall arrive in M5;
+ * integrations (manifest) in M6.
  */
-export function AppDetailScreen({ appId, catalog, installed, onNavigate, onRefresh, onLaunch, onShowFolder, loadAsset, onOpenLink }: CatalogScreenProps & {
+export function AppDetailScreen({ appId, catalog, installed, downloads, onNavigate, onRefresh, onLaunch, onShowFolder, onInstall, onCancelOperation, onDismissOperation, loadAsset, onOpenLink }: CatalogScreenProps & {
   appId: string;
   loadAsset: (appId: string, path: string) => Promise<string | null>;
   onOpenLink: (url: string) => void;
@@ -24,6 +26,7 @@ export function AppDetailScreen({ appId, catalog, installed, onNavigate, onRefre
   const language = useLanguage();
   const entry = findEntry(catalog, appId);
   const local = installedOf(installed, appId);
+  const operation = operationOf(downloads, appId);
   const isHub = entry?.app.role === 'hub';
   const base = catalogLoadState(catalog);
   const status = base === 'loading' || base === 'error' ? base : !entry ? 'empty' : base === 'offline' ? 'offline' : 'ready';
@@ -56,11 +59,24 @@ export function AppDetailScreen({ appId, catalog, installed, onNavigate, onRefre
               <div className="app-hero-body">
                 <p className="app-hero-tagline">{localize(entry.app.tagline, language)}</p>
                 <div className="app-hero-chips">
-                  {local ? <AppStateChip entry={entry} installed={local} /> : null}
+                  {local || operation ? <AppStateChip entry={entry} installed={local} operation={operation} /> : null}
                   <StatusChip status={entry.app.status} />
                   <span className="category-chip">{t(`category.${entry.app.category}`)}</span>
                   {entry.release?.prerelease ? <span className="status-chip status-beta">{t('appDetail.prerelease')}</span> : null}
                 </div>
+                {operation ? (
+                  <OperationStatus operation={operation} name={entry.app.name} onCancel={onCancelOperation} onRetry={onInstall} onDismiss={onDismissOperation} />
+                ) : null}
+                {!local && !operation && onInstall && installable(entry) ? (
+                  <>
+                    <div className="app-hero-actions">
+                      <button type="button" data-sound="none" onClick={() => onInstall(entry.app.id)}>
+                        <Icon name="download" size={16} />{t('install.action.installNamed', { name: entry.app.name })}
+                      </button>
+                    </div>
+                    {!hasInstalledOnce(downloads) ? <small className="path-note settings-hint"><Icon name="info" size={14} />{t('install.smartScreen')}</small> : null}
+                  </>
+                ) : null}
                 {local ? (
                   <div className="app-hero-actions">
                     {!isHub && local.exeFound && onLaunch ? (

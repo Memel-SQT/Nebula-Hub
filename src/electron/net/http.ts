@@ -6,7 +6,7 @@ import { checkUrl, PRODUCTION_POLICY, type NetPolicy } from '../../shared/net-po
  * The only way the Hub talks to the network (rule R05). Every URL — including every redirect
  * hop — is checked against the allowlist before a socket is opened; responses are size-capped
  * and time-limited. Buffered GET for small resources (catalog, GitHub API, feeds, images);
- * installers get a streaming downloader in M4.
+ * installers go through the streaming downloader (`download.ts`), which applies the same policy.
  */
 export class NetError extends Error {
   constructor(
@@ -40,8 +40,8 @@ export interface GetResult {
 
 export type HttpGet = (url: string, options: GetOptions) => Promise<GetResult>;
 
-const OFFLINE_CODES = new Set(['ENOTFOUND', 'EAI_AGAIN', 'ECONNREFUSED', 'ECONNRESET', 'ENETUNREACH', 'EHOSTUNREACH', 'ETIMEDOUT']);
-const USER_AGENT = 'NebulaHub (+https://github.com/Memel-SQT/Nebula-Hub)';
+export const OFFLINE_CODES = new Set(['ENOTFOUND', 'EAI_AGAIN', 'ECONNREFUSED', 'ECONNRESET', 'ENETUNREACH', 'EHOSTUNREACH', 'ETIMEDOUT']);
+export const USER_AGENT = 'NebulaHub (+https://github.com/Memel-SQT/Nebula-Hub)';
 
 function headerValue(value: string | string[] | undefined): string {
   return Array.isArray(value) ? value.join(', ') : value ?? '';

@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import { CHANNELS, type InitialState, type NebulaHubBridge } from '../shared/bridge';
 import type { CatalogView } from '../shared/catalog-view';
+import type { DownloadsView } from '../shared/install-state';
 import type { InstalledView } from '../shared/installed-view';
 import type { HubSettings } from '../shared/settings';
 
@@ -30,6 +31,13 @@ const bridge: NebulaHubBridge = {
   onInstalledChanged: (callback) => subscribe<InstalledView>(CHANNELS.installedChanged, callback),
   launchApp: (appId) => ipcRenderer.invoke(CHANNELS.appLaunch, appId),
   showAppFolder: (appId) => ipcRenderer.invoke(CHANNELS.appShowFolder, appId),
+  installApp: (appId) => ipcRenderer.invoke(CHANNELS.appInstall, appId),
+  getDownloads: () => ipcRenderer.invoke(CHANNELS.downloadsGet),
+  onDownloadsChanged: (callback) => subscribe<DownloadsView>(CHANNELS.downloadsChanged, callback),
+  cancelOperation: (operationId) => ipcRenderer.invoke(CHANNELS.operationCancel, operationId),
+  dismissOperation: (operationId) => ipcRenderer.invoke(CHANNELS.operationDismiss, operationId),
+  exportHistory: () => ipcRenderer.invoke(CHANNELS.historyExport),
+  pickInstallDirectory: () => ipcRenderer.invoke(CHANNELS.pickInstallDirectory),
 };
 
 contextBridge.exposeInMainWorld('nebulaHub', bridge);

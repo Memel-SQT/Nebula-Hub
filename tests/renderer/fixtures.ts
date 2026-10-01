@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { validateCatalog } from '../../src/shared/catalog';
 import { EMPTY_CATALOG_VIEW, type CatalogEntry, type CatalogView } from '../../src/shared/catalog-view';
+import type { DownloadsView, HistoryEntry, OperationView } from '../../src/shared/install-state';
 import type { InstalledView } from '../../src/shared/installed-view';
 
 const raw = JSON.parse(fs.readFileSync(path.join(__dirname, '../../catalog/nebula-catalog.json'), 'utf8'));
@@ -59,4 +60,45 @@ export function installedView(patch: Partial<InstalledView> = {}): InstalledView
     ],
     ...patch,
   };
+}
+
+export function operation(patch: Partial<OperationView> = {}): OperationView {
+  return {
+    id: 'op-1',
+    appId: 'nebula.finterest',
+    kind: 'install',
+    version: '0.1.36',
+    fromVersion: null,
+    phase: 'downloading',
+    failure: null,
+    failureDetail: null,
+    received: 44_313_317,
+    total: 88_626_634,
+    bytesPerSecond: 3_145_728,
+    etaSeconds: 14,
+    resumed: false,
+    queuedAt: '2026-10-01T10:10:00Z',
+    finishedAt: null,
+    ...patch,
+  };
+}
+
+export function historyEntry(patch: Partial<HistoryEntry> = {}): HistoryEntry {
+  return {
+    id: 1,
+    appId: 'nebula.clock',
+    kind: 'install',
+    version: '1.1.3',
+    fromVersion: null,
+    outcome: 'success',
+    failure: null,
+    detail: null,
+    startedAt: '2026-10-01T09:00:00Z',
+    finishedAt: '2026-10-01T09:01:00Z',
+    ...patch,
+  };
+}
+
+export function downloadsView(patch: Partial<DownloadsView> = {}): DownloadsView {
+  return { operations: [operation()], history: [historyEntry()], ...patch };
 }

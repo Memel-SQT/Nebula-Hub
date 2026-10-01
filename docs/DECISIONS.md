@@ -427,3 +427,53 @@ Les constats qui fondent ces décisions sont détaillés dans [DISCOVERY.md](DIS
 - **Conséquence** : M4–M5 réutilisent `InstalledAppsService` pour relire la version après une
   installation, une mise à jour ou une réparation (ADR-004), et pour attendre la disparition de
   la clé après une désinstallation.
+
+## ADR-021 — Téléchargement et installation (M4)
+
+- **Statut** : Accepté (M4). Précise la section 7 du brief et ADR-004.
+- **File d'opérations** : une seule opération à la fois, téléchargement **et** installation
+  compris (un installeur NSIS prend de toute façon un verrou global par app). La file vit en
+  mémoire dans le processus principal (`InstallManager`) ; seul l'historique est persisté.
+- **Écart au brief (§5.3)** : pas de table `downloads`. Les téléchargements sont purgés au
+  démarrage (brief) : une table qui décrirait des fichiers effacés n'aurait rien à restaurer.
+  `install_history` (migration 2, additive) porte le journal ; la table `downloads` pourra
+  arriver plus tard si une reprise après redémarrage du Hub devient utile.
+- **Dossier de téléchargement** : `%LOCALAPPDATA%\Nebula Hub\downloads` (local, jamais itinérant ;
+  le brief disait `Nebula Store`, renommé par ADR-013). Vidé au démarrage. Un installeur est
+  supprimé après une installation réussie ; après un échec de l'installeur, il est gardé pour
+  « Réessayer » pendant la session et **vérifié à nouveau** (taille + SHA-512) avant d'être relancé.
+- **Téléchargement** (`src/electron/net/download.ts`) : flux vers un fichier `.part`, chaque saut
+  de redirection vérifié contre la liste blanche avant la connexion (R05), jamais au-delà de la
+  taille de `latest.yml`, `Content-Length` contrôlé dès l'en-tête. **Reprise** par `Range` si le
+  serveur répond `206` avec le bon `Content-Range` ; sinon le fichier repart de zéro (une fois).
+  Une coupure réseau ou un serveur muet (30 s) garde le `.part` ; une taille ou une empreinte
+  fausse le supprime (R02). Vérifié en réel : coupure à 40 %, reprise via `Range` sur le CDN des
+  releases GitHub, SHA-512 conforme au `latest.yml` de la release.
+- **Installation** : arguments d'ADR-004 (`/S`, puis `/D=<dossier>` en dernier si l'utilisateur a
+  choisi un dossier ; `--updated /S` pour M5) calculés par `shared/installer-args.ts`, qui refuse
+  `--delete-app-data` et tout dossier douteux (relatif, UNC, guillemets, `..`, caractères
+  interdits). `spawn` avec tableau d'arguments, sans shell (R11).
+- **Délai** : 10 minutes. Passé ce délai, le Hub arrête d'attendre et le dit, mais **ne tue pas**
+  l'installeur (R08) : un installeur interrompu laisserait une app cassée.
+- **Le registre fait foi** (ADR-004) : après l'installeur, quel que soit son code de sortie, le Hub
+  relance la détection ; l'opération réussit seulement si la version attendue est installée et
+  son exécutable présent. Sinon : code de sortie, délai, app introuvable ou autre version.
+- **App ouverte** : si l'exécutable tourne au moment d'installer, l'opération passe en « En
+  attente de fermeture » et attend que l'utilisateur la ferme (annulable). Le Hub ne ferme jamais
+  l'app (R08) ; la fermeture propre via Link viendra en M6–M8.
+- **Machine à états** (`shared/install-state.ts`) : la table du brief, plus deux précisions :
+  pas d'annulation pendant `installing` et `verifying-install` (on n'interrompt pas un
+  installeur), et `update-available → installed` quand l'updater propre de l'app a fait la mise
+  à jour. `failed` et `cancelled` reviennent à la phase de repos donnée par la détection.
+- **Dossier d'installation** (réglage) : un dossier de base choisi par l'utilisateur ; chaque app
+  va dans `<base>\<productName>`. Les apps déjà installées ne bougent pas (une mise à jour ne
+  passe jamais `/D`).
+- **SmartScreen** : une ligne sur la fiche, à côté du bouton « Installer », jusqu'à la première
+  installation réussie. Les installeurs lancés par le Hub n'ont pas la « marque du Web » et ne
+  déclenchent normalement pas SmartScreen ; la ligne reste vraie et prévient la question.
+- **Journal** : export JSON (opérations seulement, sans donnée des apps) à l'endroit choisi par
+  l'utilisateur, via la boîte de dialogue de Windows.
+- **Tests** : serveur HTTP local qui se comporte mal à la demande (taille, empreinte, redirection
+  hors liste blanche, coupure puis reprise, `Range` ignoré ou faux, serveur muet, annulation) ;
+  `InstallManager` avec faux téléchargeur, faux installeur et vrai processus Node faisant office
+  d'installeur (arguments transmis tels quels, code de sortie, délai sans arrêt du processus).

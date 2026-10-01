@@ -1,5 +1,5 @@
 import path from 'node:path';
-import { app, ipcMain, nativeTheme, shell } from 'electron';
+import { app, dialog, ipcMain, nativeTheme, shell } from 'electron';
 import { CHANNELS, type InitialState } from '../shared/bridge';
 import type { HubSettings } from '../shared/settings';
 import { isSafeExternalUrl } from '../shared/url';
@@ -8,6 +8,11 @@ import { windowsProbe } from './apps/system-probe';
 import { CatalogService } from './catalog/catalog-service';
 import { CATALOG_PUBLIC_KEY } from './catalog-key';
 import { HubDatabase } from './db';
+import { writeFileAtomic } from './fsutil';
+import { InstallHistory } from './install/history';
+import { InstallManager } from './install/install-manager';
+import { spawnInstallerRunner } from './install/installer-runner';
+import { downloadFile, verifyFile } from './net/download';
 import { httpGet } from './net/http';
 import { hardenApp, hardenSession, isTrustedSender } from './security';
 import { SettingsStore } from './settings-store';
@@ -26,6 +31,16 @@ const settingsStore = SettingsStore.inDirectory(app.getPath('userData'));
 const database = HubDatabase.inDirectory(app.getPath('userData'));
 let catalog: CatalogService | null = null;
 let installed: InstalledAppsService | null = null;
+let installs: InstallManager | null = null;
+
+/**
+ * Installers are downloaded to %LOCALAPPDATA%\Nebula Hub\downloads (brief §5.3): local, never
+ * roamed, purged at startup. A throwaway data folder (manual tests) keeps its downloads inside it.
+ */
+function downloadsDir(): string {
+  if (process.env.NEBULA_HUB_USER_DATA_DIR) return path.join(app.getPath('userData'), 'downloads');
+  return path.join(process.env.LOCALAPPDATA || app.getPath('temp'), 'Nebula Hub', 'downloads');
+}
 
 /** The signed catalog shipped with the app (extraResources), last-resort source (ADR-019). */
 function bundledCatalogDir(): string {
@@ -58,6 +73,20 @@ if (!app.requestSingleInstanceLock()) {
       getMainWindow()?.webContents.send(CHANNELS.installedChanged, view);
       updateTray(trayOptions());
     });
+    installs = new InstallManager({
+      entry: (appId) => catalog?.getView().entries.find((entry) => entry.app.id === appId),
+      installedView: () => installed?.getView() ?? { state: 'loading', apps: [], detectedAt: null },
+      detect: () => installed!.detect(),
+      runningProcesses: () => windowsProbe.runningProcesses(),
+      download: downloadFile,
+      verify: verifyFile,
+      runner: spawnInstallerRunner,
+      history: new InstallHistory(database),
+      downloadsDir: downloadsDir(),
+      installDirectory: () => settingsStore.get().installDirectory,
+    });
+    await installs.cleanup();
+    installs.onChange((view) => getMainWindow()?.webContents.send(CHANNELS.downloadsChanged, view));
     // A new catalog may list new apps: detect again.
     catalog.onChange(() => installed?.requestDetect());
     registerIpcHandlers();
@@ -205,6 +234,59 @@ function registerIpcHandlers(): void {
     if (!record?.exeFound) return false;
     shell.showItemInFolder(record.exePath);
     return true;
+  });
+
+  ipcMain.handle(CHANNELS.appInstall, (event, appId: unknown) => {
+    if (!isTrustedSender(event) || !installs || typeof appId !== 'string') return 'unknown-app';
+    return installs.enqueue(appId);
+  });
+
+  ipcMain.handle(CHANNELS.downloadsGet, (event) => {
+    if (!isTrustedSender(event) || !installs) throw new Error('ERR_UNTRUSTED_SENDER');
+    return installs.getView();
+  });
+
+  ipcMain.handle(CHANNELS.operationCancel, (event, operationId: unknown) => {
+    if (!isTrustedSender(event) || !installs || typeof operationId !== 'string') return false;
+    return installs.cancel(operationId);
+  });
+
+  ipcMain.handle(CHANNELS.operationDismiss, (event, operationId: unknown) => {
+    if (!isTrustedSender(event) || !installs || typeof operationId !== 'string') return false;
+    return installs.dismiss(operationId);
+  });
+
+  ipcMain.handle(CHANNELS.historyExport, async (event) => {
+    if (!isTrustedSender(event) || !installs) return 'failed';
+    const window = getMainWindow();
+    const day = new Date().toISOString().slice(0, 10);
+    const options = {
+      title: 'Nebula Hub',
+      defaultPath: path.join(app.getPath('documents'), `nebula-hub-journal-${day}.json`),
+      filters: [{ name: 'JSON', extensions: ['json'] }],
+    };
+    const choice = window ? await dialog.showSaveDialog(window, options) : await dialog.showSaveDialog(options);
+    if (choice.canceled || !choice.filePath) return 'cancelled';
+    const journal = { app: 'Nebula Hub', version: app.getVersion(), exportedAt: new Date().toISOString(), operations: installs.getView().history };
+    try {
+      await writeFileAtomic(choice.filePath, JSON.stringify(journal, null, 2));
+      return 'saved';
+    } catch {
+      return 'failed';
+    }
+  });
+
+  ipcMain.handle(CHANNELS.pickInstallDirectory, async (event) => {
+    if (!isTrustedSender(event)) return null;
+    const window = getMainWindow();
+    const current = settingsStore.get().installDirectory;
+    const options = { properties: ['openDirectory' as const, 'createDirectory' as const], ...(current ? { defaultPath: current } : {}) };
+    const choice = window ? await dialog.showOpenDialog(window, options) : await dialog.showOpenDialog(options);
+    if (choice.canceled || !choice.filePaths[0]) return null;
+    // Validated again by the settings parser (isSafeInstallDirectory): an odd path is ignored.
+    const settings = await settingsStore.update({ installDirectory: choice.filePaths[0] });
+    broadcastSettings(settings);
+    return settings;
   });
 
   ipcMain.handle(CHANNELS.catalogAsset, async (event, appId: unknown, assetPath: unknown) => {

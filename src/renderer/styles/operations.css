@@ -1,0 +1,62 @@
+/* Install operations (M4): progress, queue, history, install folder setting. */
+
+.operation { display: grid; gap: 0.45rem; width: 100%; margin-top: 0.9rem; }
+.operation-head { display: flex; align-items: center; justify-content: space-between; gap: 0.8rem; }
+.operation-phase { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.82rem; font-weight: 700; }
+.operation-phase b { color: var(--accent-hover); font-weight: 750; }
+.operation-version { color: var(--muted); font-size: 0.72rem; font-weight: 650; }
+
+/* The bar grows with transform only (no layout animation); a short ease smooths the steps. */
+.progress-track { position: relative; overflow: hidden; height: 6px; border-radius: 999px; background: var(--surface-raised); }
+.progress-track i { position: absolute; inset: 0; border-radius: inherit; background: var(--accent-gradient); transform: scaleX(var(--progress, 0)); transform-origin: left center; transition: transform var(--motion-base) var(--ease-out); }
+.progress-track.progress-full i { opacity: 0.55; }
+:root[data-motion='off'] .progress-track i { transition: none; }
+
+.operation-meta { display: flex; align-items: center; gap: 0.35rem; margin: 0; color: var(--muted); font-size: 0.74rem; }
+.operation-note { display: flex; align-items: flex-start; gap: 0.45rem; margin: 0.15rem 0 0; font-size: 0.78rem; font-weight: 600; line-height: 1.45; }
+.operation-note svg { flex: 0 0 auto; margin-top: 0.1rem; }
+.operation-note.warning { color: var(--warning); }
+.operation-note.error { color: var(--danger); }
+.operation-note.success { color: var(--positive); }
+.operation-actions { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.operation-actions:empty { display: none; }
+.app-hero-body .operation { max-width: 520px; }
+
+/* Downloads screen. */
+.operation-list, .history-list { display: grid; gap: 0.6rem; margin: 0; padding: 0; list-style: none; }
+.operation-row { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 1rem; padding: 1rem; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface-muted); }
+.operation-row.operation-failed { border-color: color-mix(in srgb, var(--danger) 40%, transparent); }
+.operation-body { min-width: 0; }
+.operation-body > strong { font-size: 0.95rem; letter-spacing: -0.01em; }
+.operation-body .operation { margin-top: 0.5rem; }
+
+.history-panel { margin-top: 1rem; }
+.history-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: 0.9rem; padding: 0.6rem 0.2rem; border-bottom: 1px solid var(--line); }
+.history-row:last-child { border-bottom: 0; }
+.history-main { display: grid; gap: 0.1rem; min-width: 0; }
+.history-main strong { font-size: 0.86rem; }
+.history-main span { color: var(--muted); font-size: 0.74rem; }
+.history-main small { color: var(--danger); font-size: 0.72rem; }
+.history-date { color: var(--muted); font-size: 0.72rem; white-space: nowrap; }
+.error-text { color: var(--danger); }
+
+/* Sidebar: number of operations in flight on "Downloads". */
+.nav-button:has(.nav-badge) { grid-template-columns: 24px minmax(0, 1fr) auto 12px; }
+.nav-badge { min-width: 1.25rem; padding: 0.05rem 0.4rem; border-radius: 999px; background: var(--accent-soft); color: var(--accent-hover); font-size: 0.66rem; font-weight: 800; text-align: center; }
+
+/* Settings: install folder. */
+.install-dir { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem 1rem; }
+.install-dir .settings-actions { margin: 0; }
+.install-dir-path { padding: 0.35rem 0.6rem; border-radius: var(--radius); background: var(--surface-muted); font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace; font-size: 0.76rem; overflow-wrap: anywhere; user-select: text; }
+.install-dir-default { color: var(--muted); font-size: 0.8rem; }
+
+@media (max-width: 760px) {
+  .history-row { grid-template-columns: auto minmax(0, 1fr); }
+  .history-row .status-chip, .history-date { grid-column: 2; justify-self: start; }
+}
+
+/* Same breakpoint as the compact sidebar (app.css): the badge sits on the icon. */
+@media (max-width: 720px) {
+  .nav-button:has(.nav-badge) { grid-template-columns: 20px auto; }
+  .nav-badge { position: absolute; top: 0.1rem; right: 0.1rem; min-width: 1rem; padding: 0 0.25rem; font-size: 0.6rem; }
+}
