@@ -6,7 +6,8 @@ export default defineConfig({
   entry: ['src/electron/main.ts', 'src/electron/preload.ts'],
   format: ['cjs'],
   outDir: 'dist/electron',
-  external: ['electron'],
+  // sql.js stays in node_modules: it locates its WASM binary next to its own files.
+  external: ['electron', 'sql.js'],
   sourcemap: true,
   clean: false,
   target: 'node22',

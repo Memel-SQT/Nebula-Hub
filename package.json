@@ -24,12 +24,15 @@
     "dist:win": "cross-env CSC_IDENTITY_AUTO_DISCOVERY=false npm run build && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win nsis --publish never --config.directories.output=install/windows",
     "test": "jest",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint \"src/**/*.{ts,tsx}\" \"tests/**/*.{ts,tsx}\" \"packages/*/src/**/*.{ts,tsx}\""
+    "lint": "eslint \"src/**/*.{ts,tsx}\" \"tests/**/*.{ts,tsx}\" \"packages/*/src/**/*.{ts,tsx}\" \"scripts/**/*.ts\"",
+    "catalog:sign": "ts-node --transpile-only -O \"{\\\"module\\\":\\\"commonjs\\\",\\\"moduleResolution\\\":\\\"node\\\"}\" scripts/sign-catalog.ts"
   },
   "dependencies": {
     "electron-updater": "^6.8.9",
+    "marked": "^18.0.14",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "sql.js": "^1.14.2"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",
@@ -39,6 +42,7 @@
     "@types/node": "^22.19.0",
     "@types/react": "^18.3.26",
     "@types/react-dom": "^18.3.7",
+    "@types/sql.js": "^1.4.11",
     "@vitejs/plugin-react": "^5.2.0",
     "concurrently": "^9.2.1",
     "cross-env": "^7.0.3",
@@ -87,7 +91,19 @@
       "oneClick": true,
       "perMachine": false,
       "deleteAppDataOnUninstall": false
-    }
+    },
+    "extraResources": [
+      {
+        "from": "catalog",
+        "to": "catalog",
+        "filter": [
+          "nebula-catalog.json",
+          "nebula-catalog.json.sig",
+          "icons/**",
+          "screenshots/**"
+        ]
+      }
+    ]
   },
   "allowScripts": {
     "electron@44.5.1": true,

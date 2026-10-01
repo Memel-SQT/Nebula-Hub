@@ -1,6 +1,6 @@
 import { Icon } from '@nebula/design/react';
+import type { CatalogEntry } from '@shared/catalog-view';
 import { HubMark } from '../brand/HubMark';
-import { FAMILY_APPS } from '../family';
 import { useT } from '../i18n';
 import { SECTIONS, type Route, type Section } from '../navigation';
 import { AppIcon } from './Cards';
@@ -10,7 +10,7 @@ import { AppIcon } from './Cards';
  * the Nebula Link state), the section navigation, then the launcher rail ("waffle") with the
  * family apps, and the local-only footer.
  */
-export function Sidebar({ active, version, onNavigate }: { active: Section; version: string; onNavigate: (route: Route) => void }) {
+export function Sidebar({ active, version, launcher, onNavigate }: { active: Section; version: string; launcher: CatalogEntry[]; onNavigate: (route: Route) => void }) {
   const t = useT();
   return (
     <aside className="sidebar nebula-surface nebula-sidebar">
@@ -51,11 +51,12 @@ export function Sidebar({ active, version, onNavigate }: { active: Section; vers
 
       <div className="launcher-rail" role="group" aria-labelledby="launcher-title">
         <p className="launcher-title" id="launcher-title"><Icon name="grid" size={13} />{t('nav.launcher')}</p>
+        {launcher.length === 0 ? <p className="launcher-empty">{t('nav.launcherEmpty')}</p> : null}
         <div className="launcher-apps">
-          {FAMILY_APPS.map((app) => (
-            <button key={app.id} type="button" className="launcher-app plain" data-sound="nav" title={app.name} onClick={() => onNavigate({ screen: 'app', appId: app.id })}>
-              <AppIcon app={app} size={30} />
-              <span>{app.name.replace(/^Nebula /, '')}</span>
+          {launcher.map((entry) => (
+            <button key={entry.app.id} type="button" className="launcher-app plain" data-sound="nav" title={entry.app.name} onClick={() => onNavigate({ screen: 'app', appId: entry.app.id })}>
+              <AppIcon src={entry.icon} size={30} />
+              <span>{entry.app.name.replace(/^Nebula /, '')}</span>
             </button>
           ))}
         </div>

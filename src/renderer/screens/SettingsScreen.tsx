@@ -14,7 +14,9 @@ import {
 } from '@nebula/design';
 import { Icon, type IconName } from '@nebula/design/react';
 import { ScreenFrame } from '../components/ScreenFrame';
-import { useT } from '../i18n';
+import { formatDateTime, useLanguage, useT } from '../i18n';
+import { SnapshotRow } from '../components/Cards';
+import type { CatalogView } from '@shared/catalog-view';
 import type { HubSettings, SettingsPatch } from '@shared/settings';
 
 const BACKGROUND_ICONS: Record<BackgroundEffect, IconName> = {
@@ -33,17 +35,21 @@ const LANGUAGE_LABELS: Record<Language, string> = { fr: 'Français', en: 'Englis
  * (same controls, same order, same sounds): theme as a segmented control, accent swatches
  * plus two color pickers in custom mode, background preview tiles, 3-step motion control,
  * sound switch, volume and test, and "reset appearance". Every change applies immediately,
- * with no Save button. Sources, channel, notifications, backups (ADR-016) and updates of the
- * Hub itself are added by later milestones.
+ * with no Save button. The catalog section (read-only sources, channel, last sync, key
+ * fingerprint) arrives with M2; notifications, backups (ADR-016) and the Hub's own updates
+ * with later milestones.
  */
-export function SettingsScreen({ settings, resolvedTheme, version, onAppearanceChange, onSettingsChange }: {
+export function SettingsScreen({ settings, resolvedTheme, version, catalog, onAppearanceChange, onSettingsChange, onRefreshCatalog }: {
   settings: HubSettings;
   resolvedTheme: ResolvedTheme;
   version: string;
+  catalog: CatalogView;
   onAppearanceChange: (patch: Partial<NebulaAppearance>) => void;
   onSettingsChange: (patch: SettingsPatch) => void;
+  onRefreshCatalog: () => void;
 }) {
   const t = useT();
+  const language = useLanguage();
   const appearance = settings.appearance;
 
   return (
@@ -206,6 +212,41 @@ export function SettingsScreen({ settings, resolvedTheme, version, onAppearanceC
             <i aria-hidden="true" />
             <span>{t('settings.closeToTray')}</span>
           </button>
+        </div>
+
+        <div className="settings-section">
+          <h2><Icon name="store" size={15} />{t('settings.catalog')}</h2>
+          <p className="settings-label" id="settings-channel-label">{t('settings.channel')}</p>
+          <div className="segmented" role="radiogroup" aria-labelledby="settings-channel-label">
+            {(['stable', 'beta'] as const).map((channel) => (
+              <button key={channel} type="button" role="radio" aria-checked={settings.channel === channel} className={settings.channel === channel ? 'active' : ''} data-sound="toggle" onClick={() => onSettingsChange({ channel })}>
+                {t(`channel.${channel}`)}
+              </button>
+            ))}
+          </div>
+          <small className="path-note">{t('settings.channelHint')}</small>
+          <div className="settings-facts">
+            <SnapshotRow label={t('settings.lastSync')} value={catalog.syncedAt ? formatDateTime(language, catalog.syncedAt) : t('settings.never')} />
+            <SnapshotRow label={t('settings.currentSource')} value={catalog.source ? t(`source.${catalog.source}`) : '—'} />
+            {catalog.generatedAt ? <SnapshotRow label={t('settings.generatedAt')} value={formatDateTime(language, catalog.generatedAt)} /> : null}
+          </div>
+          <p className="settings-label">{t('settings.sources')}</p>
+          <ol className="source-list">
+            {catalog.sources.map((source) => (
+              <li key={source.id}>
+                <strong>{t(`source.${source.id}`)}</strong>
+                {source.url !== 'app' ? <code>{source.url}</code> : null}
+              </li>
+            ))}
+          </ol>
+          <p className="settings-label">{t('settings.fingerprint')}</p>
+          <code className="fingerprint tabular">{catalog.publicKeyFingerprint}</code>
+          <small className="path-note">{t('settings.fingerprintHint')}</small>
+          <div className="settings-actions settings-reset">
+            <button type="button" className="ghost small" disabled={catalog.refreshing} onClick={onRefreshCatalog}>
+              <Icon name="refresh" size={15} className={catalog.refreshing ? 'spin' : undefined} />{t('settings.refreshNow')}
+            </button>
+          </div>
         </div>
 
         <div className="settings-section">

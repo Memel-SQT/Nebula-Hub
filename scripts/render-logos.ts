@@ -21,6 +21,8 @@ const kit = process.env.ICONKIT_DIR;
 if (!kit) {
   throw new Error('Set ICONKIT_DIR to a folder where @resvg/resvg-js and png-to-ico are installed.');
 }
+// The kit lives outside the project on purpose (not a dependency), so it is loaded by path.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 const kitRequire = (name: string) => require(require.resolve(name, { paths: [kit] }));
 const { Resvg } = kitRequire('@resvg/resvg-js') as { Resvg: new (svg: string, options: unknown) => { render(): { asPng(): Buffer } } };
 const pngToIcoModule = kitRequire('png-to-ico') as { default?: (input: Buffer[]) => Promise<Buffer> } & ((input: Buffer[]) => Promise<Buffer>);

@@ -2,6 +2,15 @@
 
 Technical log, newest session first. Release notes live only in the GitHub release body.
 
+## [2026-10-01] - Nebula Hub Session #3 — M2: signed catalog
+
+- **Catalog format** (`src/shared/catalog.ts`, schema 1, documented in `docs/CATALOG.md`): strict field-by-field validation; every remote string that can reach a path or a command line is checked (asset paths limited to `icons/`|`screenshots/` without traversal, bare `.exe` names, installer switches allow-listed and `--delete-app-data` refused, backup folder a single safe name). `minHubVersion` replaces `minStoreVersion`; `role: "hub"` marks the Hub entry; `windows.preOperationBackup` is structured (Finterest first).
+- **Signature (R03)**: Ed25519 over the exact file bytes with node:crypto; public key embedded (`src/electron/catalog-key.ts`), private key generated outside the repo (`scripts/generate-catalog-key.ts`), `npm run catalog:sign` validates, signs and re-verifies with the embedded key. `.gitattributes` keeps the signed bytes untouched.
+- **Network (R05)**: `src/electron/net/http.ts`, node:https with manual redirects checked hop by hop against `src/shared/net-policy.ts` (HTTPS only, exact hosts, no credentials, no custom port), size and time caps, ETag, distinct error codes (blocked, offline, timeout, too large, status, rate-limited). Tested against a local server.
+- **CatalogService** (ADR-019): sources raw → latest Hub release → verified cache → signed catalog bundled in the app (extraResources); newest `generatedAt` wins (no rollback); rejected remote copies raise a visible warning. Per app: GitHub releases API with conditional requests, channel-aware pick (highest semver; beta includes pre-releases), `latest.yml` parsed strictly (`src/shared/latest-yml.ts`) and cross-checked with the release (version, asset name, size, SHA-512). 6 h cache in `store.sqlite` (sql.js, additive migrations, Finterest persistence pattern), full display offline.
+- **Renderer**: Home, Discover and the app page now come from the catalog (the bundled `family.ts` of M1 is gone). App page: version, date and size, screenshot carousel (lazy, declared paths only), release notes rendered from `marked` tokens to React — no HTML from the network, https links only through the main process, images reduced to alt text, duplicated leading title dropped (ADR-005) — data notice, self-update note, source link, plain-language release issues. Settings: channel (stable/beta), last sync, source shown, ordered sources, key fingerprint, refresh.
+- **Live check** (packaged app, throwaway data folder, real GitHub): Finterest 0.1.36 and Clock 1.1.3 read with their installers (name, size, SHA-512 from latest.yml); News has no stable release (expected); the Hub repo does not exist yet, so the bundled signed catalog is shown; no console error.
+- Validation: typecheck, lint (now including scripts/), 275 tests, build, dist:win.
 ## [2026-10-01] - Nebula Hub Session #2 — logo choice (end of M1)
 
 - Mark **B — Orbit** chosen (ADR-018): `CURRENT_MARK = 'b'`, with an optical small variant (thicker outlined tiles and star, no orbit or dust) used up to 32 px, including the 16–32 px frames of `build/icon.ico`.

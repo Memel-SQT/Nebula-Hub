@@ -360,3 +360,31 @@ Les constats qui fondent ces décisions sont détaillés dans [DISCOVERY.md](DIS
     donne pas), relu à chaque changement de thème.
 - **Confirmé au même moment** : le réglage « Dossier des sauvegardes » (ADR-016) désigne le dossier
   où le Hub range les exports, pas le dossier de données des apps.
+
+## ADR-019 — Acquisition du catalogue : sources, anti-retour arrière, client réseau
+
+- **Statut** : Accepté (M2). Précise ADR-010.
+- **Décisions** :
+  - **Quatre sources**, toutes vérifiées (signature Ed25519 puis schéma) : GitHub raw (branche
+    main), assets de la dernière release du Hub, dernière copie vérifiée en cache, et un
+    **catalogue signé inclus dans l'app** (extraResources). Ce dernier n'était pas dans le brief :
+    il garantit un premier lancement complet hors ligne, et un Hub utilisable tant que le dépôt
+    `Nebula-Hub` n'est pas publié.
+  - **Anti-retour arrière** : parmi les copies valides, le `generatedAt` le plus récent l'emporte.
+    Un ancien catalogue signé, rejoué par le réseau, ne remplace pas un plus récent.
+  - Une source qui répond avec un catalogue invalide est ignorée **avec un avertissement** visible
+    (R03) ; une source injoignable est ignorée silencieusement (mode hors ligne).
+  - **Client réseau** : `node:https` en requêtes simples, redirections suivies **manuellement**
+    pour vérifier chaque saut contre la liste blanche avant d'ouvrir la connexion (R05), taille
+    et durée plafonnées, ETag / `If-None-Match`. Choisi plutôt que `net.fetch` d'Electron pour
+    contrôler chaque saut et tester sans Electron. Limite connue : les proxys système ne sont pas
+    utilisés (à revoir si un utilisateur en a besoin).
+  - **Cache** dans `store.sqlite` (sql.js) : `http_cache` (URL, ETag, corps), `catalog_cache`
+    (dernier catalogue vérifié), `sync_state` (dates, releases connues par app et par canal).
+    Rafraîchissement réseau au plus toutes les 6 h, sauf « Actualiser » ou changement de canal.
+  - Les **visuels** (icônes, captures) sont servis au renderer en `data:` URL, uniquement pour les
+    chemins déclarés par le catalogue ; la copie incluse dans l'app est servie en priorité.
+  - Scripts en TypeScript (`scripts/sign-catalog.ts`, `scripts/generate-catalog-key.ts`) plutôt
+    que `sign-catalog.mjs` : ils réutilisent la validation et la vérification du Hub lui-même.
+  - Clé de signature générée le 2026-10-01, privée hors dépôt (`%USERPROFILE%\.nebula-hub\`),
+    empreinte publique dans `docs/CATALOG.md` et dans les réglages du Hub.

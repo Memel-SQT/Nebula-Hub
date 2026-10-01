@@ -1,6 +1,7 @@
 import type { CSSProperties, ReactNode } from 'react';
 import { Icon, type IconName } from '@nebula/design/react';
-import type { FamilyApp } from '../family';
+import { localize, type AppStatus } from '@shared/catalog';
+import type { CatalogEntry } from '@shared/catalog-view';
 import { useLanguage, useT } from '../i18n';
 
 export type Tone = 'accent' | 'positive' | 'gold' | 'warning' | 'danger';
@@ -47,29 +48,35 @@ export function SnapshotRow({ label, value, strong = false }: { label: string; v
   );
 }
 
-export function AppIcon({ app, size = 52 }: { app: FamilyApp; size?: number }) {
-  return <img className="app-icon" src={app.icon} alt="" width={size} height={size} style={{ '--icon-size': `${size}px` } as CSSProperties} />;
+/** App icon from the catalog (data: URL); a neutral glyph when it could not be loaded. */
+export function AppIcon({ src, size = 52 }: { src: string | null; size?: number }) {
+  if (!src) {
+    return <span className="app-icon app-icon-fallback" style={{ '--icon-size': `${size}px` } as CSSProperties}><Icon name="package" size={Math.round(size * 0.5)} /></span>;
+  }
+  return <img className="app-icon" src={src} alt="" width={size} height={size} style={{ '--icon-size': `${size}px` } as CSSProperties} />;
 }
 
-export function StatusChip({ status }: { status: FamilyApp['status'] }) {
+export function StatusChip({ status }: { status: AppStatus }) {
   const t = useT();
   return <span className={`status-chip status-${status}`}>{t(`status.${status}`)}</span>;
 }
 
 /** Launcher / catalog tile: the whole card is a button that opens the app page. */
-export function AppTile({ app, onOpen }: { app: FamilyApp; onOpen: () => void }) {
+export function AppTile({ entry, onOpen }: { entry: CatalogEntry; onOpen: () => void }) {
   const t = useT();
   const language = useLanguage();
+  const { app, release } = entry;
   return (
     <button type="button" className="app-tile nebula-surface plain" data-sound="nav" onClick={onOpen}>
       <span className="app-tile-head">
-        <AppIcon app={app} />
+        <AppIcon src={entry.icon} />
         <StatusChip status={app.status} />
       </span>
       <strong>{app.name}</strong>
-      <span className="app-tile-tagline">{app.tagline[language]}</span>
+      <span className="app-tile-tagline">{localize(app.tagline, language)}</span>
       <span className="app-tile-foot">
         <span className="category-chip">{t(`category.${app.category}`)}</span>
+        {release ? <span className="version-chip tabular">v{release.version}</span> : null}
         <span className="app-tile-more">{t('home.launcher.details')}<Icon name="chevronRight" size={14} /></span>
       </span>
     </button>

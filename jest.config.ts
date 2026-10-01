@@ -1,8 +1,10 @@
 import type { Config } from 'jest';
 
 const moduleNameMapper = {
-  '\.(css|less|scss)$': 'identity-obj-proxy',
-  '\.(svg|png)$': '<rootDir>/tests/file-stub.ts',
+  '\\.(css|less|scss)$': 'identity-obj-proxy',
+  '\\.(svg|png)$': '<rootDir>/tests/file-stub.ts',
+  // marked ships ESM only (plus a UMD build): Jest runs CommonJS.
+  '^marked$': '<rootDir>/node_modules/marked/lib/marked.umd.js',
   '^@shared/(.*)$': '<rootDir>/src/shared/$1',
   '^@renderer/(.*)$': '<rootDir>/src/renderer/$1',
   '^@nebula/design/react$': '<rootDir>/packages/nebula-design/src/react.ts',
@@ -18,7 +20,7 @@ const config: Config = {
   testPathIgnorePatterns: ['/node_modules/', '/dist/', '/install/', '/release/'],
   moduleNameMapper,
   transform: {
-    '^.+\.tsx?$': ['ts-jest', { tsconfig: { jsx: 'react-jsx', module: 'commonjs', esModuleInterop: true, isolatedModules: true } }],
+    '^.+\\.tsx?$': ['ts-jest', { tsconfig: { jsx: 'react-jsx', module: 'commonjs', esModuleInterop: true, isolatedModules: true } }],
   },
 };
 

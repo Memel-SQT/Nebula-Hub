@@ -1,4 +1,5 @@
 import type { NebulaAppearance } from '@nebula/design';
+import type { CatalogView } from './catalog-view';
 import type { HubSettings, SettingsPatch } from './settings';
 
 /** IPC channel names: the only routes between the renderer and the main process. */
@@ -9,6 +10,10 @@ export const CHANNELS = {
   settingsChanged: 'settings:changed',
   windowVisibility: 'window:visibility',
   openExternal: 'shell:open-external',
+  catalogGet: 'catalog:get',
+  catalogRefresh: 'catalog:refresh',
+  catalogAsset: 'catalog:asset',
+  catalogChanged: 'catalog:changed',
 } as const;
 
 /** Read once, synchronously, by the preload so the first paint has the right theme. */
@@ -32,4 +37,11 @@ export interface NebulaHubBridge {
   onWindowVisibility(callback: (visible: boolean) => void): () => void;
   /** Opens an https: URL in the default browser after validation in the main process (R12). */
   openExternal(url: string): Promise<boolean>;
+  /** The catalog as known now (cache or bundled), without waiting for the network. */
+  getCatalog(): Promise<CatalogView>;
+  /** Forces a network refresh of the catalog and of the releases. */
+  refreshCatalog(): Promise<CatalogView>;
+  /** A declared icon or screenshot of a catalog app, as a data: URL (null if unavailable). */
+  getCatalogAsset(appId: string, assetPath: string): Promise<string | null>;
+  onCatalogChanged(callback: (view: CatalogView) => void): () => void;
 }

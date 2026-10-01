@@ -1,3 +1,6 @@
 * text=auto eol=lf
 *.png binary
 *.ico binary
+# Signed bytes: never let Git touch line endings of the catalog or its signature (R03).
+catalog/nebula-catalog.json binary
+catalog/nebula-catalog.json.sig binary

@@ -3,6 +3,10 @@ import { app, ipcMain, nativeTheme, shell } from 'electron';
 import { CHANNELS, type InitialState } from '../shared/bridge';
 import type { HubSettings } from '../shared/settings';
 import { isSafeExternalUrl } from '../shared/url';
+import { CatalogService } from './catalog/catalog-service';
+import { CATALOG_PUBLIC_KEY } from './catalog-key';
+import { HubDatabase } from './db';
+import { httpGet } from './net/http';
 import { hardenApp, hardenSession, isTrustedSender } from './security';
 import { SettingsStore } from './settings-store';
 import { createTray, destroyTray, updateTray } from './tray';
@@ -17,6 +21,13 @@ app.setAppUserModelId('hub.nebula.desktop');
 /** Passed by the login item: start in the tray, without window, splash or sound. */
 const startedHidden = process.argv.includes('--hidden');
 const settingsStore = SettingsStore.inDirectory(app.getPath('userData'));
+const database = HubDatabase.inDirectory(app.getPath('userData'));
+let catalog: CatalogService | null = null;
+
+/** The signed catalog shipped with the app (extraResources), last-resort source (ADR-019). */
+function bundledCatalogDir(): string {
+  return app.isPackaged ? path.join(process.resourcesPath, 'catalog') : path.join(app.getAppPath(), 'catalog');
+}
 
 hardenApp();
 
@@ -28,11 +39,24 @@ if (!app.requestSingleInstanceLock()) {
   app.whenReady().then(async () => {
     hardenSession();
     settingsStore.load();
+    await database.initialize();
+    catalog = new CatalogService({
+      http: httpGet,
+      db: database,
+      publicKey: CATALOG_PUBLIC_KEY,
+      bundledDir: bundledCatalogDir(),
+      hubVersion: app.getVersion(),
+      channel: () => settingsStore.get().channel,
+    });
+    catalog.onChange((view) => getMainWindow()?.webContents.send(CHANNELS.catalogChanged, view));
+    await catalog.loadLocal();
     registerIpcHandlers();
     await createMainWindow(windowOptions(startedHidden));
     createTray(trayOptions());
     // 'system' follows Windows: keep the native controls in step when the OS theme flips.
     nativeTheme.on('updated', () => applyWindowTheme(settingsStore.get()));
+    // Network refresh in the background (reused if younger than 6 h): the window never waits.
+    void catalog.refresh();
   });
 
   app.on('before-quit', () => {
@@ -109,6 +133,9 @@ function registerIpcHandlers(): void {
     if (settings.launchAtLogin !== before.launchAtLogin) {
       applyLaunchAtLogin(settings.launchAtLogin);
     }
+    if (settings.channel !== before.channel) {
+      void catalog?.refresh(true);
+    }
     broadcastSettings(settings);
     return settings;
   });
@@ -119,5 +146,20 @@ function registerIpcHandlers(): void {
     }
     await shell.openExternal(url);
     return true;
+  });
+
+  ipcMain.handle(CHANNELS.catalogGet, (event) => {
+    if (!isTrustedSender(event) || !catalog) throw new Error('ERR_UNTRUSTED_SENDER');
+    return catalog.getView();
+  });
+
+  ipcMain.handle(CHANNELS.catalogRefresh, async (event) => {
+    if (!isTrustedSender(event) || !catalog) throw new Error('ERR_UNTRUSTED_SENDER');
+    return catalog.refresh(true);
+  });
+
+  ipcMain.handle(CHANNELS.catalogAsset, async (event, appId: unknown, assetPath: unknown) => {
+    if (!isTrustedSender(event) || !catalog || typeof appId !== 'string' || typeof assetPath !== 'string') return null;
+    return catalog.getAsset(appId, assetPath);
   });
 }

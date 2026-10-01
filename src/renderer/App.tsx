@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { setSoundsSuppressed, type NebulaAppearance } from '@nebula/design';
 import { BackgroundFx, Splash, useAppliedAppearance, useInterfaceEffects, useResolvedTheme } from '@nebula/design/react';
+import { EMPTY_CATALOG_VIEW, type CatalogView } from '@shared/catalog-view';
 import type { HubSettings, SettingsPatch } from '@shared/settings';
+import { familyEntries } from './catalog';
 import { HubMark } from './brand/HubMark';
 import { ErrorState } from './components/ScreenState';
 import { Sidebar } from './components/Sidebar';
@@ -27,6 +29,7 @@ export function App() {
   const [splashDone, setSplashDone] = useState(initial.startedHidden);
   const [visible, setVisible] = useState(!initial.startedHidden);
   const [saveError, setSaveError] = useState(false);
+  const [catalog, setCatalog] = useState<CatalogView>(EMPTY_CATALOG_VIEW);
   const appearance = settings.appearance;
   const language = appearance.language;
 
@@ -39,6 +42,25 @@ export function App() {
   }, [language]);
 
   useEffect(() => bridge.onSettingsChanged(setSettings), [bridge]);
+
+  // The catalog as known now, then every change pushed by the main process (refresh, channel).
+  useEffect(() => {
+    let active = true;
+    void bridge.getCatalog().then((view) => active && setCatalog(view));
+    const unsubscribe = bridge.onCatalogChanged(setCatalog);
+    return () => {
+      active = false;
+      unsubscribe();
+    };
+  }, [bridge]);
+
+  const refreshCatalog = useCallback(() => {
+    void bridge.refreshCatalog().then(setCatalog, () => undefined);
+  }, [bridge]);
+  const loadAsset = useCallback((appId: string, assetPath: string) => bridge.getCatalogAsset(appId, assetPath), [bridge]);
+  const openLink = useCallback((url: string) => {
+    void bridge.openExternal(url);
+  }, [bridge]);
 
   useEffect(() => {
     setSoundsSuppressed(initial.startedHidden);
@@ -89,23 +111,24 @@ export function App() {
   }
 
   const screenProps = { status: 'empty' as const, onNavigate: setRoute };
+  const catalogProps = { catalog, onNavigate: setRoute, onRefresh: refreshCatalog };
 
   return (
     <LanguageContext.Provider value={language}>
       {background}
-        <div className="titlebar-drag" aria-hidden="true" />
+      <div className="titlebar-drag" aria-hidden="true" />
       <main className="app-shell">
-        <Sidebar active={sectionOf(route)} version={initial.appVersion} onNavigate={setRoute} />
+        <Sidebar active={sectionOf(route)} version={initial.appVersion} launcher={familyEntries(catalog)} onNavigate={setRoute} />
         <div className="workspace-column">
           {saveError ? <ErrorState message={t('error.saveSettings')} /> : null}
-          {route.screen === 'home' ? <HomeScreen {...screenProps} version={initial.appVersion} /> : null}
-          {route.screen === 'discover' ? <DiscoverScreen {...screenProps} /> : null}
-          {route.screen === 'app' ? <AppDetailScreen key={route.appId} {...screenProps} appId={route.appId} /> : null}
+          {route.screen === 'home' ? <HomeScreen {...catalogProps} version={initial.appVersion} /> : null}
+          {route.screen === 'discover' ? <DiscoverScreen {...catalogProps} /> : null}
+          {route.screen === 'app' ? <AppDetailScreen key={route.appId} {...catalogProps} appId={route.appId} loadAsset={loadAsset} onOpenLink={openLink} /> : null}
           {route.screen === 'my-apps' ? <MyAppsScreen {...screenProps} /> : null}
           {route.screen === 'downloads' ? <DownloadsScreen {...screenProps} /> : null}
           {route.screen === 'integrations' ? <IntegrationsScreen {...screenProps} /> : null}
           {route.screen === 'settings' ? (
-            <SettingsScreen settings={settings} resolvedTheme={resolvedTheme} version={initial.appVersion} onAppearanceChange={updateAppearance} onSettingsChange={updateSettings} />
+            <SettingsScreen settings={settings} resolvedTheme={resolvedTheme} version={initial.appVersion} catalog={catalog} onAppearanceChange={updateAppearance} onSettingsChange={updateSettings} onRefreshCatalog={refreshCatalog} />
           ) : null}
         </div>
       </main>
