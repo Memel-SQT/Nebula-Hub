@@ -1,0 +1,17 @@
+node_modules/
+dist/
+install/
+release/
+coverage/
+*.tsbuildinfo
+*.log
+.env
+.env.*
+!.env.example
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store
+# Catalog signing key: never in the repository (see docs/CATALOG.md).
+*.pem
+*.key

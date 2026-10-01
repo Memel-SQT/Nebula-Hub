@@ -1,0 +1,169 @@
+/* Nebula design tokens.
+ *
+ * Values: nebula-design-system/tokens/tokens.css (palette, 100deg accent gradient, glow,
+ * motion scale), checked one by one against Nebula Finterest v0.1.36 styles.css, whose
+ * variable names are kept because the ported appearance modules depend on them (ADR-009).
+ * Arbitrations: --danger follows the DA prose (#FB7185 / #BE123C); the light glow keeps
+ * Finterest's .10 / .09. Never hard-code a color outside a token block. */
+:root {
+  font-family: 'Aptos', 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif;
+  --radius: 12px;
+  --radius-lg: 18px;
+  --radius-control: 8px;
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --motion-fast: 150ms;
+  --motion-base: 220ms;
+  --motion-slow: 420ms;
+  --accent-gradient: linear-gradient(100deg, var(--gold), var(--accent));
+  --accent-gradient-hover: linear-gradient(100deg, var(--gold-bright), var(--accent-hover));
+  /* Fourth aurora orb (Finterest uses its --variable category color): an accent tint that
+     follows custom accents too. */
+  --accent-tint: color-mix(in srgb, var(--accent) 70%, var(--ink));
+}
+
+/* Nebula sombre — identité par défaut. */
+:root, :root[data-theme='nebula-dark'] {
+  color-scheme: dark;
+  --page: #0a0a0f;
+  --sidebar: #12121f;
+  --surface: #1a1a2e;
+  --surface-raised: #231942;
+  --surface-muted: #12121f;
+  --ink: #f1f1f6;
+  --muted: #9a94b8;
+  --line: #2a2a45;
+  --line-strong: #3b3b63;
+  --accent: #8b5cf6;
+  --accent-hover: #a855f7;
+  --accent-soft: rgba(139, 92, 246, 0.16);
+  --accent-glow: rgba(139, 92, 246, 0.24);
+  --on-accent: #ffffff;
+  --gold: #4c6ef5;
+  --gold-bright: #5b5fef;
+  --gold-soft: rgba(76, 110, 245, 0.18);
+  --positive: #34d399;
+  --positive-soft: rgba(52, 211, 153, 0.16);
+  --warning: #fbbf24;
+  --warning-soft: rgba(251, 191, 36, 0.16);
+  --danger: #fb7185;
+  --danger-soft: rgba(251, 113, 133, 0.16);
+  --focus-ring: rgba(168, 85, 247, 0.6);
+  --shadow: 0 12px 30px rgba(5, 5, 12, 0.45);
+  --shadow-strong: 0 24px 60px rgba(5, 5, 12, 0.6);
+  --glow-1: rgba(76, 110, 245, 0.16);
+  --glow-2: rgba(139, 92, 246, 0.14);
+}
+
+/* Nebula clair — mêmes teintes d'accent, neutres teintés violet (pas une simple inversion). */
+:root[data-theme='nebula-light'] {
+  color-scheme: light;
+  --page: #f4f3fb;
+  --sidebar: #ffffff;
+  --surface: #ffffff;
+  --surface-raised: #ece9f9;
+  --surface-muted: #f3f1fc;
+  --ink: #18172b;
+  --muted: #6b6584;
+  --line: #ddd9ef;
+  --line-strong: #c7c0e6;
+  --accent: #7c3aed;
+  --accent-hover: #6d28d9;
+  --accent-soft: rgba(124, 58, 237, 0.1);
+  --accent-glow: rgba(124, 58, 237, 0.16);
+  --on-accent: #ffffff;
+  --gold: #3b5bdb;
+  --gold-bright: #3450c8;
+  --gold-soft: rgba(59, 91, 219, 0.1);
+  --positive: #059669;
+  --positive-soft: rgba(5, 150, 105, 0.1);
+  --warning: #b45309;
+  --warning-soft: rgba(180, 83, 9, 0.1);
+  --danger: #be123c;
+  --danger-soft: rgba(190, 18, 60, 0.1);
+  --focus-ring: rgba(124, 58, 237, 0.5);
+  --shadow: 0 10px 26px rgba(24, 23, 43, 0.07);
+  --shadow-strong: 0 20px 50px rgba(24, 23, 43, 0.13);
+  --glow-1: rgba(76, 110, 245, 0.1);
+  --glow-2: rgba(139, 92, 246, 0.09);
+}
+
+/* Verre liquide sombre : palette Nebula, surfaces translucides floutées sur un fond vivant.
+   (Nebula Finterest v0.1.36.) */
+:root[data-theme='glass-dark'] {
+  color-scheme: dark;
+  --page: #06060f;
+  --sidebar: rgba(18, 18, 38, 0.42);
+  --surface: rgba(255, 255, 255, 0.055);
+  --surface-raised: rgba(255, 255, 255, 0.11);
+  --surface-muted: rgba(8, 8, 22, 0.38);
+  --ink: #f5f4ff;
+  --muted: #b4afd2;
+  --line: rgba(255, 255, 255, 0.11);
+  --line-strong: rgba(255, 255, 255, 0.22);
+  --accent: #8b5cf6;
+  --accent-hover: #b07cff;
+  --accent-soft: rgba(139, 92, 246, 0.2);
+  --accent-glow: rgba(139, 92, 246, 0.35);
+  --on-accent: #ffffff;
+  --gold: #4c6ef5;
+  --gold-bright: #6282ff;
+  --gold-soft: rgba(76, 110, 245, 0.2);
+  --positive: #34d399;
+  --positive-soft: rgba(52, 211, 153, 0.18);
+  --warning: #fcd34d;
+  --warning-soft: rgba(251, 191, 36, 0.18);
+  --danger: #fb7185;
+  --danger-soft: rgba(251, 113, 133, 0.18);
+  --focus-ring: rgba(176, 124, 255, 0.7);
+  --shadow: 0 18px 44px rgba(0, 0, 0, 0.35);
+  --shadow-strong: 0 28px 70px rgba(0, 0, 0, 0.5);
+  --glow-1: rgba(76, 110, 245, 0.38);
+  --glow-2: rgba(139, 92, 246, 0.34);
+  --glass-hi: rgba(255, 255, 255, 0.1);
+  --glass-lo: rgba(255, 255, 255, 0.025);
+  --glass-edge: rgba(255, 255, 255, 0.28);
+  --glass-shine: rgba(255, 255, 255, 0.13);
+  --radius: 16px;
+  --radius-lg: 24px;
+}
+
+/* Verre liquide clair : givré, lumineux, ombres douces teintées violet. */
+:root[data-theme='glass-light'] {
+  color-scheme: light;
+  --page: #e9ebf8;
+  --sidebar: rgba(255, 255, 255, 0.5);
+  --surface: rgba(255, 255, 255, 0.5);
+  --surface-raised: rgba(255, 255, 255, 0.72);
+  --surface-muted: rgba(255, 255, 255, 0.42);
+  --ink: #17162a;
+  --muted: #5b5676;
+  --line: rgba(60, 45, 130, 0.12);
+  --line-strong: rgba(60, 45, 130, 0.22);
+  --accent: #7c3aed;
+  --accent-hover: #6d28d9;
+  --accent-soft: rgba(124, 58, 237, 0.12);
+  --accent-glow: rgba(124, 58, 237, 0.22);
+  --on-accent: #ffffff;
+  --gold: #3b5bdb;
+  --gold-bright: #3450c8;
+  --gold-soft: rgba(59, 91, 219, 0.12);
+  --positive: #059669;
+  --positive-soft: rgba(5, 150, 105, 0.12);
+  --warning: #b45309;
+  --warning-soft: rgba(180, 83, 9, 0.12);
+  --danger: #be123c;
+  --danger-soft: rgba(190, 18, 60, 0.12);
+  --focus-ring: rgba(124, 58, 237, 0.5);
+  --shadow: 0 14px 36px rgba(60, 45, 130, 0.12);
+  --shadow-strong: 0 24px 60px rgba(60, 45, 130, 0.18);
+  --glow-1: rgba(76, 110, 245, 0.3);
+  --glow-2: rgba(168, 85, 247, 0.28);
+  --glass-hi: rgba(255, 255, 255, 0.78);
+  --glass-lo: rgba(255, 255, 255, 0.36);
+  --glass-edge: rgba(255, 255, 255, 0.95);
+  --glass-shine: rgba(255, 255, 255, 0.6);
+  --radius: 16px;
+  --radius-lg: 24px;
+}

@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img">
+  <title>Nebula Hub — A — Constellation</title>
+  <defs>
+    <linearGradient id="hub-a-gradient" x1="16" y1="16" x2="112" y2="112" gradientUnits="userSpaceOnUse"><stop stop-color="#4C6EF5"/><stop offset="1" stop-color="#A855F7"/></linearGradient>
+    <radialGradient id="hub-a-halo" cx="0.5" cy="0.32" r="0.78"><stop stop-color="#8B5CF6" stop-opacity="0.42"/><stop offset="1" stop-color="#8B5CF6" stop-opacity="0"/></radialGradient>
+    <radialGradient id="hub-a-spark"><stop stop-color="#C4A1FF" stop-opacity="0.55"/><stop offset="1" stop-color="#C4A1FF" stop-opacity="0"/></radialGradient>
+  </defs>
+  <rect width="128" height="128" rx="30" fill="#12121F"/>
+  <rect width="128" height="128" rx="30" fill="url(#hub-a-halo)"/>
+  <circle cx="24" cy="104" r="1.3" opacity="0.35" fill="#FFFFFF"/>
+  <circle cx="104" cy="24" r="1.1" opacity="0.3" fill="#FFFFFF"/>
+  <circle cx="108" cy="100" r="0.9" opacity="0.25" fill="#FFFFFF"/>
+  <rect x="20" y="20" width="88" height="88" rx="25" stroke-width="3.5" opacity="0.55" fill="none" stroke="url(#hub-a-gradient)"/>
+  <rect x="30" y="30" width="28" height="28" rx="9" fill="url(#hub-a-gradient)"/>
+  <rect x="30" y="70" width="28" height="28" rx="9" opacity="0.85" fill="url(#hub-a-gradient)"/>
+  <rect x="70" y="70" width="28" height="28" rx="9" opacity="0.7" fill="url(#hub-a-gradient)"/>
+  <circle cx="84" cy="44" r="26.35" fill="url(#hub-a-spark)"/>
+  <path d="M84 27C87.06 40.94 87.06 40.94 101 44C87.06 47.06 87.06 47.06 84 61C80.94 47.06 80.94 47.06 67 44C80.94 40.94 80.94 40.94 84 27Z" fill="#A855F7"/>
+</svg>

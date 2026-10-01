@@ -1,0 +1,42 @@
+/* Opening sequence, ported from Nebula Finterest v0.1.36 (".splash-*" rules and keyframes),
+   with the Finterest-specific parts (orbit, bars) generalized to any mark:
+     .splash-mark-plate   plate scale-in, 0 ms
+     .splash-mark-halo    breathing halo, 3.2 s loop
+     .splash-mark-draw    stroke drawn by stroke-dashoffset, 1 100 ms from 180 ms
+                          (give the element pathLength="100")
+     .splash-mark-tile-1..3  staggered scale-in, 460 ms from 520 / 640 / 760 ms
+     .splash-mark-bar-1..3   same timings, scaleY from the base (Finterest bars)
+     .splash-mark-star    spring pop, 420 ms from 940 ms (the star and its glow)
+     .splash-mark-dust    faint star dust, fades in with the halo
+   Each tile/bar/star sets its own transform-origin in viewBox units (inline style):
+   without `transform-box: view-box` they grow from the wrong point. */
+
+.splash-screen { position: fixed; inset: 0; z-index: 999; display: grid; place-items: center; align-content: center; gap: 1.6rem; }
+.splash-screen.splash-leaving { animation: splash-fade-out 380ms var(--ease) both; }
+.splash-mark { width: 116px; height: 116px; filter: drop-shadow(0 16px 36px var(--accent-glow)); animation: splash-mark-in 520ms var(--ease-out) both; }
+.splash-mark-plate { animation: splash-plate-in var(--motion-slow) var(--ease-out) both; transform-origin: 64px 64px; transform-box: view-box; }
+.splash-mark-halo { animation: splash-halo-breathe 3.2s var(--ease) infinite; transform-origin: 64px 64px; transform-box: view-box; }
+.splash-mark-dust { animation: splash-mark-in 900ms var(--ease) 260ms both; }
+.splash-mark-draw { stroke-dasharray: 100; stroke-dashoffset: 100; animation: splash-draw 1100ms var(--ease) 180ms both; }
+.splash-mark-tile-1, .splash-mark-tile-2, .splash-mark-tile-3 { transform-box: view-box; animation: splash-tile-pop 460ms var(--ease-out) both; }
+.splash-mark-bar-1, .splash-mark-bar-2, .splash-mark-bar-3 { transform-box: view-box; animation: splash-bar-grow 460ms var(--ease-out) both; }
+.splash-mark-tile-1, .splash-mark-bar-1 { animation-delay: 520ms; }
+.splash-mark-tile-2, .splash-mark-bar-2 { animation-delay: 640ms; }
+.splash-mark-tile-3, .splash-mark-bar-3 { animation-delay: 760ms; }
+.splash-mark-star { transform-box: view-box; animation: splash-star-pop 420ms var(--ease-spring) 940ms both; }
+.splash-text { display: grid; justify-items: center; gap: 0.4rem; text-align: center; animation: splash-text-in var(--motion-slow) var(--ease-out) 1120ms both; }
+.splash-text strong { color: var(--ink); font-size: 1.3rem; font-weight: 750; letter-spacing: -0.015em; }
+.splash-text span { color: var(--muted); font-size: 0.74rem; letter-spacing: 0.06em; }
+.splash-progress { width: 148px; height: 3px; overflow: hidden; border-radius: 999px; background: var(--surface-raised); animation: splash-text-in var(--motion-slow) var(--ease-out) 1240ms both; }
+.splash-progress i { display: block; width: 45%; height: 100%; border-radius: 999px; background: var(--accent-gradient); animation: splash-sweep 1.25s var(--ease) 1300ms infinite; }
+
+@keyframes splash-fade-out { from { opacity: 1; transform: scale(1); } to { opacity: 0; transform: scale(1.04); } }
+@keyframes splash-mark-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes splash-plate-in { from { opacity: 0; transform: scale(0.86); } to { opacity: 1; transform: scale(1); } }
+@keyframes splash-halo-breathe { 0%, 100% { opacity: 0.55; transform: scale(0.96); } 50% { opacity: 1; transform: scale(1.06); } }
+@keyframes splash-draw { from { stroke-dashoffset: 100; } to { stroke-dashoffset: 0; } }
+@keyframes splash-tile-pop { from { opacity: 0; transform: scale(0); } to { opacity: 1; transform: scale(1); } }
+@keyframes splash-bar-grow { from { opacity: 0; transform: scaleY(0); } to { opacity: 1; transform: scaleY(1); } }
+@keyframes splash-star-pop { from { opacity: 0; transform: scale(0); } to { opacity: 1; transform: scale(1); } }
+@keyframes splash-text-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes splash-sweep { from { transform: translateX(-110%); } to { transform: translateX(240%); } }

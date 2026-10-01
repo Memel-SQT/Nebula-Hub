@@ -1,0 +1,16 @@
+export const link = {
+  'integrations.eyebrow': 'Nebula Link',
+  'integrations.title': 'Intégrations',
+  'integrations.intro': 'Décidez de ce qui circule entre vos apps. Rien ne sort de cet ordinateur.',
+  'integrations.card.connected': 'Apps connectées',
+  'integrations.card.consents': 'Autorisations',
+  'integrations.card.status': 'État de Link',
+  'integrations.panel.eyebrow': 'Centre des consentements',
+  'integrations.panel.title': 'Qui partage quoi',
+  'integrations.empty.title': 'Aucune app connectée',
+  'integrations.empty.body': 'Quand une app Nebula se connectera au Hub, ses intégrations et vos autorisations apparaîtront ici.',
+  'integrations.empty.action': 'Voir mes apps',
+  'integrations.error': 'Impossible de charger les intégrations.',
+  'link.offline': 'Link hors ligne',
+  'link.online': 'Link actif',
+} as const;

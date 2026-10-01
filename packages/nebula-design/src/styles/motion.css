@@ -1,0 +1,42 @@
+/* Shared keyframes and motion levels (data-motion on <html>), ported from Nebula Finterest
+   v0.1.36. Restraint rule (Finterest DEV_CHANGES #42): one infinite animation on screen — the
+   background. Everything else is an entrance or a reaction to an action. Only opacity and
+   transform are animated (plus the blur of page-enter / the private-value reveal). */
+
+@keyframes glow-drift { from { transform: translate(0, 0) scale(1); } to { transform: translate(2%, -2%) scale(1.05); } }
+@keyframes sidebar-in { from { opacity: 0; transform: translateX(-12px); } to { opacity: 1; transform: none; } }
+@keyframes rise-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes page-enter { from { opacity: 0; transform: translateY(10px) scale(0.995); filter: blur(4px); } to { opacity: 1; transform: none; filter: none; } }
+@keyframes page-fade-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes card-fade-in { from { opacity: 0; transform: translateY(12px) scale(0.985); } to { opacity: 1; transform: none; } }
+@keyframes stage-fade-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes tile-pop-in { from { opacity: 0; transform: translateY(10px) scale(0.9); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes identity-pop-in { from { opacity: 0; transform: scale(0.85); } to { opacity: 1; transform: scale(1); } }
+@keyframes banner-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes ripple { to { transform: scale(1); opacity: 0; } }
+@keyframes skeleton-shimmer { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+
+/* Reduced: shorter durations, no ambient animation, no hover displacement. */
+:root[data-motion='reduced'] { --motion-fast: 90ms; --motion-base: 140ms; --motion-slow: 200ms; }
+:root[data-motion='reduced'] :is(.bg-glow, .bg-aurora i, .splash-mark-halo, .splash-progress i, .skeleton::after) { animation: none; }
+:root[data-motion='reduced'] :is(button, .nebula-surface, .motion-lift):hover { transform: none; }
+
+/* Off: the reduced-motion "0.01 ms" technique, so entrance animations land directly on their
+   final state (nothing stays invisible). Backgrounds are frozen. */
+:root[data-motion='off'] *, :root[data-motion='off'] *::before, :root[data-motion='off'] *::after { animation-duration: 0.01ms !important; animation-delay: 0s !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+:root[data-motion='off'] :is(.bg-glow, .bg-aurora i) { animation: none !important; }
+
+/* Full: richer screen transitions and hover lift. */
+:root[data-motion='full'] .motion-page { animation: page-enter var(--motion-slow) var(--ease-out) both; }
+:root[data-motion='full'] .motion-lift:hover { transform: translateY(-3px) scale(1.01); box-shadow: var(--shadow-strong); }
+:root[data-motion='full'] .motion-stagger > * { animation: rise-in var(--motion-slow) var(--ease-out) both; }
+:root[data-motion='full'] .motion-stagger > *:nth-child(2) { animation-delay: 30ms; }
+:root[data-motion='full'] .motion-stagger > *:nth-child(3) { animation-delay: 60ms; }
+:root[data-motion='full'] .motion-stagger > *:nth-child(4) { animation-delay: 90ms; }
+:root[data-motion='full'] .motion-stagger > *:nth-child(n+5) { animation-delay: 120ms; }
+
+/* The OS preference applies on top of the in-app level, whatever it is. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; }
+  .bg-glow, .bg-aurora i, .skeleton::after { animation: none; }
+}

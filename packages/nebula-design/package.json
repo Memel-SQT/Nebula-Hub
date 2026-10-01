@@ -1,0 +1,17 @@
+{
+  "name": "@nebula/design",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Nebula design tokens, themes, appearance model, sounds, effects, backgrounds and icons, shared by the Nebula apps.",
+  "license": "MIT",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./react": "./src/react.ts",
+    "./styles.css": "./src/styles/index.css"
+  },
+  "peerDependencies": {
+    "react": "^18.3.1"
+  }
+}

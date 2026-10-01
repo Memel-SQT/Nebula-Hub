@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img">
+  <title>Nebula Hub — B — Orbite</title>
+  <defs>
+    <linearGradient id="hub-b-gradient" x1="16" y1="16" x2="112" y2="112" gradientUnits="userSpaceOnUse"><stop stop-color="#4C6EF5"/><stop offset="1" stop-color="#A855F7"/></linearGradient>
+    <radialGradient id="hub-b-halo" cx="0.5" cy="0.32" r="0.78"><stop stop-color="#8B5CF6" stop-opacity="0.42"/><stop offset="1" stop-color="#8B5CF6" stop-opacity="0"/></radialGradient>
+    <radialGradient id="hub-b-spark"><stop stop-color="#C4A1FF" stop-opacity="0.55"/><stop offset="1" stop-color="#C4A1FF" stop-opacity="0"/></radialGradient>
+  </defs>
+  <rect width="128" height="128" rx="30" fill="#12121F"/>
+  <rect width="128" height="128" rx="30" fill="url(#hub-b-halo)"/>
+  <circle cx="22" cy="30" r="1.2" opacity="0.35" fill="#FFFFFF"/>
+  <circle cx="106" cy="106" r="1.2" opacity="0.3" fill="#FFFFFF"/>
+  <circle cx="24" cy="108" r="0.9" opacity="0.25" fill="#FFFFFF"/>
+  <ellipse cx="64" cy="64" rx="51" ry="19" transform="rotate(-30 64 64)" stroke-width="5" opacity="0.55" fill="none" stroke="url(#hub-b-gradient)"/>
+  <rect x="34" y="34" width="22" height="22" rx="7" stroke-width="7" fill="none" stroke="url(#hub-b-gradient)"/>
+  <rect x="34" y="72" width="22" height="22" rx="7" stroke-width="7" fill="none" stroke="url(#hub-b-gradient)"/>
+  <rect x="72" y="72" width="22" height="22" rx="7" stroke-width="7" fill="none" stroke="url(#hub-b-gradient)"/>
+  <circle cx="83" cy="45" r="27.900000000000002" fill="url(#hub-b-spark)"/>
+  <path d="M83 27C86.24 41.76 86.24 41.76 101 45C86.24 48.24 86.24 48.24 83 63C79.76 48.24 79.76 48.24 65 45C79.76 41.76 79.76 41.76 83 27Z" fill="#A855F7"/>
+</svg>

@@ -1,0 +1,47 @@
+/* Settings controls, ported from Nebula Finterest v0.1.36 styles.css ("Contrôles des
+   réglages"): segmented control, accent swatches, background tiles with CSS previews,
+   switch, range and color fields. */
+
+.segmented { display: inline-flex; flex-wrap: wrap; gap: 0.25rem; padding: 0.25rem; border: 1px solid var(--line); border-radius: calc(var(--radius) - 2px); background: var(--surface-muted); }
+.segmented button { min-height: 2.1rem; padding: 0.45rem 0.8rem; border: 0; background: transparent; color: var(--muted); font-size: 0.74rem; font-weight: 650; box-shadow: none; }
+.segmented button:hover { transform: none; background: var(--surface-raised); color: var(--ink); box-shadow: none; }
+.segmented button.active { background: var(--accent-gradient); color: var(--on-accent); }
+
+.swatch-row { display: flex; flex-wrap: wrap; gap: 0.55rem; }
+.swatch { flex-direction: column; gap: 0.4rem; min-width: 74px; min-height: auto; padding: 0.55rem 0.5rem 0.45rem; border: 1px solid var(--line); background: var(--surface-muted); color: var(--muted); font-size: 0.68rem; font-weight: 650; box-shadow: none; }
+.swatch i { display: block; width: 2.1rem; height: 2.1rem; border-radius: 50%; background: linear-gradient(135deg, var(--swatch-a), var(--swatch-b)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 6px 16px -6px var(--swatch-b); transition: transform var(--motion-base) var(--ease-spring); }
+.swatch:hover { background: var(--surface-raised); border-color: var(--line-strong); box-shadow: none; }
+.swatch:hover i { transform: scale(1.08); }
+.swatch.active { border-color: var(--accent); color: var(--ink); box-shadow: inset 0 0 0 1px var(--accent); }
+
+.color-fields { margin-top: 0.8rem; }
+.color-field { display: inline-flex; align-items: center; gap: 0.6rem; color: var(--muted); font-size: 0.74rem; font-weight: 650; }
+.color-field input[type='color'] { width: 2.6rem; height: 2.2rem; padding: 0.15rem; border-radius: 10px; cursor: pointer; }
+
+.effect-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 0.55rem; }
+.effect-tile { flex-direction: column; align-items: stretch; gap: 0.45rem; min-height: auto; padding: 0.45rem 0.45rem 0.55rem; border: 1px solid var(--line); background: var(--surface-muted); color: var(--muted); font-size: 0.7rem; font-weight: 650; box-shadow: none; }
+.effect-tile:hover { background: var(--surface-raised); border-color: var(--line-strong); box-shadow: none; }
+.effect-tile.active { border-color: var(--accent); color: var(--ink); box-shadow: inset 0 0 0 1px var(--accent); }
+/* The previews are tiny fixed "night sky" swatches, the same in every theme (Finterest). */
+.effect-preview { display: grid; place-items: center; height: 3.2rem; border-radius: 10px; color: rgba(255, 255, 255, 0.9); background: #0d0c1c; overflow: hidden; }
+.effect-glow .effect-preview { background: radial-gradient(60px 40px at 25% 30%, var(--glow-1), transparent 70%), radial-gradient(70px 50px at 80% 80%, var(--glow-2), transparent 70%), #0d0c1c; }
+.effect-aurora .effect-preview { background: radial-gradient(50px 50px at 20% 20%, var(--accent), transparent 70%), radial-gradient(60px 60px at 85% 90%, var(--gold), transparent 70%), radial-gradient(40px 40px at 55% 50%, var(--positive), transparent 70%), #0d0c1c; }
+.effect-stars .effect-preview { background: radial-gradient(1.2px 1.2px at 20% 30%, #fff, transparent), radial-gradient(1px 1px at 70% 20%, #fff, transparent), radial-gradient(1.4px 1.4px at 45% 70%, #fff, transparent), radial-gradient(1px 1px at 85% 60%, #fff, transparent), radial-gradient(1px 1px at 12% 80%, #fff, transparent), #0d0c1c; }
+.effect-particles .effect-preview { background: radial-gradient(2px 2px at 25% 35%, var(--accent), transparent), radial-gradient(2px 2px at 60% 25%, var(--gold), transparent), radial-gradient(2px 2px at 75% 70%, var(--accent), transparent), linear-gradient(20deg, transparent 48%, color-mix(in srgb, var(--accent) 40%, transparent) 49%, transparent 51%), #0d0c1c; }
+.effect-waves .effect-preview { background: radial-gradient(120% 60% at 50% 110%, var(--gold), transparent 60%), radial-gradient(90% 50% at 30% 120%, var(--accent), transparent 60%), #0d0c1c; }
+.effect-none .effect-preview { background: var(--page); color: var(--muted); border: 1px dashed var(--line-strong); }
+.effect-preview .icon { filter: drop-shadow(0 1px 4px rgba(0, 0, 0, 0.5)); }
+
+.switch { gap: 0.65rem; min-height: auto; padding: 0.3rem; border: 0; background: transparent; color: var(--ink); font-size: 0.78rem; font-weight: 650; box-shadow: none; }
+.switch:hover { transform: none; background: transparent; box-shadow: none; }
+.switch i { position: relative; display: block; width: 2.6rem; height: 1.5rem; flex: 0 0 auto; border: 1px solid var(--line-strong); border-radius: 999px; background: var(--surface-muted); transition: background var(--motion-base) var(--ease), border-color var(--motion-base) var(--ease); }
+.switch i::after { content: ''; position: absolute; top: 0.16rem; left: 0.18rem; width: 1.05rem; height: 1.05rem; border-radius: 50%; background: var(--muted); transition: transform var(--motion-base) var(--ease-spring), background var(--motion-base) var(--ease); }
+.switch.on i { border-color: transparent; background: var(--accent-gradient); }
+.switch.on i::after { background: #fff; transform: translateX(1.08rem); }
+
+.range-field { display: inline-flex; align-items: center; gap: 0.6rem; color: var(--muted); font-size: 0.74rem; font-weight: 650; }
+.range-field input { width: 150px; padding: 0; border: 0; background: transparent; accent-color: var(--accent); }
+.range-field b { min-width: 2.6rem; color: var(--ink); font-variant-numeric: tabular-nums; }
+
+.select-field { display: grid; gap: 0.35rem; color: var(--muted); font-size: 0.72rem; font-weight: 650; }
+.select-field select { min-width: 180px; }

@@ -1,0 +1,31 @@
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Nebula Clock">
+  <!--
+    Nebula Clock mark. The #1A1A2E card at r=24 and the #4C6EF5 -> #A855F7
+    diagonal gradient are the Nebula family cues; the clock face is what makes
+    it this product. Geometry is shared with the icon renderer so the raster
+    and vector versions cannot drift.
+  -->
+  <defs>
+    <linearGradient id="nebulaClockMark" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4C6EF5" />
+      <stop offset="1" stop-color="#A855F7" />
+    </linearGradient>
+  </defs>
+  <rect width="100" height="100" rx="24" fill="#1A1A2E" />
+  <circle
+    cx="50"
+    cy="50"
+    r="32"
+    fill="none"
+    stroke="url(#nebulaClockMark)"
+    stroke-width="8"
+  />
+  <path
+    d="M50 50V32.5M50 50l10.83 6.25"
+    stroke="url(#nebulaClockMark)"
+    stroke-width="7.5"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    fill="none"
+  />
+</svg>

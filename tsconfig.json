@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "noUncheckedIndexedAccess": false,
+    "noFallthroughCasesInSwitch": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "baseUrl": ".",
+    "paths": {
+      "@shared/*": ["src/shared/*"],
+      "@renderer/*": ["src/renderer/*"],
+      "@nebula/design": ["packages/nebula-design/src/index.ts"],
+      "@nebula/design/react": ["packages/nebula-design/src/react.ts"]
+    },
+    "types": ["jest", "node"]
+  },
+  "include": ["src/**/*", "tests/**/*", "packages/*/src/**/*", "vite.config.ts", "jest.config.ts", "tsup.config.ts"]
+}

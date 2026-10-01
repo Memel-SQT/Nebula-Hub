@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="nebula-finterest-title">
+  <title id="nebula-finterest-title">Nebula Finterest</title>
+  <defs>
+    <linearGradient id="nebula-mark-gradient" x1="16" y1="16" x2="112" y2="112" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#4C6EF5"/>
+      <stop offset="1" stop-color="#A855F7"/>
+    </linearGradient>
+    <radialGradient id="nebula-mark-glow" cx="0.5" cy="0.32" r="0.78">
+      <stop stop-color="#8B5CF6" stop-opacity="0.42"/>
+      <stop offset="1" stop-color="#8B5CF6" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="128" height="128" rx="30" fill="#12121F"/>
+  <rect width="128" height="128" rx="30" fill="url(#nebula-mark-glow)"/>
+  <ellipse cx="64" cy="64" rx="47" ry="21" transform="rotate(-30 64 64)" fill="none" stroke="url(#nebula-mark-gradient)" stroke-width="6" opacity="0.55"/>
+  <path d="M40 92V72" fill="none" stroke="url(#nebula-mark-gradient)" stroke-linecap="round" stroke-width="12"/>
+  <path d="M64 92V56" fill="none" stroke="url(#nebula-mark-gradient)" stroke-linecap="round" stroke-width="12"/>
+  <path d="M88 92V40" fill="none" stroke="url(#nebula-mark-gradient)" stroke-linecap="round" stroke-width="12"/>
+  <circle cx="88" cy="22" r="6.5" fill="#A855F7"/>
+</svg>
