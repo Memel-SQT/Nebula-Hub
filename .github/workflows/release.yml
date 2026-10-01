@@ -57,6 +57,8 @@ jobs:
         run: |
           $tag = "${{ github.ref_name }}"
           $version = $tag.Substring(1)
+          # actions/checkout may leave the tag without its annotation: fetch the real tag object.
+          git fetch --force origin "refs/tags/${tag}:refs/tags/${tag}"
           $notes = git tag -l --format='%(contents)' $tag | Out-String
           if (-not $notes.Trim()) { $notes = "Nebula Hub $version" }
           Set-Content -Path release-notes.md -Value $notes -Encoding utf8
