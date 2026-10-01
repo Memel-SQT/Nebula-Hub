@@ -477,3 +477,67 @@ Les constats qui fondent ces décisions sont détaillés dans [DISCOVERY.md](DIS
   hors liste blanche, coupure puis reprise, `Range` ignoré ou faux, serveur muet, annulation) ;
   `InstallManager` avec faux téléchargeur, faux installeur et vrai processus Node faisant office
   d'installeur (arguments transmis tels quels, code de sortie, délai sans arrêt du processus).
+
+## ADR-022 — Mises à jour, réparation, désinstallation et protection des données (M5)
+
+- **Statut** : Accepté (M5). Amende ADR-021 (machine à états) ; applique ADR-004 et la section 7.6.
+- **Machine à états** : trois phases s'ajoutent à celles du brief. `backing-up` (l'app écrit sa
+  sauvegarde), `backup-failed` (l'opération attend la décision de l'utilisateur) et `removing` (le
+  désinstallateur tourne, la clé de registre doit disparaître). `repairing` et `uninstalling`
+  restent les phases d'entrée d'une réparation et d'une désinstallation. Pas d'annulation pendant
+  `installing`, `verifying-install` et `removing`. Table complète et testée sur chaque paire de
+  phases dans `src/shared/install-state.ts`.
+- **Confirmation (R04)** : obligatoire pour une réparation, une désinstallation, et la mise à jour
+  d'une app qui déclare `preOperationBackup` (Finterest). Le processus principal refuse
+  l'opération sans le `oui` explicite (`confirmation-required`). L'écran dit ce qui arrive aux
+  données (`dataNotice` du catalogue), affiche **le chemin exact de la sauvegarde** et prévient si
+  l'app est ouverte. Le chemin affiché est celui utilisé (plan conservé 15 min).
+- **Sauvegarde (section 7.6)** : après la fermeture de l'app, le Hub lance
+  `"<exe>" --backup-before-uninstall=<Documents>\Nebula Finterest\finterest-store-backup-<AAAA-MM-JJ_HH-mm-ss>.json`.
+  Le nom est horodaté : contrairement à celui de `installer.nsh`, il n'est jamais écrasé. Finterest
+  avale toutes ses erreurs et sort avec 0 : le Hub vérifie donc le **fichier**. Il doit être
+  présent, faire au plus 50 Mo, et être du JSON `app: 'Finterest'`, `version: 1`, `exportedAt`, avec
+  `accounts[]` de `{ name, snapshot }`. Le Hub ne lit que cette forme et compte les comptes ; il ne
+  garde, n'affiche ni n'envoie rien du contenu (R07). Une sauvegarde sans compte est valide (rien à
+  perdre) ; le nombre de comptes est affiché.
+- **Sauvegarde en échec** : l'opération s'arrête en `backup-failed` sans rien modifier.
+  L'utilisateur annule, ou continue après une **seconde confirmation** (bouton « danger »). Une
+  installation incomplète (exécutable absent) ne peut pas se sauvegarder : même règle.
+- **Fermeture de l'app (R08)** : jamais forcée. Le Hub attend. Le bouton « Fermer <app> » envoie
+  **une seule** demande polie, `taskkill /IM <exe>` sans `/F` : c'est le même message que le bouton
+  de fermeture de la fenêtre. Si l'app reste dans sa zone de notification, l'utilisateur la ferme
+  lui-même. La fermeture via Link viendra en M6–M8.
+- **Relecture après fermeture (ADR-004)** : si l'updater intégré de l'app a déjà installé la mise
+  à jour en quittant, l'opération se termine sans installeur (« s'est mise à jour elle-même »).
+  Après un installeur de mise à jour ou de réparation, le registre est relu jusqu'à 5 fois à 3 s
+  d'intervalle, le temps que l'ancien désinstallateur se termine.
+- **Réparation** : seulement quand la version installée est celle publiée ; sinon le Hub propose
+  « Mettre à jour » (`repair-unavailable`). L'installeur est retéléchargé et vérifié (SHA-512),
+  puis lancé avec `--updated /S`, exactement comme une mise à jour.
+- **Désinstallation** : le Hub lance `QuietUninstallString`, ou à défaut `UninstallString` + `/S`.
+  La commande est découpée sans shell. L'exécutable doit être un `.exe` absolu, dans le dossier de
+  l'app, et les arguments de simples commutateurs ; `--delete-app-data` n'est jamais passé. Le
+  Hub attend ensuite que la clé de registre disparaisse (3 min au plus). Pour Finterest, c'est son
+  propre désinstallateur qui supprime `%APPDATA%\Finterest` (`deleteAppDataOnUninstall`) : le
+  `dataNotice` le dit, d'où la sauvegarde. L'archivage des consentements Link ne s'applique
+  qu'à partir de M6.
+- **Mises à jour automatiques** : par app, désactivées par défaut (`settings.autoUpdate`). Les
+  activer pour une app qui se sauvegarde demande une confirmation, une fois. Le Hub les lance 5 s
+  après la stabilisation du catalogue et de la détection, et seulement pour une app fermée. Il
+  n'attend jamais l'utilisateur : si l'app est ouverte pendant l'opération ou si la sauvegarde
+  échoue, l'opération échoue, et cette version n'est plus retentée automatiquement pendant la
+  session.
+- **« Tout mettre à jour »** : une seule confirmation, qui liste les apps et leurs sauvegardes ;
+  les mises à jour passent ensuite une à une.
+- **Zone de notification** : le nombre de mises à jour s'affiche dans l'infobulle. Une entrée
+  « Mises à jour disponibles (n) » ouvre « Mes apps », et une autre lance « Rechercher des mises
+  à jour ».
+- **Écart au brief (§9.8, « le badge indique le nombre de mises à jour »)** : Electron ne permet
+  pas de surimpression sur l'icône de zone de notification sous Windows. Le nombre passe donc par
+  l'infobulle et le menu.
+- **Recettes [CRITIQUE]** : automatisées dans `scripts/sandbox/m5.mjs`
+  (`scripts/sandbox.ps1 -Recipe m5`). Le script installe Finterest 0.1.35 (vérifié contre son
+  `latest.yml`) et bloque son réseau, pour que la mise à jour testée soit celle du Hub. Il crée
+  deux comptes avec des données par l'interface de Finterest, puis lance (a) la mise à jour,
+  (b) la réparation et (c) la désinstallation, suivie de la réinstallation et de l'import compte
+  par compte. Après chaque étape, il relit les données par Finterest elle-même.

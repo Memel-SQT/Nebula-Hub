@@ -20,7 +20,7 @@ const OUTCOME_CLASS: Record<HistoryEntry['outcome'], string> = {
  * Downloads (brief §9.5): the queue with live progress (one operation at a time), then the
  * history from `install_history`, exportable as a JSON journal.
  */
-export function DownloadsScreen({ catalog, downloads, onNavigate, onInstall, onLaunch, onCancelOperation, onDismissOperation, onExportHistory }: CatalogScreenProps & {
+export function DownloadsScreen({ catalog, downloads, onNavigate, onInstall, onLaunch, onCancelOperation, onDismissOperation, onOperation, onRequestClose, onContinueWithoutBackup, onExportHistory }: CatalogScreenProps & {
   onExportHistory?: () => Promise<ExportResult>;
 }) {
   const t = useT();
@@ -64,9 +64,11 @@ export function DownloadsScreen({ catalog, downloads, onNavigate, onInstall, onL
                     operation={operation}
                     name={name(operation.appId)}
                     onCancel={onCancelOperation}
-                    onRetry={onInstall}
+                    onRetry={onOperation ?? onInstall}
                     onDismiss={onDismissOperation}
                     onLaunch={onLaunch}
+                    onRequestClose={onRequestClose}
+                    onContinueWithoutBackup={onContinueWithoutBackup}
                   />
                 </div>
               </li>

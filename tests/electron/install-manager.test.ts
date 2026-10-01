@@ -44,6 +44,22 @@ interface Harness {
   /** What the fake installer does: install a version (or not) and return a result. */
   installerBehaviour: { version: string | null; result: InstallerResult | Error };
   downloadBehaviour: (part: string, options: DownloadOptions) => Promise<{ resumed: boolean }>;
+  /** What the app writes when asked for its backup (null: nothing, like a silent failure). */
+  backupContent: string | null;
+  backups: string[];
+  /** The fake uninstaller: removes the app after this many registry checks (null: never). */
+  uninstallAfterChecks: number | null;
+  uninstalls: Array<{ program: string; args: readonly string[] }>;
+  closeRequests: string[];
+  detections: number;
+}
+
+const LOCATION = 'C:\\Users\\<user>\\AppData\\Local\\Programs\\x';
+const UNINSTALLER = `${LOCATION}\\Uninstall Nebula.exe`;
+const GOOD_BACKUP = JSON.stringify({ app: 'Finterest', version: 1, exportedAt: '2026-10-01T10:00:00Z', accounts: [{ name: 'Noé', snapshot: { months: [] } }] });
+
+function installedApp(appId: string, version: string, running = false): InstalledApp {
+  return { appId, version, scope: 'user', location: LOCATION, exeFound: true, running };
 }
 
 let root = '';
@@ -73,17 +89,58 @@ function harness(catalog: CatalogEntry[] = [finterest(), clock()], overrides: Pa
     downloadsDir: path.join(root, 'downloads'),
     installerBehaviour: { version: '0.1.36' as string | null, result: { kind: 'exit', code: 0 } as InstallerResult | Error },
     downloadBehaviour: writeFull,
-  } as Harness;
+    backupContent: GOOD_BACKUP,
+    backups: [],
+    uninstallAfterChecks: null,
+    uninstalls: [],
+    closeRequests: [],
+    detections: 0,
+  } as unknown as Harness;
+  let uninstallChecks: number | null = null;
   const view = (): InstalledView => ({ state: 'ready', apps: h.installed.map((app) => ({ ...app })), detectedAt: '2026-10-01T10:00:00Z' });
   h.deps = {
     entry: (appId) => catalog.find((entry) => entry.app.id === appId),
     installedView: view,
-    detect: async () => view(),
+    record: (appId) => {
+      const app = h.installed.find((candidate) => candidate.appId === appId);
+      const exeName = catalog.find((entry) => entry.app.id === appId)?.app.windows.exeName ?? 'x.exe';
+      return app ? { ...app, exePath: `${LOCATION}\\${exeName}`, entry: { uninstallString: `"${UNINSTALLER}" /currentuser`, quietUninstallString: `"${UNINSTALLER}" /currentuser /S` } } : undefined;
+    },
+    detect: async () => {
+      h.detections += 1;
+      // The uninstaller returned at once; the app leaves the registry a few checks later.
+      if (uninstallChecks !== null) {
+        uninstallChecks -= 1;
+        if (uninstallChecks <= 0) {
+          h.installed = [];
+          uninstallChecks = null;
+        }
+      }
+      return view();
+    },
     runningProcesses: async () => new Set(h.running),
+    requestClose: async (exeName) => {
+      h.closeRequests.push(exeName);
+    },
     download: (_url, part, options) => h.downloadBehaviour(part, options),
     verify: verifyFile,
     runner: {
       run: async (installer, args) => {
+        if (args[0]?.startsWith('--backup-before-uninstall=')) {
+          const file = args[0].slice('--backup-before-uninstall='.length);
+          h.backups.push(file);
+          if (h.backupContent !== null) {
+            await fs.mkdir(path.dirname(file), { recursive: true });
+            await fs.writeFile(file, h.backupContent);
+          }
+          // Like Finterest: always 0, whatever happened.
+          return { kind: 'exit', code: 0 };
+        }
+        if (installer === UNINSTALLER) {
+          h.uninstalls.push({ program: installer, args });
+          uninstallChecks = h.uninstallAfterChecks;
+          return { kind: 'exit', code: 0 };
+        }
         h.runs.push({ installer, args });
         // The installer must exist and be the verified file when it runs.
         expect((await fs.readFile(installer)).equals(CONTENT)).toBe(true);
@@ -104,8 +161,11 @@ function harness(catalog: CatalogEntry[] = [finterest(), clock()], overrides: Pa
       list: () => h.history,
     },
     downloadsDir: h.downloadsDir,
+    documentsDir: path.join(root, 'Documents'),
+    env: {},
     installDirectory: () => null,
     appExitPollMs: 10,
+    registryPollMs: 0,
     progressIntervalMs: 0,
     ...overrides,
   };
@@ -432,5 +492,284 @@ describe('spawnInstallerRunner', () => {
 
   it('rejects when the installer cannot start', async () => {
     await expect(spawnInstallerRunner.run(path.join(root, 'missing.exe'), [], 1000)).rejects.toMatchObject({ code: 'ENOENT' });
+  });
+});
+
+// ---- M5: update, repair, uninstall, backup (brief §7.5–7.7, ADR-022). ----
+
+async function until(h: Harness, appId: string, phase: InstallPhase): Promise<void> {
+  for (let i = 0; i < 400 && operationOf(h, appId)?.phase !== phase; i += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  }
+  expect(operationOf(h, appId)?.phase).toBe(phase);
+}
+
+describe('InstallManager: updates', () => {
+  it('asks for a confirmation before updating an app that backs up its data (R04)', () => {
+    const h = harness();
+    h.installed.push(installedApp('nebula.finterest', '0.1.35'));
+    expect(h.manager.enqueue('nebula.finterest', 'update')).toBe('confirmation-required');
+    expect(h.manager.getView().operations).toEqual([]);
+  });
+
+  it('backs up, then updates exactly like electron-updater (--updated /S)', async () => {
+    const h = harness();
+    h.installed.push(installedApp('nebula.finterest', '0.1.35'));
+    const plan = h.manager.plan('nebula.finterest', 'update');
+    expect(plan).toMatchObject({ kind: 'update', version: '0.1.36', fromVersion: '0.1.35', needsConfirmation: true, running: false, blocked: null });
+    expect(plan.backupPath).toMatch(/Documents[\\/]Nebula Finterest[\\/]finterest-store-backup-\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.json$/);
+
+    expect(h.manager.enqueue('nebula.finterest', 'update', { confirmed: true })).toBe('queued');
+    await h.manager.idle();
+    expect(h.phases.get('nebula.finterest')).toEqual(['queued', 'downloading', 'verifying', 'ready', 'backing-up', 'installing', 'verifying-install', 'installed']);
+    // The path shown on the confirmation screen is the one used.
+    expect(h.backups).toEqual([plan.backupPath]);
+    expect(operationOf(h, 'nebula.finterest').backup).toMatchObject({ path: plan.backupPath, state: 'ok', accounts: 1 });
+    expect(h.runs).toEqual([{ installer: path.join(h.downloadsDir, FILE_NAME), args: ['--updated', '/S'] }]);
+    expect(h.history[0]).toMatchObject({ kind: 'update', version: '0.1.36', fromVersion: '0.1.35', outcome: 'success' });
+  });
+
+  it('never moves an app on update, whatever the install folder setting', async () => {
+    const h = harness(undefined, { installDirectory: () => 'D:\\Apps' });
+    h.installed.push(installedApp('nebula.finterest', '0.1.35'));
+    h.manager.enqueue('nebula.finterest', 'update', { confirmed: true });
+    await h.manager.idle();
+    expect(h.runs[0].args).toEqual(['--updated', '/S']);
+  });
+
+  it('updates an app without backup in one click', async () => {
+    const h = harness([finterest(), clock()]);
+    h.installed.push(installedApp('nebula.clock', '1.1.2'));
+    h.installerBehaviour = { version: '1.1.3', result: { kind: 'exit', code: 0 } };
+    h.runs.length = 0;
+    expect(h.manager.enqueue('nebula.clock', 'update')).toBe('queued');
+    await h.manager.idle();
+    expect(h.phases.get('nebula.clock')).toEqual(['queued', 'downloading', 'verifying', 'ready', 'installing', 'verifying-install', 'installed']);
+    expect(h.backups).toEqual([]);
+  });
+
+  it.each([
+    ['not-installed', [] as InstalledApp[]],
+    ['no-update', [installedApp('nebula.finterest', '0.1.36')]],
+  ] as const)('refuses an update: %s', (result, apps) => {
+    const h = harness();
+    h.installed.push(...apps);
+    expect(h.manager.plan('nebula.finterest', 'update').blocked).toBe(result);
+    expect(h.manager.enqueue('nebula.finterest', 'update', { confirmed: true })).toBe(result);
+  });
+
+  it('waits for the user to close the app, and only asks it to close when the user says so (R08)', async () => {
+    const h = harness();
+    h.installed.push(installedApp('nebula.finterest', '0.1.35', true));
+    h.running.add('nebula finterest.exe');
+    h.manager.enqueue('nebula.finterest', 'update', { confirmed: true });
+    await until(h, 'nebula.finterest', 'waiting-for-app-exit');
+    await new Promise((resolve) => setTimeout(resolve, 40));
+    expect(h.closeRequests).toEqual([]);
+    const id = operationOf(h, 'nebula.finterest').id;
+    expect(h.manager.requestClose(id)).toBe(true);
+    expect(h.manager.requestClose(id)).toBe(false);
+    expect(h.closeRequests).toEqual(['Nebula Finterest.exe']);
+    expect(operationOf(h, 'nebula.finterest').closeRequested).toBe(true);
+    h.running.clear();
+    await h.manager.idle();
+    expect(operationOf(h, 'nebula.finterest').phase).toBe('installed');
+    expect(h.backups).toHaveLength(1);
+  });
+
+  it('notices when the app updated itself while closing (ADR-004), without running an installer', async () => {
+    const h = harness();
+    h.installed.push(installedApp('nebula.finterest', '0.1.35', true));
+    h.running.add('nebula finterest.exe');
+    h.manager.enqueue('nebula.finterest', 'update', { confirmed: true });
+    await until(h, 'nebula.finterest', 'waiting-for-app-exit');
+    // The app's own updater installs on quit (autoInstallOnAppQuit).
+    h.installed = [installedApp('nebula.finterest', '0.1.36')];
+    h.running.clear();
+    await h.manager.idle();
+    expect(operationOf(h, 'nebula.finterest')).toMatchObject({ phase: 'installed', failureDetail: 'self-updated' });
+    expect(h.runs).toEqual([]);
+  });
+});
+
+describe('InstallManager: the app backup (brief §7.6)', () => {
+  it.each([
+    ['missing', null],
+    ['empty', ''],
+    ['unknown-format', JSON.stringify({ app: 'Other', version: 1, exportedAt: 'x', accounts: [] })],
+    ['invalid', '{ broken'],
+  ] as const)('blocks on a %s backup until the user decides', async (problem, content) => {
+    const h = harness();
+    h.installed.push(installedApp('nebula.finterest', '0.1.35'));
+    h.backupContent = content;
+    h.manager.enqueue('nebula.finterest', 'update', { confirmed: true });
+    await until(h, 'nebula.finterest', 'backup-failed');
+    expect(operationOf(h, 'nebula.finterest').backup).toMatchObject({ state: 'failed', problem });
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(h.runs).toEqual([]);
+    h.manager.cancel(operationOf(h, 'nebula.finterest').id);
+    await h.manager.idle();
+    expect(operationOf(h, 'nebula.finterest').phase).toBe('cancelled');
+    expect(h.runs).toEqual([]);
+    expect(await exists(path.join(h.downloadsDir, FILE_NAME))).toBe(false);
+  });
+
+  it('continues without backup only after the second confirmation', async () => {
+    const h = harness();
+    h.installed.push(installedApp('nebula.finterest', '0.1.35'));
+    h.backupContent = null;
+    h.manager.enqueue('nebula.finterest', 'update', { confirmed: true });
+    await until(h, 'nebula.finterest', 'backup-failed');
+    expect(h.manager.continueWithoutBackup(operationOf(h, 'nebula.finterest').id)).toBe(true);
+    await h.manager.idle();
+    expect(operationOf(h, 'nebula.finterest')).toMatchObject({ phase: 'installed', backup: { state: 'skipped' } });
+    expect(h.runs).toHaveLength(1);
+  });
+
+  it('accepts a backup without accounts and says how many it holds', async () => {
+    const h = harness();
+    h.installed.push(installedApp('nebula.finterest', '0.1.35'));
+    h.backupContent = JSON.stringify({ app: 'Finterest', version: 1, exportedAt: 'x', accounts: [] });
+    h.manager.enqueue('nebula.finterest', 'update', { confirmed: true });
+    await h.manager.idle();
+    expect(operationOf(h, 'nebula.finterest').backup).toMatchObject({ state: 'ok', accounts: 0 });
+  });
+});
+
+describe('InstallManager: automatic updates', () => {
+  it('updates the opted-in apps that are closed, and never waits for the user', async () => {
+    const h = harness();
+    h.installed.push(installedApp('nebula.finterest', '0.1.35'), installedApp('nebula.clock', '1.1.2', true));
+    expect(h.manager.autoUpdate((appId) => appId === 'nebula.finterest' || appId === 'nebula.clock')).toEqual(['nebula.finterest']);
+    expect(operationOf(h, 'nebula.finterest').auto).toBe(true);
+    await h.manager.idle();
+    expect(operationOf(h, 'nebula.finterest').phase).toBe('installed');
+    expect(h.manager.autoUpdate(() => false)).toEqual([]);
+  });
+
+  it('gives up on a failed backup instead of blocking, and does not retry that version', async () => {
+    const h = harness();
+    h.installed.push(installedApp('nebula.finterest', '0.1.35'));
+    h.backupContent = null;
+    h.manager.autoUpdate(() => true);
+    await h.manager.idle();
+    expect(operationOf(h, 'nebula.finterest')).toMatchObject({ phase: 'failed', failure: 'backup-failed', failureDetail: 'missing' });
+    expect(h.runs).toEqual([]);
+    expect(h.manager.autoUpdate(() => true)).toEqual([]);
+  });
+});
+
+describe('InstallManager: repair', () => {
+  it('cannot back up an install whose executable is gone: the user confirms a second time', async () => {
+    const h = harness();
+    h.installed.push({ ...installedApp('nebula.finterest', '0.1.36'), exeFound: false });
+    h.manager.enqueue('nebula.finterest', 'repair', { confirmed: true });
+    await until(h, 'nebula.finterest', 'backup-failed');
+    expect(operationOf(h, 'nebula.finterest').backup).toMatchObject({ state: 'failed', problem: 'not-started' });
+    expect(h.backups).toEqual([]);
+    h.manager.continueWithoutBackup(operationOf(h, 'nebula.finterest').id);
+    await h.manager.idle();
+    expect(operationOf(h, 'nebula.finterest').phase).toBe('installed');
+  });
+
+  it('reinstalls the same version in update mode, after the backup', async () => {
+    const h = harness();
+    h.installed.push(installedApp('nebula.finterest', '0.1.36'));
+    expect(h.manager.enqueue('nebula.finterest', 'repair')).toBe('confirmation-required');
+    expect(h.manager.enqueue('nebula.finterest', 'repair', { confirmed: true })).toBe('queued');
+    await h.manager.idle();
+    expect(h.phases.get('nebula.finterest')).toEqual(['repairing', 'queued', 'downloading', 'verifying', 'ready', 'backing-up', 'installing', 'verifying-install', 'installed']);
+    expect(h.runs[0].args).toEqual(['--updated', '/S']);
+    expect(h.history[0]).toMatchObject({ kind: 'repair', outcome: 'success' });
+  });
+
+  it('is an update, not a repair, when the release is another version', () => {
+    const h = harness();
+    h.installed.push(installedApp('nebula.finterest', '0.1.35'));
+    expect(h.manager.enqueue('nebula.finterest', 'repair', { confirmed: true })).toBe('repair-unavailable');
+  });
+});
+
+describe('InstallManager: uninstall', () => {
+  it('backs up, runs the quiet uninstaller, then waits for the registry key to go', async () => {
+    const h = harness();
+    h.installed.push(installedApp('nebula.finterest', '0.1.36'));
+    h.uninstallAfterChecks = 3;
+    expect(h.manager.enqueue('nebula.finterest', 'uninstall')).toBe('confirmation-required');
+    const plan = h.manager.plan('nebula.finterest', 'uninstall');
+    expect(plan).toMatchObject({ version: null, fromVersion: '0.1.36', needsConfirmation: true });
+    expect(h.manager.enqueue('nebula.finterest', 'uninstall', { confirmed: true })).toBe('queued');
+    await h.manager.idle();
+    expect(h.phases.get('nebula.finterest')).toEqual(['uninstalling', 'backing-up', 'removing', 'absent']);
+    expect(h.backups).toEqual([plan.backupPath]);
+    expect(h.uninstalls).toEqual([{ program: UNINSTALLER, args: ['/currentuser', '/S'] }]);
+    expect(h.runs).toEqual([]);
+    expect(h.history[0]).toMatchObject({ kind: 'uninstall', version: '0.1.36', outcome: 'success' });
+  });
+
+  it('uninstalls an app without backup', async () => {
+    const h = harness();
+    h.installed.push(installedApp('nebula.clock', '1.1.3'));
+    h.uninstallAfterChecks = 1;
+    h.manager.enqueue('nebula.clock', 'uninstall', { confirmed: true });
+    await h.manager.idle();
+    expect(h.phases.get('nebula.clock')).toEqual(['uninstalling', 'removing', 'absent']);
+  });
+
+  it('reports an uninstaller that never finishes', async () => {
+    const h = harness(undefined, { uninstallTimeoutMs: 30, registryPollMs: 5 });
+    h.installed.push(installedApp('nebula.clock', '1.1.3'));
+    h.uninstallAfterChecks = null;
+    h.manager.enqueue('nebula.clock', 'uninstall', { confirmed: true });
+    await h.manager.idle();
+    expect(operationOf(h, 'nebula.clock')).toMatchObject({ phase: 'failed', failure: 'uninstall-timeout' });
+  });
+
+  it('refuses an uninstall command that is not the app’s own uninstaller', () => {
+    const h = harness();
+    h.installed.push(installedApp('nebula.clock', '1.1.3'));
+    h.deps.record = () => ({ ...installedApp('nebula.clock', '1.1.3'), exePath: 'x', entry: { uninstallString: null, quietUninstallString: '"C:\\Windows\\System32\\cmd.exe" /S' } });
+    expect(h.manager.enqueue('nebula.clock', 'uninstall', { confirmed: true })).toBe('no-uninstaller');
+  });
+
+  it('waits for the app to close and can be cancelled meanwhile', async () => {
+    const h = harness();
+    h.installed.push(installedApp('nebula.clock', '1.1.3', true));
+    h.running.add('nebula clock.exe');
+    h.manager.enqueue('nebula.clock', 'uninstall', { confirmed: true });
+    await until(h, 'nebula.clock', 'waiting-for-app-exit');
+    h.manager.cancel(operationOf(h, 'nebula.clock').id);
+    await h.manager.idle();
+    expect(operationOf(h, 'nebula.clock').phase).toBe('cancelled');
+    expect(h.uninstalls).toEqual([]);
+  });
+});
+
+describe('InstallManager: the real backup command line', () => {
+  // A Node script standing in for Finterest's --backup-before-uninstall mode: it receives the
+  // whole "--flag=<path with spaces>" as one argument, writes the file and always exits 0.
+  const FAKE_APP = [
+    "const fs = require('fs');",
+    "const path = require('path');",
+    "const flag = process.argv.find((arg) => arg.startsWith('--backup-before-uninstall='));",
+    "const file = flag.slice('--backup-before-uninstall='.length);",
+    'fs.mkdirSync(path.dirname(file), { recursive: true });',
+    "fs.writeFileSync(file, JSON.stringify({ app: 'Finterest', version: 1, exportedAt: new Date().toISOString(), accounts: [{ name: 'Noé', snapshot: {} }, { name: 'Démo', snapshot: {} }] }));",
+  ].join('\n');
+
+  it('passes the backup path as a single argument, spaces and accents included', async () => {
+    const script = path.join(root, 'fake-finterest.js');
+    await fs.writeFile(script, FAKE_APP);
+    const h = harness(undefined, { documentsDir: path.join(root, 'Mes Documents é') });
+    h.installed.push(installedApp('nebula.finterest', '0.1.35'));
+    const fake = h.deps.runner;
+    h.deps.runner = {
+      run: (program, args, timeoutMs) => (args[0]?.startsWith('--backup-before-uninstall=') ? spawnInstallerRunner.run(process.execPath, [script, ...args], timeoutMs) : fake.run(program, args, timeoutMs)),
+    };
+    h.manager.enqueue('nebula.finterest', 'update', { confirmed: true });
+    await h.manager.idle();
+    const operation = operationOf(h, 'nebula.finterest');
+    expect(operation.backup).toMatchObject({ state: 'ok', accounts: 2 });
+    expect(JSON.parse(await fs.readFile(operation.backup!.path, 'utf8')).accounts).toHaveLength(2);
   });
 });

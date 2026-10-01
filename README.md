@@ -5,8 +5,8 @@ les applications de la famille Nebula — Nebula Finterest, Nebula Clock, Nebula
 Windows, sans compte et sans télémétrie.
 
 > Projet en cours de développement : le catalogue signé, les fiches des apps, la
-> personnalisation, le lanceur et l’installation des apps sont en place ; les mises à jour,
-> la réparation, la désinstallation et Nebula Link arrivent dans les jalons suivants.
+> personnalisation, le lanceur, l’installation, les mises à jour, la réparation et la
+> désinstallation sont en place ; Nebula Link arrive dans les jalons suivants.
 
 ## Ce que fait Nebula Hub
 
@@ -56,7 +56,12 @@ puis **Exécuter quand même**.
   d'être lancé. Il est téléchargé dans `%LOCALAPPDATA%\Nebula Hub\downloads\`, puis supprimé
   après l'installation ; ce dossier est vidé à chaque démarrage du Hub.
 - Le Hub ne ferme jamais une app à votre place : si elle est ouverte, il attend que vous la
-  fermiez.
+  fermiez (ou lui envoie une simple demande de fermeture, si vous le demandez).
+- Une mise à jour, une réparation ou une désinstallation qui touche à vos données demande votre
+  confirmation, avec ce qui va se passer. Avant, l'app sauvegarde elle-même vos données (Nebula
+  Finterest : dans `Documents\Nebula Finterest`), et le Hub vérifie cette sauvegarde ; si elle
+  échoue, rien n'est modifié sans votre second accord.
+- Les mises à jour automatiques sont désactivées par défaut, et se règlent app par app.
 
 ## Développeurs
 
@@ -74,7 +79,8 @@ npm run dist:win   # installeur Windows dans install/windows/
 - Journal des changements techniques : [`DEV_CHANGES.md`](DEV_CHANGES.md)
 - Le catalogue des apps et sa signature : [`docs/CATALOG.md`](docs/CATALOG.md)
 - Recette manuelle dans Windows Sandbox : [`docs/TEST_PLAN_WINDOWS.md`](docs/TEST_PLAN_WINDOWS.md)
-  (`scripts/sandbox.ps1` ouvre une sandbox avec l’installeur fraîchement construit)
+  (`scripts/sandbox.ps1` ouvre une sandbox avec l’installeur fraîchement construit ;
+  `-Recipe m4` ou `-Recipe m5` y déroule la recette automatiquement)
 - Les notes de version sont publiées uniquement dans les releases GitHub.
 
 ### Publier une version

@@ -2,6 +2,19 @@
 
 Technical log, newest session first. Release notes live only in the GitHub release body.
 
+## [2026-10-01] - Nebula Hub Session #6 — M5: updates, repair, uninstall, data protection
+
+- **State machine** (ADR-022): new phases `backing-up`, `backup-failed`, `removing`; repair enters through `repairing`, uninstall through `uninstalling`; no cancel while an installer or uninstaller runs; every pair of the 17 phases tested. `needsConfirmation` (repair, uninstall, update of an app with `preOperationBackup`), `OperationPlan` for the confirmation screen.
+- **Pure modules**: `shared/backup.ts` (timestamped backup path, single `--flag=<path>` argument, shape-only validation of `finterest-backup-v1`, R07), `shared/uninstall-command.ts` (registry command line to an execFile array: absolute `.exe` inside the app folder, plain switches only, `/S` added, `--delete-app-data` refused).
+- **InstallManager**: update and repair with `--updated /S` (never `/D`), version re-read after the app is closed (self-updated apps finish without an installer), registry re-read up to 5 times after an update; app backup after closing, file checked, `backup-failed` waits for cancel or a second confirmation; uninstall with the quiet command then waits for the registry key to go; one polite close request on user demand (`taskkill /IM` without `/F`, R08); plans keep the exact backup path shown on screen; automatic updates (opted-in, closed apps, never waiting, a failed version is not retried in the session). The main process refuses unconfirmed destructive operations.
+- **Settings**: `autoUpdate` per app (off by default, field-by-field parsing).
+- **Main / tray**: IPC plan / start / request close / continue without backup / navigate; debounced automatic updates after catalog and detection settle; tray tooltip with the update count, "Updates available (n)" opening My apps, "Check for updates".
+- **UI**: accessible confirmation dialog (focus on Cancel, focus trap, Escape) with data notice, exact backup path and open-app warning; second confirmation before continuing without backup; confirmation once when turning automatic updates on for an app that backs up; "Updates available" panel on Home and My apps with "Update all" (one combined confirmation); update / repair / uninstall actions on My apps and the app page; automatic update switch per app; operation status for backup, failed backup, close request, removal and each kind of end.
+- **Sandbox kit** moved to `scripts/sandbox/` (versioned): `scripts/sandbox.ps1 -Recipe m4|m5` maps the installer and kit read-only and `.sandbox\results` writable; the Hub executable runs the recipes as Node over CDP. `m5.mjs` automates the three [CRITIQUE] tests (Finterest 0.1.35 checked against its latest.yml, its self-updater blocked by a sandbox firewall rule, two accounts with data, update, repair, uninstall + import account by account, data read back through Finterest's own bridge).
+- **Blocked**: Windows Sandbox (now enabled) loses its connection to the VM about 45 s after start, even bare (no mapping, no command); the development machine is used over Remote Desktop. The M4 recipe and the three [CRITIQUE] tests are therefore not run yet.
+- **Live check** on the development machine, read-only: plans (backup path under the real Documents, repair unavailable for Finterest 0.1.35, uninstall plan for Clock), unconfirmed uninstall refused by the main process, dialogs opened and cancelled, injected queue for the backup-failed and waiting states; no operation started, no console error.
+- Validation: typecheck, lint, 768 tests, build, dist:win.
+
 ## [2026-10-01] - Nebula Hub Session #5 — v0.1.0 published, M4: download and install
 
 - **v0.1.0** published on GitHub by an annotated tag (release workflow green: installer, blockmap, latest.yml, signed catalog). The workflow now fetches the tag object explicitly before reading its message (actions/checkout may leave a tag without its annotation).

@@ -26,6 +26,12 @@ powershell -ExecutionPolicy Bypass -File scripts/sandbox.ps1
 Le script ouvre Windows Sandbox avec le dossier `install\windows` en **lecture seule** sur le
 bureau (« Nebula Hub »). Tout ce qui se passe dans la sandbox disparaît à sa fermeture.
 
+**Mode automatique** : `scripts/sandbox.ps1 -Recipe m4` ou `-Recipe m5`. La sandbox installe le
+Hub et le lance. L'exécutable du Hub, en mode Node, pilote ensuite la recette par le protocole
+DevTools : aucun outil n'est à installer dans la sandbox. Les résultats (JSON, captures,
+journaux) arrivent dans `.sandbox\results` (ignoré par git) ; `done.flag` marque la fin. Les
+scripts sont dans `scripts/sandbox/`.
+
 ## M4 — Téléchargement et installation
 
 | # | Étapes | Résultat attendu | Résultat |
@@ -51,11 +57,31 @@ ouverte » (« En attente de fermeture », le Hub ne ferme jamais l'app) concern
 
 ## M5 — Mises à jour, réparation, désinstallation [CRITIQUE]
 
-À compléter en M5 : les trois recettes de la section 7.6 du brief, avec un vrai compte Finterest
-contenant des données.
+Recette automatisée : `scripts/sandbox.ps1 -Recipe m5`, résultats dans
+`.sandbox\results\m5-results.json` (verdicts `a`, `b`, `c`). Préparation faite par le script :
 
-- (a) Mise à jour de Finterest 0.1.35 vers la 0.1.36 par le Hub → données intactes.
-- (b) Réparation → données intactes.
-- (c) Désinstallation → la sauvegarde existe et s'importe dans une installation neuve : chaque
-  profil est recréé avec le même nom, puis la sauvegarde est importée compte par compte (les PIN
-  et les avatars ne sont pas sauvegardés par Finterest).
+1. Le Hub est installé à blanc.
+2. Finterest **0.1.35** est téléchargée depuis sa release, son SHA-512 est comparé à son
+   `latest.yml`, puis elle est installée.
+3. Le réseau de Finterest est bloqué par une règle de pare-feu de la sandbox. Sans cela, son
+   updater intégré installerait la 0.1.36 tout seul en quittant, et la mise à jour testée ne
+   serait plus celle du Hub.
+4. Deux comptes sont créés par l'interface de Finterest : « Noé », avec un revenu, deux charges
+   fixes, une dépense et un prêt, et « Démo », avec un revenu, une charge et une dépense. Les
+   données attendues sont relues par Finterest elle-même.
+
+| # | Étapes | Résultat attendu | Résultat |
+|---|---|---|---|
+| 5.1 (a) | Mise à jour de Finterest 0.1.35 vers la 0.1.36 par le Hub, confirmée. | Phases : téléchargement, vérification, **sauvegarde** (fichier horodaté dans `Documents\Nebula Finterest`, 2 comptes), installation `--updated /S`, version 0.1.36 relue dans le registre. Finterest rouverte : les deux comptes et **toutes** leurs données sont identiques. | |
+| 5.2 (b) | Réparation de Finterest 0.1.36 par le Hub, confirmée. | Sauvegarde vérifiée, réinstallation `--updated /S`, données identiques. | |
+| 5.3 (c) | Désinstallation de Finterest par le Hub, confirmée ; puis installation neuve par le Hub ; dans Finterest, recréer « Noé » puis importer la sauvegarde, recréer « Démo » puis importer la même sauvegarde. | La sauvegarde existe et contient les 2 comptes ; `%APPDATA%\Finterest` est supprimé par le désinstallateur de Finterest (annoncé dans la confirmation) ; après import, chaque compte retrouve exactement ses données (PIN et avatars ne sont pas sauvegardés par Finterest). | |
+| 5.4 | Mettre à jour une app pendant qu'elle est ouverte. | « En attente de fermeture » ; rien ne se ferme seul. « Fermer <app> » envoie une demande de fermeture polie ; l'opération reprend dès que l'app est fermée. | |
+| 5.5 | Sauvegarde impossible (par exemple, renommer l'exécutable de Finterest puis demander une réparation). | « Sauvegarde impossible » ; rien n'est modifié ; « Continuer sans sauvegarde » demande une seconde confirmation. | |
+| 5.6 | Activer « Mise à jour automatique » pour Finterest. | Confirmation (sauvegarde avant chaque mise à jour) ; à la publication suivante, mise à jour quand Finterest est fermée. | |
+
+**État au 2026-10-01** : recettes prêtes mais **non exécutées**. Windows Sandbox démarre puis perd
+sa connexion avec la machine virtuelle (« La connexion à l'environnement Bac à sable Windows a
+été perdue »). C'est le cas même pour une sandbox vide, sans dossier partagé ni commande ; la
+machine de développement est elle-même utilisée en Bureau à distance. Les comportements sont
+couverts par `tests/electron/install-manager.test.ts`, y compris un vrai processus qui reçoit
+l'argument de sauvegarde avec des espaces et des accents dans le chemin.

@@ -54,6 +54,11 @@ function installBridge(overrides: Partial<HubSettings> = {}, startedHidden = tru
     dismissOperation: jest.fn(async () => true),
     exportHistory: jest.fn(async () => 'saved' as const),
     pickInstallDirectory: jest.fn(async () => null),
+    planOperation: jest.fn(async (appId, kind) => ({ appId, kind, version: '0.1.36', fromVersion: '0.1.35', needsConfirmation: kind !== 'update' || appId === 'nebula.finterest', backupPath: appId === 'nebula.finterest' ? 'C:\\Users\\<user>\\Documents\\Nebula Finterest\\finterest-store-backup-2026-10-01_21-05-03.json' : null, running: false, blocked: null })),
+    startOperation: jest.fn(async () => 'queued' as const),
+    requestAppClose: jest.fn(async () => true),
+    continueWithoutBackup: jest.fn(async () => true),
+    onNavigateRequest: () => () => undefined,
   };
   window.nebulaHub = bridge;
   return {
@@ -164,5 +169,79 @@ describe('App', () => {
     act(() => setVisible(false));
     act(() => setVisible(true));
     expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument();
+  });
+});
+
+describe('App: confirmations (R04)', () => {
+  async function openMyApps() {
+    await userEvent.click(screen.getByRole('button', { name: /Mes apps/ }));
+  }
+
+  it('confirms an uninstall, showing the data notice and the backup path, and can be cancelled with Escape', async () => {
+    const { bridge } = installBridge();
+    await render(<App />);
+    await openMyApps();
+    await userEvent.click(screen.getByRole('button', { name: 'Désinstaller Nebula Finterest' }));
+    const dialog = await screen.findByRole('alertdialog', { name: 'Désinstaller Nebula Finterest ?' });
+    expect(bridge.planOperation).toHaveBeenCalledWith('nebula.finterest', 'uninstall');
+    expect(within(dialog).getByText(/Une désinstallation supprime ensuite les données/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/finterest-store-backup-2026-10-01_21-05-03\.json/)).toBeInTheDocument();
+    // The safe choice has the focus.
+    expect(within(dialog).getByRole('button', { name: 'Annuler' })).toHaveFocus();
+    await userEvent.keyboard('{Escape}');
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    expect(bridge.startOperation).not.toHaveBeenCalled();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Désinstaller Nebula Finterest' }));
+    await userEvent.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Désinstaller' }));
+    expect(bridge.startOperation).toHaveBeenCalledWith('nebula.finterest', 'uninstall', true);
+  });
+
+  it('confirms the update of an app that backs up its data', async () => {
+    const { bridge } = installBridge();
+    await render(<App />);
+    await openMyApps();
+    await userEvent.click(screen.getAllByRole('button', { name: 'Mettre à jour Nebula Finterest' })[0]);
+    const dialog = await screen.findByRole('alertdialog', { name: 'Mettre à jour Nebula Finterest ?' });
+    expect(within(dialog).getByText('La version v0.1.36 remplace la v0.1.35. Vos données sont conservées.')).toBeInTheDocument();
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Mettre à jour' }));
+    expect(bridge.startOperation).toHaveBeenCalledWith('nebula.finterest', 'update', true);
+  });
+
+  it('asks a second time before continuing without backup', async () => {
+    const { bridge, pushDownloads } = installBridge();
+    await render(<App />);
+    await openMyApps();
+    await pushDownloads(downloadsView({ operations: [operation({ id: 'op-9', kind: 'update', fromVersion: '0.1.35', phase: 'backup-failed', backup: { path: 'C:\\x.json', state: 'failed', accounts: null, problem: 'missing' } })], history: [] }));
+    await userEvent.click(screen.getByRole('button', { name: 'Continuer sans sauvegarde' }));
+    const dialog = await screen.findByRole('alertdialog', { name: 'Continuer sans sauvegarde ?' });
+    expect(bridge.continueWithoutBackup).not.toHaveBeenCalled();
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Continuer sans sauvegarde' }));
+    expect(bridge.continueWithoutBackup).toHaveBeenCalledWith('op-9');
+  });
+
+  it('confirms automatic updates for an app that backs up its data, not for the others', async () => {
+    const { bridge } = installBridge();
+    await render(<App />);
+    await openMyApps();
+    await userEvent.click(screen.getByRole('switch', { name: 'Mise à jour automatique de Nebula Clock' }));
+    expect(bridge.updateSettings).toHaveBeenLastCalledWith({ autoUpdate: { 'nebula.clock': true } });
+    await userEvent.click(screen.getByRole('switch', { name: 'Mise à jour automatique de Nebula Finterest' }));
+    const dialog = await screen.findByRole('alertdialog', { name: 'Mettre à jour Nebula Finterest automatiquement ?' });
+    expect(within(dialog).getByText(/Documents\\Nebula Finterest/)).toBeInTheDocument();
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Activer' }));
+    expect(bridge.updateSettings).toHaveBeenLastCalledWith({ autoUpdate: { 'nebula.clock': true, 'nebula.finterest': true } });
+  });
+
+  it('opens the screen the tray asks for', async () => {
+    const { bridge } = installBridge();
+    let navigate: (screen: 'my-apps' | 'downloads') => void = () => undefined;
+    bridge.onNavigateRequest = (callback) => {
+      navigate = callback;
+      return () => undefined;
+    };
+    await render(<App />);
+    await act(async () => navigate('downloads'));
+    expect(screen.getByRole('heading', { level: 1, name: 'Téléchargements' })).toBeInTheDocument();
   });
 });

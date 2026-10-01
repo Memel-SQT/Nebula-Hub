@@ -1,6 +1,8 @@
 import path from 'node:path';
 import { app, dialog, ipcMain, nativeTheme, shell } from 'electron';
-import { CHANNELS, type InitialState } from '../shared/bridge';
+import { CHANNELS, type InitialState, type NavigateRequest } from '../shared/bridge';
+import type { OperationKind } from '../shared/install-state';
+import { updateAvailable } from '../shared/installed-view';
 import type { HubSettings } from '../shared/settings';
 import { isSafeExternalUrl } from '../shared/url';
 import { InstalledAppsService } from './apps/installed-apps';
@@ -72,17 +74,22 @@ if (!app.requestSingleInstanceLock()) {
     installed.onChange((view) => {
       getMainWindow()?.webContents.send(CHANNELS.installedChanged, view);
       updateTray(trayOptions());
+      scheduleAutoUpdates();
     });
     installs = new InstallManager({
       entry: (appId) => catalog?.getView().entries.find((entry) => entry.app.id === appId),
       installedView: () => installed?.getView() ?? { state: 'loading', apps: [], detectedAt: null },
+      record: (appId) => installed?.record(appId),
       detect: () => installed!.detect(),
       runningProcesses: () => windowsProbe.runningProcesses(),
+      requestClose: (exeName) => windowsProbe.requestClose(exeName),
       download: downloadFile,
       verify: verifyFile,
       runner: spawnInstallerRunner,
       history: new InstallHistory(database),
       downloadsDir: downloadsDir(),
+      documentsDir: app.getPath('documents'),
+      env: process.env,
       installDirectory: () => settingsStore.get().installDirectory,
     });
     await installs.cleanup();
@@ -126,6 +133,25 @@ async function openWindow(): Promise<void> {
   showMainWindow();
 }
 
+let autoUpdateTimer: ReturnType<typeof setTimeout> | null = null;
+
+/** Brief 7.5: opted-in apps are updated once the catalog and the detection settle (debounced). */
+function scheduleAutoUpdates(): void {
+  if (autoUpdateTimer) clearTimeout(autoUpdateTimer);
+  autoUpdateTimer = setTimeout(() => {
+    autoUpdateTimer = null;
+    if (!installs || !catalog || catalog.getView().refreshing || installed?.getView().state !== 'ready') return;
+    const optedIn = settingsStore.get().autoUpdate;
+    installs.autoUpdate((appId) => optedIn[appId] === true);
+  }, 5000);
+}
+
+/** Shows the window on a given screen (tray menu). */
+async function openWindowOn(screen: NavigateRequest): Promise<void> {
+  await openWindow();
+  getMainWindow()?.webContents.send(CHANNELS.navigate, screen);
+}
+
 /** Coming back to the Hub re-checks what is installed and running (debounced, brief 7.1). */
 app.on('browser-window-focus', () => installed?.requestDetect());
 
@@ -141,10 +167,18 @@ function trayOptions(): TrayOptions {
     .map((record) => apps.find((candidate) => candidate.id === record.appId))
     .filter((candidate): candidate is NonNullable<typeof candidate> => Boolean(candidate) && candidate?.role !== 'hub')
     .map((candidate) => ({ id: candidate.id, name: candidate.name }));
+  const entries = catalog?.getView().entries ?? [];
+  const updates = (installed?.getView().apps ?? []).filter((record) => {
+    const entry = entries.find((candidate) => candidate.app.id === record.appId);
+    return entry?.app.role !== 'hub' && updateAvailable(entry, record);
+  }).length;
   return {
     language: settingsStore.get().appearance.language,
     apps: launchable,
+    updates,
     onOpen: () => void openWindow(),
+    onCheckUpdates: () => void catalog?.refresh(true).then(() => installed?.detect()),
+    onShowUpdates: () => void openWindowOn('my-apps'),
     onLaunch: (appId) => void installed?.launch(appId),
     onQuit: quit,
   };
@@ -190,6 +224,9 @@ function registerIpcHandlers(): void {
     }
     if (settings.channel !== before.channel) {
       void catalog?.refresh(true);
+    }
+    if (JSON.stringify(settings.autoUpdate) !== JSON.stringify(before.autoUpdate)) {
+      scheduleAutoUpdates();
     }
     broadcastSettings(settings);
     return settings;
@@ -239,6 +276,26 @@ function registerIpcHandlers(): void {
   ipcMain.handle(CHANNELS.appInstall, (event, appId: unknown) => {
     if (!isTrustedSender(event) || !installs || typeof appId !== 'string') return 'unknown-app';
     return installs.enqueue(appId);
+  });
+
+  ipcMain.handle(CHANNELS.operationPlan, (event, appId: unknown, kind: unknown) => {
+    if (!isTrustedSender(event) || !installs || typeof appId !== 'string' || !isOperationKind(kind)) throw new Error('ERR_BAD_REQUEST');
+    return installs.plan(appId, kind);
+  });
+
+  ipcMain.handle(CHANNELS.operationStart, (event, appId: unknown, kind: unknown, confirmed: unknown) => {
+    if (!isTrustedSender(event) || !installs || typeof appId !== 'string' || !isOperationKind(kind)) return 'unknown-app';
+    return installs.enqueue(appId, kind, { confirmed: confirmed === true });
+  });
+
+  ipcMain.handle(CHANNELS.operationRequestClose, (event, operationId: unknown) => {
+    if (!isTrustedSender(event) || !installs || typeof operationId !== 'string') return false;
+    return installs.requestClose(operationId);
+  });
+
+  ipcMain.handle(CHANNELS.operationContinue, (event, operationId: unknown) => {
+    if (!isTrustedSender(event) || !installs || typeof operationId !== 'string') return false;
+    return installs.continueWithoutBackup(operationId);
   });
 
   ipcMain.handle(CHANNELS.downloadsGet, (event) => {
@@ -293,4 +350,8 @@ function registerIpcHandlers(): void {
     if (!isTrustedSender(event) || !catalog || typeof appId !== 'string' || typeof assetPath !== 'string') return null;
     return catalog.getAsset(appId, assetPath);
   });
+}
+
+function isOperationKind(value: unknown): value is OperationKind {
+  return value === 'install' || value === 'update' || value === 'repair' || value === 'uninstall';
 }

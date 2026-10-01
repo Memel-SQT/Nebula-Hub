@@ -18,6 +18,12 @@ export interface SystemProbe {
   fileExists(filePath: string): Promise<boolean>;
   /** Starts a program detached from the Hub (it keeps running if the Hub quits). */
   start(executable: string, workingDirectory: string): Promise<void>;
+  /**
+   * Asks a program to close, politely: `taskkill /IM <exe>` **without** `/F` sends a close
+   * message to its windows, exactly like clicking their close button. Never forced (R08); only
+   * called after the user asked for it.
+   */
+  requestClose(exeName: string): Promise<void>;
 }
 
 let exportCounter = 0;
@@ -59,6 +65,11 @@ export const windowsProbe: SystemProbe = {
     } catch {
       return false;
     }
+  },
+
+  async requestClose(exeName) {
+    // taskkill reports an error when an app has no window to close (tray): nothing else to do.
+    await run('taskkill.exe', ['/IM', exeName], { timeout: 10_000 }).catch(() => undefined);
   },
 
   start(executable, workingDirectory) {

@@ -1,9 +1,12 @@
 import { Icon } from '@nebula/design/react';
 import { localize } from '@shared/catalog';
+import { isActive } from '@shared/install-state';
 import { updateAvailable, type InstalledView } from '@shared/installed-view';
-import { familyEntries, installedOf } from '../catalog';
+import { familyEntries, installedOf, operationOf } from '../catalog';
 import { AppIcon, AppStateChip, AppTile, Panel } from '../components/Cards';
+import { OperationStatus } from '../components/Operation';
 import { EmptyState, StateView, type LoadState } from '../components/ScreenState';
+import { UpdatesPanel } from '../components/UpdatesPanel';
 import { ScreenFrame } from '../components/ScreenFrame';
 import { formatDateTime, useLanguage, useT } from '../i18n';
 import type { CatalogScreenProps } from './types';
@@ -17,9 +20,10 @@ function loadState(installed: InstalledView | undefined, count: number): LoadSta
 /**
  * My apps (brief §9.4): every Nebula app found on this computer — installed with or without the
  * Hub — with its version, location and scope, and what can be done with it now (open, show its
- * folder, see its page). Update, repair, uninstall and migration arrive in M4–M5 and M7.
+ * folder, see its page), update, repair or uninstall it (M5, confirmed when it touches the data),
+ * and whether it updates itself automatically. Migration arrives in M7.
  */
-export function MyAppsScreen({ catalog, installed, onNavigate, onLaunch, onShowFolder, onRefreshInstalled }: CatalogScreenProps & { onRefreshInstalled?: () => void }) {
+export function MyAppsScreen({ catalog, installed, downloads, onNavigate, onLaunch, onShowFolder, onRefreshInstalled, onOperation, onCancelOperation, onDismissOperation, onRequestClose, onContinueWithoutBackup, onUpdateAll, autoUpdate, onToggleAutoUpdate }: CatalogScreenProps & { onRefreshInstalled?: () => void }) {
   const t = useT();
   const language = useLanguage();
   const rows = catalog.entries
@@ -42,6 +46,8 @@ export function MyAppsScreen({ catalog, installed, onNavigate, onLaunch, onShowF
         ) : undefined
       }
     >
+      <UpdatesPanel catalog={catalog} installed={installed} downloads={downloads} onOperation={onOperation} onUpdateAll={onUpdateAll} />
+
       <Panel
         eyebrow={t('myApps.panel.eyebrow')}
         title={t('myApps.panel.title')}
@@ -57,6 +63,9 @@ export function MyAppsScreen({ catalog, installed, onNavigate, onLaunch, onShowF
           <ul className="installed-list motion-stagger">
             {rows.map(({ entry, app }) => {
               const isHub = entry.app.role === 'hub';
+              const operation = operationOf(downloads, entry.app.id);
+              const busy = Boolean(operation && isActive(operation.phase));
+              const autoOn = Boolean(autoUpdate?.[entry.app.id]);
               return (
                 <li key={entry.app.id} className={`installed-row ${app.exeFound ? '' : 'broken'}`}>
                   <AppIcon src={entry.icon} size={46} />
@@ -74,6 +83,23 @@ export function MyAppsScreen({ catalog, installed, onNavigate, onLaunch, onShowF
                       <div className="wide"><dt>{t('myApps.location')}</dt><dd className="path">{app.location}</dd></div>
                     </dl>
                     {!app.exeFound ? <p className="installed-warning"><Icon name="alert" size={15} />{t('myApps.broken')}</p> : null}
+                    {!isHub && onToggleAutoUpdate ? (
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={autoOn}
+                        aria-label={t('myApps.autoUpdateNamed', { name: entry.app.name })}
+                        className={`switch small-switch ${autoOn ? 'on' : ''}`}
+                        data-sound="toggle"
+                        onClick={() => onToggleAutoUpdate(entry.app.id, !autoOn)}
+                      >
+                        <i aria-hidden="true" />
+                        <span>{t('myApps.autoUpdate')}</span>
+                      </button>
+                    ) : null}
+                    {operation ? (
+                      <OperationStatus operation={operation} name={entry.app.name} onCancel={onCancelOperation} onRetry={onOperation} onDismiss={onDismissOperation} onRequestClose={onRequestClose} onContinueWithoutBackup={onContinueWithoutBackup} />
+                    ) : null}
                   </div>
                   <div className="installed-actions">
                     {!isHub && app.exeFound && onLaunch ? (
@@ -84,6 +110,21 @@ export function MyAppsScreen({ catalog, installed, onNavigate, onLaunch, onShowF
                     {app.exeFound && onShowFolder ? (
                       <button type="button" className="ghost small" onClick={() => onShowFolder(entry.app.id)}>
                         <Icon name="external" size={15} />{t('app.action.folder')}
+                      </button>
+                    ) : null}
+                    {!isHub && onOperation && !busy && updateAvailable(entry, app) && entry.release?.installer ? (
+                      <button type="button" className="ghost small" aria-label={t('app.action.updateNamed', { name: entry.app.name })} onClick={() => onOperation(entry.app.id, 'update')}>
+                        <Icon name="update" size={15} />{t('app.action.update')}
+                      </button>
+                    ) : null}
+                    {!isHub && onOperation && !busy && entry.release?.installer && entry.release.version === app.version ? (
+                      <button type="button" className="ghost small" aria-label={t('app.action.repairNamed', { name: entry.app.name })} onClick={() => onOperation(entry.app.id, 'repair')}>
+                        <Icon name="repair" size={15} />{t('app.action.repair')}
+                      </button>
+                    ) : null}
+                    {!isHub && onOperation && !busy ? (
+                      <button type="button" className="ghost small danger" aria-label={t('app.action.uninstallNamed', { name: entry.app.name })} onClick={() => onOperation(entry.app.id, 'uninstall')}>
+                        <Icon name="uninstall" size={15} />{t('app.action.uninstall')}
                       </button>
                     ) : null}
                     <button type="button" className="ghost small" data-sound="nav" aria-label={t('app.action.detailsNamed', { name: entry.app.name })} onClick={() => onNavigate({ screen: 'app', appId: entry.app.id })}>

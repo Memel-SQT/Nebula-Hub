@@ -10,6 +10,8 @@ import { HomeScreen } from '../../src/renderer/screens/HomeScreen';
 import { IntegrationsScreen } from '../../src/renderer/screens/IntegrationsScreen';
 import { MyAppsScreen } from '../../src/renderer/screens/MyAppsScreen';
 import { SettingsScreen } from '../../src/renderer/screens/SettingsScreen';
+import { OperationStatus } from '../../src/renderer/components/Operation';
+import type { OperationView } from '../../src/shared/install-state';
 import { DEFAULT_SETTINGS } from '../../src/shared/settings';
 import type { CatalogScreenProps, DataScreenProps } from '../../src/renderer/screens/types';
 import type { CatalogView } from '../../src/shared/catalog-view';
@@ -224,7 +226,8 @@ describe('My apps', () => {
   it('lists each detected app with its version, scope, location and state', () => {
     renderMyApps();
     expect(screen.getByText('3 installée(s)')).toBeInTheDocument();
-    expect(screen.getByText('v0.1.35 → v0.1.36')).toBeInTheDocument();
+    // Once in the installed list, once in the "Updates available" panel.
+    expect(screen.getAllByText('v0.1.35 → v0.1.36')).toHaveLength(2);
     expect(screen.getByText('Mise à jour v0.1.36')).toBeInTheDocument();
     expect(screen.getByText('C:\\Users\\<user>\\AppData\\Local\\Programs\\finterest')).toBeInTheDocument();
     expect(screen.getAllByText('Pour cet utilisateur')).toHaveLength(3);
@@ -355,7 +358,7 @@ describe('Install from the app page', () => {
     const props = renderPage({ downloads: downloadsView({ operations: [operation({ phase: 'failed', failure: 'hash-mismatch' })] }) });
     expect(screen.getByRole('alert')).toHaveTextContent('ne correspond pas à l’empreinte publiée (SHA-512) : il a été supprimé et rien n’a été installé.');
     await userEvent.click(screen.getByRole('button', { name: /Réessayer/ }));
-    expect(props.onInstall).toHaveBeenCalledWith('nebula.finterest');
+    expect(props.onInstall).toHaveBeenCalledWith('nebula.finterest', 'install');
     await userEvent.click(screen.getByRole('button', { name: 'Retirer Nebula Finterest de la liste' }));
     expect(props.onDismissOperation).toHaveBeenCalledWith('op-1');
   });
@@ -438,5 +441,134 @@ describe('Settings: install folder', () => {
     expect(screen.getByText('D:\\Apps')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: /Revenir au dossier proposé/ }));
     expect(props.onSettingsChange).toHaveBeenCalledWith({ installDirectory: null });
+  });
+});
+
+// ---- Updates, repair, uninstall (M5). ----
+
+describe('My apps: operations', () => {
+  function renderMyApps(extra: Partial<CatalogScreenProps> = {}) {
+    const props = { onNavigate: jest.fn(), onOperation: jest.fn(), onToggleAutoUpdate: jest.fn(), onUpdateAll: jest.fn(), onRequestClose: jest.fn(), onContinueWithoutBackup: jest.fn() };
+    wrap(<MyAppsScreen catalog={catalogView()} installed={installedView()} onRefresh={jest.fn()} {...props} {...extra} />);
+    return props;
+  }
+
+  it('offers update, repair and uninstall where they make sense', async () => {
+    const props = renderMyApps();
+    // In the "Updates available" panel and on the app's row.
+    const updates = screen.getAllByRole('button', { name: 'Mettre à jour Nebula Finterest' });
+    expect(updates).toHaveLength(2);
+    await userEvent.click(updates[1]);
+    expect(props.onOperation).toHaveBeenLastCalledWith('nebula.finterest', 'update');
+    // Finterest 0.1.35 vs release 0.1.36: no repair; Clock and News have no published installer.
+    expect(screen.queryByRole('button', { name: /^Réparer/ })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Désinstaller Nebula Clock' }));
+    expect(props.onOperation).toHaveBeenLastCalledWith('nebula.clock', 'uninstall');
+  });
+
+  it('offers a repair when the installed version is the published one', async () => {
+    const props = renderMyApps({ installed: installedView({ apps: [{ appId: 'nebula.finterest', version: '0.1.36', scope: 'user', location: 'C:\\x', exeFound: false, running: false }] }) });
+    await userEvent.click(screen.getByRole('button', { name: 'Réparer Nebula Finterest' }));
+    expect(props.onOperation).toHaveBeenCalledWith('nebula.finterest', 'repair');
+  });
+
+  it('shows the running operation instead of the actions', () => {
+    renderMyApps({ downloads: downloadsView({ operations: [operation({ kind: 'update', fromVersion: '0.1.35' })] }) });
+    expect(screen.queryByRole('button', { name: 'Désinstaller Nebula Finterest' })).not.toBeInTheDocument();
+    expect(screen.getByRole('progressbar', { name: /Nebula Finterest/ })).toBeInTheDocument();
+  });
+
+  it('turns automatic updates on and off per app', async () => {
+    const props = renderMyApps({ autoUpdate: { 'nebula.clock': true } });
+    const finterest = screen.getByRole('switch', { name: 'Mise à jour automatique de Nebula Finterest' });
+    const clock = screen.getByRole('switch', { name: 'Mise à jour automatique de Nebula Clock' });
+    expect(finterest).toHaveAttribute('aria-checked', 'false');
+    expect(clock).toHaveAttribute('aria-checked', 'true');
+    await userEvent.click(finterest);
+    expect(props.onToggleAutoUpdate).toHaveBeenCalledWith('nebula.finterest', true);
+    await userEvent.click(clock);
+    expect(props.onToggleAutoUpdate).toHaveBeenCalledWith('nebula.clock', false);
+  });
+
+  it('never offers operations on the Hub itself', () => {
+    renderMyApps({ installed: installedView({ apps: [{ appId: 'nebula.hub', version: '0.1.0', scope: 'user', location: 'C:\\Hub', exeFound: true, running: true }] }) });
+    expect(screen.queryByRole('button', { name: /Désinstaller/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('switch')).not.toBeInTheDocument();
+  });
+});
+
+describe('Updates panel', () => {
+  it('lists the updates on Home with a button per app', async () => {
+    const onOperation = jest.fn();
+    wrap(<HomeScreen catalog={catalogView()} installed={installedView()} onNavigate={jest.fn()} onRefresh={jest.fn()} onOperation={onOperation} onUpdateAll={jest.fn()} />);
+    const panel = within(screen.getByRole('region', { name: 'Mises à jour disponibles' }));
+    expect(panel.getByText('v0.1.35 → v0.1.36')).toBeInTheDocument();
+    // A single update: no "update all".
+    expect(panel.queryByRole('button', { name: /Tout mettre à jour/ })).not.toBeInTheDocument();
+    await userEvent.click(panel.getByRole('button', { name: 'Mettre à jour Nebula Finterest' }));
+    expect(onOperation).toHaveBeenCalledWith('nebula.finterest', 'update');
+  });
+
+  it('offers to update everything when several apps are behind', async () => {
+    const view = catalogView();
+    const clock = view.entries.find((entry) => entry.app.id === 'nebula.clock')!;
+    clock.release = { ...view.entries.find((entry) => entry.app.id === 'nebula.finterest')!.release!, version: '1.1.4' };
+    const onUpdateAll = jest.fn();
+    wrap(<HomeScreen catalog={view} installed={installedView()} onNavigate={jest.fn()} onRefresh={jest.fn()} onOperation={jest.fn()} onUpdateAll={onUpdateAll} />);
+    await userEvent.click(screen.getByRole('button', { name: /Tout mettre à jour/ }));
+    expect(onUpdateAll).toHaveBeenCalled();
+  });
+
+  it('is hidden when everything is up to date', () => {
+    wrap(<HomeScreen catalog={catalogView()} installed={installedView({ apps: [] })} onNavigate={jest.fn()} onRefresh={jest.fn()} onOperation={jest.fn()} />);
+    expect(screen.queryByRole('region', { name: 'Mises à jour disponibles' })).not.toBeInTheDocument();
+  });
+});
+
+describe('Operation status (M5)', () => {
+  function renderStatus(patch: Partial<OperationView>) {
+    const props = { onRequestClose: jest.fn(), onContinueWithoutBackup: jest.fn(), onCancel: jest.fn() };
+    const view = operation({ kind: 'update', fromVersion: '0.1.35', ...patch });
+    wrap(<OperationStatus operation={view} name="Nebula Finterest" {...props} />);
+    return { props, view };
+  }
+  const BACKUP = 'C:\\Users\\<user>\\Documents\\Nebula Finterest\\finterest-store-backup-2026-10-01_21-05-03.json';
+
+  it('asks the app to close only when the user clicks (R08)', async () => {
+    const { props, view } = renderStatus({ phase: 'waiting-for-app-exit' });
+    expect(screen.getByText(/le Hub ne ferme jamais une app à votre place/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Fermer Nebula Finterest' }));
+    expect(props.onRequestClose).toHaveBeenCalledWith(view.id);
+  });
+
+  it('says what happens after a close request', () => {
+    renderStatus({ phase: 'waiting-for-app-exit', closeRequested: true });
+    expect(screen.getByText(/Demande de fermeture envoyée/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Fermer Nebula Finterest' })).not.toBeInTheDocument();
+  });
+
+  it('shows where the backup goes, then that it was checked', () => {
+    renderStatus({ phase: 'backing-up', backup: { path: BACKUP, state: 'running', accounts: null, problem: null } });
+    expect(screen.getByText(BACKUP)).toBeInTheDocument();
+  });
+
+  it('blocks on a failed backup with two choices: cancel, or continue after a second confirmation', async () => {
+    const { props, view } = renderStatus({ phase: 'backup-failed', backup: { path: BACKUP, state: 'failed', accounts: null, problem: 'missing' } });
+    expect(screen.getByRole('alert')).toHaveTextContent('La sauvegarde n’a pas pu être faite : l’app n’a écrit aucun fichier. Rien n’a été modifié.');
+    await userEvent.click(screen.getByRole('button', { name: 'Continuer sans sauvegarde' }));
+    expect(props.onContinueWithoutBackup).toHaveBeenCalledWith(view);
+    await userEvent.click(screen.getByRole('button', { name: 'Annuler l’opération en cours sur Nebula Finterest' }));
+    expect(props.onCancel).toHaveBeenCalledWith(view.id);
+  });
+
+  it('confirms the end of each kind of operation', () => {
+    renderStatus({ phase: 'installed', backup: { path: BACKUP, state: 'ok', accounts: 2, problem: null } });
+    expect(screen.getByText('Nebula Finterest est à jour (v0.1.36).')).toBeInTheDocument();
+    expect(screen.getByText('Sauvegarde vérifiée (2 compte(s)) :')).toBeInTheDocument();
+  });
+
+  it('confirms an uninstall', () => {
+    renderStatus({ kind: 'uninstall', phase: 'absent', version: '0.1.36' });
+    expect(screen.getByText('Nebula Finterest est désinstallée.')).toBeInTheDocument();
   });
 });

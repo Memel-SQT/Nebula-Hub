@@ -56,3 +56,12 @@ describe('install folder setting', () => {
     expect(mergeSettings(current, { installDirectory: 'relative' }).installDirectory).toBe('D:\\Apps');
   });
 });
+
+describe('automatic updates setting', () => {
+  it('is off by default and keeps only valid app ids turned on', () => {
+    expect(DEFAULT_SETTINGS.autoUpdate).toEqual({});
+    expect(parseSettings({ autoUpdate: { 'nebula.clock': true, 'nebula.news': false, 'Bad Id': true, nebulaclock: true, 'nebula.x': 'yes' } }).autoUpdate).toEqual({ 'nebula.clock': true });
+    expect(parseSettings({ autoUpdate: 'all' }).autoUpdate).toEqual({});
+    expect(mergeSettings(DEFAULT_SETTINGS, { autoUpdate: { 'nebula.finterest': true } }).autoUpdate).toEqual({ 'nebula.finterest': true });
+  });
+});

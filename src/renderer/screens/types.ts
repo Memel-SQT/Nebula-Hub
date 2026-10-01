@@ -1,5 +1,5 @@
 import type { CatalogView } from '@shared/catalog-view';
-import type { DownloadsView } from '@shared/install-state';
+import type { DownloadsView, OperationKind, OperationView } from '@shared/install-state';
 import type { InstalledView } from '@shared/installed-view';
 import type { LoadState } from '../components/ScreenState';
 import type { Route } from '../navigation';
@@ -26,4 +26,12 @@ export interface CatalogScreenProps {
   onInstall?: (appId: string) => void;
   onCancelOperation?: (operationId: string) => void;
   onDismissOperation?: (operationId: string) => void;
+  /** Update, repair, uninstall (M5): asks for a confirmation first when needed (R04). */
+  onOperation?: (appId: string, kind: OperationKind) => void;
+  onRequestClose?: (operationId: string) => void;
+  onContinueWithoutBackup?: (operation: OperationView) => void;
+  onUpdateAll?: () => void;
+  /** Apps updated automatically (settings), and the switch. */
+  autoUpdate?: Record<string, boolean>;
+  onToggleAutoUpdate?: (appId: string, enabled: boolean) => void;
 }

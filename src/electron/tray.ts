@@ -12,7 +12,12 @@ export interface TrayOptions {
   language: Language;
   /** Installed apps that can be started from the tray (brief §9.8). */
   apps: Array<{ id: string; name: string }>;
+  /** Installed apps with a newer release (tooltip and menu, brief §9.8). */
+  updates: number;
   onOpen: () => void;
+  onCheckUpdates: () => void;
+  /** Opens the Hub on My apps, where the updates are. */
+  onShowUpdates: () => void;
   onLaunch: (appId: string) => void;
   onQuit: () => void;
 }
@@ -43,7 +48,7 @@ async function refreshIcon(): Promise<void> {
 
 /**
  * The Hub lives in the tray so it can launch the Nebula apps and host Nebula Link: open, one
- * entry per installed app, quit. Update badge and Link pause arrive in M7.
+ * entry per installed app, the update count and a manual check, quit. Link pause arrives in M7.
  */
 export function createTray(options: TrayOptions): void {
   tray = new Tray(nativeImage.createFromPath(path.join(__dirname, '../../assets/tray-dark.png')));
@@ -62,11 +67,15 @@ export function updateTray(options: TrayOptions): void {
     label: mainString(options.language, 'trayLaunch').replace('{name}', app.name),
     click: () => options.onLaunch(app.id),
   }));
-  tray.setToolTip(mainString(options.language, 'trayTooltip'));
+  const count = String(options.updates);
+  tray.setToolTip(options.updates > 0 ? mainString(options.language, 'trayTooltipUpdates').replace('{count}', count) : mainString(options.language, 'trayTooltip'));
   tray.setContextMenu(
     Menu.buildFromTemplate([
       { label: mainString(options.language, 'trayOpen'), click: options.onOpen },
       ...(launchers.length ? [{ type: 'separator' as const }, ...launchers] : []),
+      { type: 'separator' },
+      ...(options.updates > 0 ? [{ label: mainString(options.language, 'trayUpdates').replace('{count}', count), click: options.onShowUpdates }] : []),
+      { label: mainString(options.language, 'trayCheckUpdates'), click: options.onCheckUpdates },
       { type: 'separator' },
       { label: mainString(options.language, 'trayQuit'), click: options.onQuit },
     ]),

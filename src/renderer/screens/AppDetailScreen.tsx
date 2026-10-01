@@ -1,4 +1,6 @@
 import { Icon } from '@nebula/design/react';
+import { isActive } from '@shared/install-state';
+import { updateAvailable } from '@shared/installed-view';
 import { localize } from '@shared/catalog';
 import { catalogLoadState, findEntry, hasInstalledOnce, installable, installedOf, operationOf } from '../catalog';
 import { AppIcon, AppStateChip, Panel, SnapshotRow, StatusChip } from '../components/Cards';
@@ -17,7 +19,7 @@ import type { CatalogScreenProps } from './types';
  * Install (M4) runs from here with its live progress; update, repair and uninstall arrive in M5;
  * integrations (manifest) in M6.
  */
-export function AppDetailScreen({ appId, catalog, installed, downloads, onNavigate, onRefresh, onLaunch, onShowFolder, onInstall, onCancelOperation, onDismissOperation, loadAsset, onOpenLink }: CatalogScreenProps & {
+export function AppDetailScreen({ appId, catalog, installed, downloads, onNavigate, onRefresh, onLaunch, onShowFolder, onInstall, onCancelOperation, onDismissOperation, onOperation, onRequestClose, onContinueWithoutBackup, loadAsset, onOpenLink }: CatalogScreenProps & {
   appId: string;
   loadAsset: (appId: string, path: string) => Promise<string | null>;
   onOpenLink: (url: string) => void;
@@ -27,6 +29,7 @@ export function AppDetailScreen({ appId, catalog, installed, downloads, onNaviga
   const entry = findEntry(catalog, appId);
   const local = installedOf(installed, appId);
   const operation = operationOf(downloads, appId);
+  const busy = Boolean(operation && isActive(operation.phase));
   const isHub = entry?.app.role === 'hub';
   const base = catalogLoadState(catalog);
   const status = base === 'loading' || base === 'error' ? base : !entry ? 'empty' : base === 'offline' ? 'offline' : 'ready';
@@ -65,7 +68,7 @@ export function AppDetailScreen({ appId, catalog, installed, downloads, onNaviga
                   {entry.release?.prerelease ? <span className="status-chip status-beta">{t('appDetail.prerelease')}</span> : null}
                 </div>
                 {operation ? (
-                  <OperationStatus operation={operation} name={entry.app.name} onCancel={onCancelOperation} onRetry={onInstall} onDismiss={onDismissOperation} />
+                  <OperationStatus operation={operation} name={entry.app.name} onCancel={onCancelOperation} onRetry={onOperation ?? onInstall} onDismiss={onDismissOperation} onRequestClose={onRequestClose} onContinueWithoutBackup={onContinueWithoutBackup} />
                 ) : null}
                 {!local && !operation && onInstall && installable(entry) ? (
                   <>
@@ -88,6 +91,23 @@ export function AppDetailScreen({ appId, catalog, installed, downloads, onNaviga
                       <button type="button" className="ghost" onClick={() => onShowFolder(entry.app.id)}>
                         <Icon name="external" size={16} />{t('app.action.folder')}
                       </button>
+                    ) : null}
+                    {!isHub && onOperation && !busy ? (
+                      <>
+                        {updateAvailable(entry, local) && entry.release?.installer ? (
+                          <button type="button" className="ghost" onClick={() => onOperation(entry.app.id, 'update')}>
+                            <Icon name="update" size={16} />{t('app.action.update')}
+                          </button>
+                        ) : null}
+                        {entry.release?.installer && entry.release.version === local.version ? (
+                          <button type="button" className="ghost" onClick={() => onOperation(entry.app.id, 'repair')}>
+                            <Icon name="repair" size={16} />{t('app.action.repair')}
+                          </button>
+                        ) : null}
+                        <button type="button" className="ghost danger" onClick={() => onOperation(entry.app.id, 'uninstall')}>
+                          <Icon name="uninstall" size={16} />{t('app.action.uninstall')}
+                        </button>
+                      </>
                     ) : null}
                   </div>
                 ) : null}

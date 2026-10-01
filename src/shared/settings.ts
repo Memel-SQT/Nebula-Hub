@@ -15,6 +15,11 @@ export interface HubSettings {
   onboardingCompleted: boolean;
   /** Base folder for new installs (each app in its own subfolder); null = the installer's default. */
   installDirectory: string | null;
+  /**
+   * Apps updated automatically when a new release appears (brief §7.5), off by default. For an
+   * app that backs up its data first, turning it on is confirmed once (R04).
+   */
+  autoUpdate: Record<string, boolean>;
 }
 
 export const DEFAULT_SETTINGS: HubSettings = {
@@ -24,6 +29,7 @@ export const DEFAULT_SETTINGS: HubSettings = {
   channel: 'stable',
   onboardingCompleted: false,
   installDirectory: null,
+  autoUpdate: {},
 };
 
 export type SettingsPatch = Partial<Omit<HubSettings, 'appearance'>>;
@@ -49,7 +55,19 @@ export function parseSettings(value: unknown, fallback: HubSettings = DEFAULT_SE
     channel: record.channel === 'beta' || record.channel === 'stable' ? record.channel : fallback.channel,
     onboardingCompleted: bool(record.onboardingCompleted, fallback.onboardingCompleted),
     installDirectory: record.installDirectory === null || isSafeInstallDirectory(record.installDirectory) ? (record.installDirectory as string | null) : fallback.installDirectory,
+    autoUpdate: record.autoUpdate === undefined ? fallback.autoUpdate : parseAutoUpdate(record.autoUpdate),
   };
+}
+
+const APP_ID = /^[a-z0-9]+(\.[a-z0-9-]+){1,5}$/;
+
+/** Only catalog-like app ids with a true value are kept (at most 50). */
+function parseAutoUpdate(value: unknown): Record<string, boolean> {
+  const result: Record<string, boolean> = {};
+  for (const [appId, enabled] of Object.entries(asRecord(value)).slice(0, 50)) {
+    if (APP_ID.test(appId) && enabled === true) result[appId] = true;
+  }
+  return result;
 }
 
 /** Applies a patch coming from the renderer: valid fields win, invalid ones keep the current value. */

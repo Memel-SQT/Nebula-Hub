@@ -3,11 +3,14 @@ import { setSoundsSuppressed, type NebulaAppearance } from '@nebula/design';
 import { BackgroundFx, Splash, useAppliedAppearance, useInterfaceEffects, useResolvedTheme } from '@nebula/design/react';
 import { EMPTY_CATALOG_VIEW, type CatalogView } from '@shared/catalog-view';
 import { EMPTY_INSTALLED_VIEW, type InstalledView } from '@shared/installed-view';
-import type { DownloadsView } from '@shared/install-state';
+import { needsConfirmation, type DownloadsView, type OperationKind, type OperationPlan, type OperationView } from '@shared/install-state';
+import { updateAvailable } from '@shared/installed-view';
 import { playSound } from '@nebula/design';
 import type { HubSettings, SettingsPatch } from '@shared/settings';
+import { localize } from '@shared/catalog';
 import { familyEntries } from './catalog';
 import { HubMark } from './brand/HubMark';
+import { ConfirmDialog, OperationConfirmation } from './components/ConfirmDialog';
 import { ErrorState } from './components/ScreenState';
 import { Sidebar } from './components/Sidebar';
 import { LanguageContext, translate } from './i18n';
@@ -36,6 +39,7 @@ export function App() {
   const [installed, setInstalled] = useState<InstalledView>(EMPTY_INSTALLED_VIEW);
   const [launchError, setLaunchError] = useState<string | null>(null);
   const [downloads, setDownloads] = useState<DownloadsView | undefined>(undefined);
+  const [dialog, setDialog] = useState<Dialog | null>(null);
   const appearance = settings.appearance;
   const language = appearance.language;
 
@@ -125,6 +129,66 @@ export function App() {
     );
   }, [bridge, catalog.entries, language]);
 
+  const appName = useCallback((appId: string) => catalog.entries.find((entry) => entry.app.id === appId)?.app.name ?? appId, [catalog.entries]);
+
+  const startOperation = useCallback((appId: string, kind: OperationKind, confirmed: boolean) => {
+    void bridge.startOperation(appId, kind, confirmed).then(
+      (result) => {
+        if (result === 'queued') {
+          setLaunchError(null);
+        } else {
+          setLaunchError(translate(language, `install.enqueue.${result}`, { name: appName(appId) }));
+          playSound('error');
+        }
+      },
+      () => setLaunchError(translate(language, 'install.failure.internal')),
+    );
+  }, [bridge, language, appName]);
+
+  /** R04: update (of an app that backs up its data), repair and uninstall are confirmed first. */
+  const requestOperation = useCallback((appId: string, kind: OperationKind) => {
+    if (kind === 'install') {
+      installApp(appId);
+      return;
+    }
+    void bridge.planOperation(appId, kind).then(
+      (plan) => {
+        if (plan.blocked) {
+          setLaunchError(translate(language, `install.enqueue.${plan.blocked}`, { name: appName(appId) }));
+          playSound('error');
+        } else if (plan.needsConfirmation) {
+          setDialog({ type: 'operation', plan });
+        } else {
+          startOperation(appId, kind, false);
+        }
+      },
+      () => setLaunchError(translate(language, 'install.failure.internal')),
+    );
+  }, [bridge, installApp, startOperation, language, appName]);
+
+  const updateAll = useCallback(() => {
+    const appIds = installed.apps
+      .filter((app) => {
+        const entry = catalog.entries.find((candidate) => candidate.app.id === app.appId);
+        return entry?.app.role !== 'hub' && updateAvailable(entry, app);
+      })
+      .map((app) => app.appId);
+    if (appIds.length === 0) return;
+    void Promise.all(appIds.map((appId) => bridge.planOperation(appId, 'update'))).then((plans) => {
+      const ready = plans.filter((plan) => !plan.blocked);
+      if (ready.some((plan) => plan.needsConfirmation)) setDialog({ type: 'update-all', plans: ready });
+      else ready.forEach((plan) => startOperation(plan.appId, 'update', false));
+    });
+  }, [bridge, installed.apps, catalog.entries, startOperation]);
+
+  const requestClose = useCallback((operationId: string) => {
+    void bridge.requestAppClose(operationId);
+  }, [bridge]);
+
+  const askContinueWithoutBackup = useCallback((operation: OperationView) => {
+    setDialog({ type: 'no-backup', operation });
+  }, []);
+
   const cancelOperation = useCallback((operationId: string) => {
     void bridge.cancelOperation(operationId);
   }, [bridge]);
@@ -167,6 +231,17 @@ export function App() {
     bridge.updateSettings(patch).then(handleSaved, () => setSaveError(true));
   }, [bridge, handleSaved]);
 
+  /** Brief 7.5: off by default; turning it on for an app that backs up its data is confirmed (R04). */
+  const toggleAutoUpdate = useCallback((appId: string, enabled: boolean) => {
+    const entry = catalog.entries.find((candidate) => candidate.app.id === appId);
+    const apply = () => updateSettings({ autoUpdate: { ...settings.autoUpdate, [appId]: enabled } });
+    if (enabled && entry && needsConfirmation('update', entry)) setDialog({ type: 'auto-update', appId, apply });
+    else apply();
+  }, [catalog.entries, settings.autoUpdate, updateSettings]);
+
+  // The tray can ask for a screen (e.g. "Updates available").
+  useEffect(() => bridge.onNavigateRequest((screen) => setRoute({ screen })), [bridge]);
+
   // Keyboard and screen-reader users land on the new page title after each navigation.
   const firstRender = useRef(true);
   useEffect(() => {
@@ -203,7 +278,15 @@ export function App() {
     onInstall: installApp,
     onCancelOperation: cancelOperation,
     onDismissOperation: dismissOperation,
+    onOperation: requestOperation,
+    onRequestClose: requestClose,
+    onContinueWithoutBackup: askContinueWithoutBackup,
+    onUpdateAll: updateAll,
+    autoUpdate: settings.autoUpdate,
+    onToggleAutoUpdate: toggleAutoUpdate,
   };
+  const closeDialog = () => setDialog(null);
+  const dialogEntry = (appId: string) => catalog.entries.find((entry) => entry.app.id === appId);
 
   return (
     <LanguageContext.Provider value={language}>
@@ -225,6 +308,76 @@ export function App() {
           ) : null}
         </div>
       </main>
+      {dialog?.type === 'operation' && dialogEntry(dialog.plan.appId) ? (
+        <OperationConfirmation
+          plan={dialog.plan}
+          entry={dialogEntry(dialog.plan.appId)!}
+          onCancel={closeDialog}
+          onConfirm={() => {
+            closeDialog();
+            startOperation(dialog.plan.appId, dialog.plan.kind, true);
+          }}
+        />
+      ) : null}
+      {dialog?.type === 'update-all' ? (
+        <ConfirmDialog
+          title={t('confirm.updateAll.title')}
+          icon="update"
+          confirmLabel={t('confirm.updateAll.confirm')}
+          onCancel={closeDialog}
+          onConfirm={() => {
+            closeDialog();
+            dialog.plans.forEach((plan) => startOperation(plan.appId, 'update', true));
+          }}
+        >
+          <p>{t('confirm.updateAll.body', { count: String(dialog.plans.length) })}</p>
+          <ul className="dialog-list">
+            {dialog.plans.map((plan) => (
+              <li key={plan.appId}>
+                <strong>{appName(plan.appId)}</strong> <span className="tabular">v{plan.fromVersion} → v{plan.version}</span>
+                {plan.backupPath ? <><span>{t('confirm.backup', { name: appName(plan.appId) })}</span><code className="dialog-path">{plan.backupPath}</code></> : null}
+              </li>
+            ))}
+          </ul>
+          <p className="dialog-note">{t('confirm.backupCheck')}</p>
+        </ConfirmDialog>
+      ) : null}
+      {dialog?.type === 'auto-update' ? (
+        <ConfirmDialog
+          title={t('confirm.autoUpdate.title', { name: appName(dialog.appId) })}
+          icon="update"
+          confirmLabel={t('confirm.autoUpdate.confirm')}
+          onCancel={closeDialog}
+          onConfirm={() => {
+            closeDialog();
+            dialog.apply();
+          }}
+        >
+          <p>{t('confirm.autoUpdate.body', { name: appName(dialog.appId) })}</p>
+          <p>{t('confirm.autoUpdate.backup', { name: appName(dialog.appId), folder: dialogEntry(dialog.appId)?.app.windows.preOperationBackup?.documentsFolder ?? '' })}</p>
+        </ConfirmDialog>
+      ) : null}
+      {dialog?.type === 'no-backup' ? (
+        <ConfirmDialog
+          title={t('confirm.noBackup.title')}
+          tone="danger"
+          confirmLabel={t('confirm.noBackup.confirm')}
+          onCancel={closeDialog}
+          onConfirm={() => {
+            closeDialog();
+            void bridge.continueWithoutBackup(dialog.operation.id);
+          }}
+        >
+          <p>{t('confirm.noBackup.body', { name: appName(dialog.operation.appId) })}</p>
+          {dialogEntry(dialog.operation.appId)?.app.dataNotice ? <p className="dialog-note warning">{localize(dialogEntry(dialog.operation.appId)!.app.dataNotice!, language)}</p> : null}
+        </ConfirmDialog>
+      ) : null}
     </LanguageContext.Provider>
   );
 }
+
+type Dialog =
+  | { type: 'operation'; plan: OperationPlan }
+  | { type: 'update-all'; plans: OperationPlan[] }
+  | { type: 'auto-update'; appId: string; apply: () => void }
+  | { type: 'no-backup'; operation: OperationView };

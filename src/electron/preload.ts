@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import { CHANNELS, type InitialState, type NebulaHubBridge } from '../shared/bridge';
+import { CHANNELS, type InitialState, type NavigateRequest, type NebulaHubBridge } from '../shared/bridge';
 import type { CatalogView } from '../shared/catalog-view';
 import type { DownloadsView } from '../shared/install-state';
 import type { InstalledView } from '../shared/installed-view';
@@ -38,6 +38,11 @@ const bridge: NebulaHubBridge = {
   dismissOperation: (operationId) => ipcRenderer.invoke(CHANNELS.operationDismiss, operationId),
   exportHistory: () => ipcRenderer.invoke(CHANNELS.historyExport),
   pickInstallDirectory: () => ipcRenderer.invoke(CHANNELS.pickInstallDirectory),
+  planOperation: (appId, kind) => ipcRenderer.invoke(CHANNELS.operationPlan, appId, kind),
+  startOperation: (appId, kind, confirmed) => ipcRenderer.invoke(CHANNELS.operationStart, appId, kind, confirmed),
+  requestAppClose: (operationId) => ipcRenderer.invoke(CHANNELS.operationRequestClose, operationId),
+  continueWithoutBackup: (operationId) => ipcRenderer.invoke(CHANNELS.operationContinue, operationId),
+  onNavigateRequest: (callback) => subscribe<NavigateRequest>(CHANNELS.navigate, callback),
 };
 
 contextBridge.exposeInMainWorld('nebulaHub', bridge);

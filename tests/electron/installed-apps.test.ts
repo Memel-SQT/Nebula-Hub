@@ -25,6 +25,9 @@ function probe(overrides: Partial<SystemProbe> & { files?: string[]; processes?:
   const fake: SystemProbe & { started: typeof started; exports: string[] } = {
     started,
     exports: [],
+    async requestClose() {
+      // Not used by the detection.
+    },
     async exportRegistry(key) {
       fake.exports.push(key);
       return registry.get(key) ?? null;

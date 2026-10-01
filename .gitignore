@@ -1,7 +1,7 @@
 node_modules/
-dist/
-install/
-release/
+/dist/
+/install/
+/release/
 coverage/
 *.tsbuildinfo
 *.log
@@ -15,3 +15,4 @@ Thumbs.db
 # Catalog signing key: never in the repository (see docs/CATALOG.md).
 *.pem
 *.key
+.sandbox/

@@ -1,8 +1,9 @@
 import { Icon } from '@nebula/design/react';
-import { catalogLoadState, familyEntries, installedOf, installedSummary } from '../catalog';
+import { catalogLoadState, familyEntries, installedOf, installedSummary, operationOf } from '../catalog';
 import { AppTile, Panel, SnapshotRow, SummaryCard, TopbarControl } from '../components/Cards';
 import { CatalogNotices } from '../components/CatalogNotices';
 import { EmptyState, StateView } from '../components/ScreenState';
+import { UpdatesPanel } from '../components/UpdatesPanel';
 import { ScreenFrame } from '../components/ScreenFrame';
 import { formatDateTime, useLanguage, useT } from '../i18n';
 import type { CatalogScreenProps } from './types';
@@ -12,7 +13,7 @@ import type { CatalogScreenProps } from './types';
  * a summary panel, then the activity center. The Hub is first a launcher (ADR-013): installed
  * state and launch arrive with detection (M3), widgets and notifications with Link (M6–M7).
  */
-export function HomeScreen({ catalog, installed, version = '', onNavigate, onRefresh, onLaunch }: CatalogScreenProps & { version?: string }) {
+export function HomeScreen({ catalog, installed, downloads, version = '', onNavigate, onRefresh, onLaunch, onOperation, onUpdateAll }: CatalogScreenProps & { version?: string }) {
   const t = useT();
   const language = useLanguage();
   const apps = familyEntries(catalog);
@@ -48,6 +49,8 @@ export function HomeScreen({ catalog, installed, version = '', onNavigate, onRef
           <SummaryCard label={t('home.card.link')} value={t('home.card.linkOffline')} icon="link" tone="warning" />
         </div>
 
+        <UpdatesPanel catalog={catalog} installed={installed} downloads={downloads} onOperation={onOperation} onUpdateAll={onUpdateAll} />
+
         <div className="insight-grid">
           <Panel eyebrow={t('home.launcher.eyebrow')} title={t('home.launcher.title')} badge={t('home.launcher.count', { count: String(apps.length) })} labelledBy="home-launcher">
             <div className="app-tile-grid">
@@ -56,6 +59,7 @@ export function HomeScreen({ catalog, installed, version = '', onNavigate, onRef
                   key={entry.app.id}
                   entry={entry}
                   installed={installedOf(installed, entry.app.id)}
+                  operation={operationOf(downloads, entry.app.id)}
                   mode="launch"
                   onOpen={() => onNavigate({ screen: 'app', appId: entry.app.id })}
                   onLaunch={onLaunch ? () => onLaunch(entry.app.id) : undefined}

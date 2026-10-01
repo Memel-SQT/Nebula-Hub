@@ -4,6 +4,7 @@ import {
   INSTALL_PHASES,
   isActive,
   isCancellable,
+  needsConfirmation,
   restingPhase,
   transition,
   type InstallPhase,
@@ -17,16 +18,19 @@ const LEGAL: Record<InstallPhase, InstallPhase[]> = {
   installed: ['update-available', 'repairing', 'uninstalling'],
   'update-available': ['queued', 'installed', 'repairing', 'uninstalling'],
   repairing: ['queued', 'failed', 'cancelled'],
+  uninstalling: ['waiting-for-app-exit', 'backing-up', 'removing', 'failed', 'cancelled'],
   queued: ['downloading', 'failed', 'cancelled'],
   downloading: ['verifying', 'failed', 'cancelled'],
   verifying: ['ready', 'failed', 'cancelled'],
-  ready: ['waiting-for-app-exit', 'installing', 'failed', 'cancelled'],
-  'waiting-for-app-exit': ['installing', 'failed', 'cancelled'],
+  ready: ['waiting-for-app-exit', 'backing-up', 'installing', 'failed', 'cancelled'],
+  'waiting-for-app-exit': ['backing-up', 'installing', 'removing', 'verifying-install', 'failed', 'cancelled'],
+  'backing-up': ['backup-failed', 'installing', 'removing', 'failed', 'cancelled'],
+  'backup-failed': ['installing', 'removing', 'failed', 'cancelled'],
   installing: ['verifying-install', 'failed'],
   'verifying-install': ['installed', 'failed'],
-  uninstalling: ['absent', 'failed'],
-  failed: ['queued', 'absent', 'installed', 'update-available'],
-  cancelled: ['queued', 'absent', 'installed', 'update-available'],
+  removing: ['absent', 'failed'],
+  failed: ['queued', 'absent', 'installed', 'update-available', 'repairing', 'uninstalling'],
+  cancelled: ['queued', 'absent', 'installed', 'update-available', 'repairing', 'uninstalling'],
 };
 
 describe('install state machine', () => {
@@ -53,15 +57,25 @@ describe('install state machine', () => {
     expect(phase).toBe('installed');
   });
 
-  it('never cancels a running installer', () => {
+  it('walks the update, repair and uninstall paths', () => {
+    const walk = (path: InstallPhase[]) => path.slice(1).reduce((phase, next) => transition(phase, next), path[0]);
+    expect(walk(['update-available', 'queued', 'downloading', 'verifying', 'ready', 'backing-up', 'backup-failed', 'installing', 'verifying-install', 'installed'])).toBe('installed');
+    expect(walk(['installed', 'repairing', 'queued', 'downloading', 'verifying', 'ready', 'waiting-for-app-exit', 'backing-up', 'installing', 'verifying-install', 'installed'])).toBe('installed');
+    expect(walk(['installed', 'uninstalling', 'waiting-for-app-exit', 'backing-up', 'removing', 'absent'])).toBe('absent');
+    expect(walk(['update-available', 'queued', 'downloading', 'verifying', 'ready', 'waiting-for-app-exit', 'verifying-install', 'installed'])).toBe('installed');
+  });
+
+  it('never cancels a running installer or uninstaller', () => {
     expect(isCancellable('installing')).toBe(false);
+    expect(isCancellable('removing')).toBe(false);
+    expect(isCancellable('backup-failed')).toBe(true);
     expect(isCancellable('verifying-install')).toBe(false);
     expect(isCancellable('downloading')).toBe(true);
     expect(isCancellable('waiting-for-app-exit')).toBe(true);
   });
 
   it('knows which phases are in flight', () => {
-    expect(INSTALL_PHASES.filter(isActive)).toEqual(['queued', 'downloading', 'verifying', 'ready', 'waiting-for-app-exit', 'installing', 'verifying-install', 'repairing', 'uninstalling']);
+    expect(INSTALL_PHASES.filter(isActive)).toEqual(['queued', 'downloading', 'verifying', 'ready', 'waiting-for-app-exit', 'installing', 'verifying-install', 'repairing', 'uninstalling', 'backing-up', 'backup-failed', 'removing']);
   });
 });
 
@@ -76,5 +90,17 @@ describe('resting phase', () => {
     expect(restingPhase(entry('0.1.35'), app('0.1.36'))).toBe('installed');
     expect(restingPhase(entry(null), app('0.1.35'))).toBe('installed');
     expect(restingPhase(entry('0.1.36'), app(null))).toBe('installed');
+  });
+});
+
+describe('confirmation (R04)', () => {
+  const entry = (backup: boolean) => ({ app: { windows: backup ? { preOperationBackup: {} } : {} } }) as unknown as CatalogEntry;
+
+  it('is required for repairs and uninstalls, and for updates of apps that back up their data', () => {
+    expect(needsConfirmation('install', entry(true))).toBe(false);
+    expect(needsConfirmation('update', entry(false))).toBe(false);
+    expect(needsConfirmation('update', entry(true))).toBe(true);
+    expect(needsConfirmation('repair', entry(false))).toBe(true);
+    expect(needsConfirmation('uninstall', entry(false))).toBe(true);
   });
 });

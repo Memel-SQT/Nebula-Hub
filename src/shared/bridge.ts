@@ -1,6 +1,6 @@
 import type { NebulaAppearance } from '@nebula/design';
 import type { CatalogView } from './catalog-view';
-import type { DownloadsView, EnqueueResult } from './install-state';
+import type { DownloadsView, EnqueueResult, OperationKind, OperationPlan } from './install-state';
 import type { InstalledView, LaunchResult } from './installed-view';
 import type { HubSettings, SettingsPatch } from './settings';
 
@@ -28,7 +28,15 @@ export const CHANNELS = {
   operationDismiss: 'operations:dismiss',
   historyExport: 'history:export',
   pickInstallDirectory: 'settings:pick-install-directory',
+  operationPlan: 'operations:plan',
+  operationStart: 'operations:start',
+  operationRequestClose: 'operations:request-close',
+  operationContinue: 'operations:continue-without-backup',
+  navigate: 'hub:navigate',
 } as const;
+
+/** Screens the main process may ask the renderer to show (tray menu). */
+export type NavigateRequest = 'my-apps' | 'downloads';
 
 /** Result of exporting the operations journal. */
 export type ExportResult = 'saved' | 'cancelled' | 'failed';
@@ -83,4 +91,13 @@ export interface NebulaHubBridge {
   exportHistory(): Promise<ExportResult>;
   /** Lets the user pick the base install folder; resolves with the saved settings, or null if cancelled. */
   pickInstallDirectory(): Promise<HubSettings | null>;
+  /** What an update, repair or uninstall will do (confirmation screen, R04). */
+  planOperation(appId: string, kind: OperationKind): Promise<OperationPlan>;
+  /** Starts any operation; `confirmed` is the user's explicit yes on the confirmation screen. */
+  startOperation(appId: string, kind: OperationKind, confirmed: boolean): Promise<EnqueueResult>;
+  /** R08: the user asks the Hub to close the app an operation waits for (one polite request). */
+  requestAppClose(operationId: string): Promise<boolean>;
+  /** R04: second confirmation after a failed backup. */
+  continueWithoutBackup(operationId: string): Promise<boolean>;
+  onNavigateRequest(callback: (screen: NavigateRequest) => void): () => void;
 }
