@@ -1,8 +1,6 @@
 # Nebula Link — spécification, protocole `nebula-link/1`
 
-> **Statut : proposition, à valider** (brief § 8, jalon M6). Aucune ligne du serveur, du SDK ou du
-> banc d'essai n'est écrite avant ta validation. Les points qui demandent une décision sont
-> marqués **[À VALIDER]** et repris en fin de document.
+> **Statut : validée le 2026-10-01**, avec les décisions du § 15 (ADR-023). Jalon M6.
 >
 > Vocabulaire normatif : **doit** = obligatoire ; **ne doit pas** = interdit ; **peut** = permis.
 
@@ -100,7 +98,7 @@ cet ordre :
      annoncé**.
 
    Si tout est bon, il répond
-   `{ sessionId, hubVersion, paused: false, appearance, consents }`, où `consents` est l'état des
+   `{ sessionId, hubVersion, appearance, consents }`, où `consents` est l'état des
    paires qui concernent l'app.
 6. **Avant l'étape 5, le Hub ne répond qu'à `link.hello` et `link.auth`, et n'envoie rien
    d'autre.** Un échec ferme la connexion avec une erreur `unauthenticated`, sans détail.
@@ -179,7 +177,6 @@ Le Hub a ses propres capacités, sans manifeste sur disque (elles font partie de
 |---|---|---|---|
 | `nebula.appearance.changed` | event | public | I1 — apparence unifiée (§ 10.1) |
 | `nebula.hub.present` | event | public | I6 — présence et version du Hub |
-| `nebula.link.paused` | event | public | Link mis en pause ou repris (envoyé juste avant la coupure) |
 | `hub.open` | intent | public | I2 — ouvrir le Hub (`/`, `/app/<appId>`, `/my-apps`, `/downloads`, `/integrations`) |
 
 ### 5.3 Le Hub comme consommateur
@@ -206,9 +203,8 @@ Les règles sont des **fonctions pures** de `src/shared/consent.ts`, testées un
   `link.consent.changed` envoyé aux deux apps concernées.
 - **Désinstallation** : les paires de l'app sont **archivées, pas supprimées**, et restaurées si
   elle est réinstallée.
-- **« Tout couper »** (pause de Link) : le Hub envoie `nebula.link.paused`, ferme toutes les
-  connexions et refuse les nouvelles jusqu'à la reprise. Les apps passent `offline` en silence.
-  La pause survit à un redémarrage du Hub. **[À VALIDER]**
+- **Pas de pause globale** (décision du 2026-10-01) : on coupe une intégration en refusant sa
+  paire. « Tout refuser pour cette app » refuse d'un coup toutes les paires d'une app.
 - **Journal** (`link_audit`) : date, consommateur, fournisseur, capacité, type d'échange,
   résultat (`delivered`, `consent-required`, `denied`, `invalid`, `error`, `timeout`) et taille.
   **Jamais le contenu.** Gardé 30 jours. Le centre « Intégrations » y lit la date du dernier
@@ -290,7 +286,7 @@ méthode inconnue, `-32602` paramètres invalides), plus :
 | -32005 | `provider-offline` | L'app qui fournit n'est pas connectée |
 | -32006 | `timeout` | Pas de réponse du fournisseur à temps |
 | -32007 | `too-large` | Message de plus de 256 Kio |
-| -32008 | `paused` | Link est en pause |
+| -32008 | — | Réservé (ancienne pause globale, retirée) |
 | -32009 | `rate-limited` | Trop de messages |
 | -32010 | `invalid-result` | Le résultat ou la charge utile ne respecte pas son schéma |
 
@@ -302,7 +298,7 @@ méthode inconnue, `-32602` paramètres invalides), plus :
 | I2 | Lanceur et liens profonds | `hub.open` ; les `deepLinks` de chaque app | Le bouton « Apps Nebula » de chaque app ouvre `nebula://hub/` (le protocole lance le Hub s'il ne tourne pas). |
 | I3 | Widgets de l'accueil | `news.headlines.today` (public, `HeadlinesV1` dans un `WidgetV1`), `clock.focus.today` (public), `finterest.budget.remaining` (**private**) | Finterest ne répond que si un compte est déverrouillé (sinon `null`). Sa valeur est **masquée par défaut** (•••) jusqu'au clic, **jamais écrite sur disque** par le Hub, et effacée quand le Hub se cache dans la zone de notification. |
 | I4 | Pause lecture | `clock.break.started` (public, `BreakStartedV1`) → intent `news.open-briefing` | Option du Hub, **désactivée par défaut** : au début d'une pause longue, si News est installée, une notification propose « Lire le briefing ». |
-| I5 | Centre d'activité | `link.notify` ; `*.notification` | Le Hub regroupe et peut relayer en notification Windows (réglable par app). Historique de **30 jours pour les notifications publiques** ; les privées ne sont **gardées qu'en mémoire** (perdues au redémarrage du Hub). **[À VALIDER]** |
+| I5 | Centre d'activité | `link.notify` ; `*.notification` | Le Hub regroupe et peut relayer en notification Windows (réglable par app). Historique de **30 jours**, notifications privées comprises (reçues avec consentement). Il peut être **effacé** dans Réglages → Avancé : tout l'historique, ou celui d'une app. |
 | I6 | Présence du Hub | `nebula.hub.present` (`PresenceV1`) | Permet à chaque app de proposer le mode « Gérée par le Hub » (ADR-015) : mises à jour déléguées au Hub. |
 | — | Sauvegardes (ADR-016) | `clock.backup.export`, `news.backup.export` (intents) | L'app écrit **elle-même** sa sauvegarde dans le fichier que le Hub lui indique (sous le dossier des sauvegardes) ; l'import se confirme dans l'app. Arrive en M8 avec l'adoption. |
 
@@ -312,8 +308,8 @@ méthode inconnue, `-32602` paramètres invalides), plus :
 
 **Proposés mais hors V1** (brief § 8.6) : recherche globale entre apps, profil Nebula local
 partagé (nom et avatar suggérés à la création d'un compte Finterest, sans toucher aux PIN), et
-lien « actualité économique → simulateur Finterest ». Le protocole les permettrait sans
-changement (`query` + `intent`). **[À VALIDER]**
+lien « actualité économique → simulateur Finterest ». **Hors V1** ; le protocole les permettrait
+sans changement (`query` + `intent`).
 
 ## 11. SDK client `@nebula/link` (`packages/nebula-link`)
 
@@ -351,10 +347,10 @@ Dans `store.sqlite` (migrations additives) :
 
 - `consents` (consommateur, capacité, état, date de décision, date d'archivage) ;
 - `link_audit` (§ 6), purgé après 30 jours ;
-- `notifications` (publiques uniquement, 30 jours).
+- `notifications` (publiques et privées, 30 jours, effaçables dans Réglages → Avancé).
 
-Les valeurs reçues par Link (widgets, résultats de requêtes, notifications privées) restent **en
-mémoire** dans le Hub.
+Les valeurs des widgets et les résultats de requêtes restent **en mémoire** dans le Hub : seules
+les notifications sont gardées, puisque c'est leur rôle (historique).
 
 ## 13. Banc d'essai (`tests/link-harness/`)
 
@@ -366,7 +362,7 @@ mémoire** dans le Hub.
   puis refusé, puis révoqué ; Hub absent (client `offline`, sans exception) puis présent
   (reconnexion) ; faux Hub (mauvaise preuve) ; faux client (mauvais jeton, app non installée,
   manifeste modifié) ; messages invalides (JSON cassé, trop gros, méthode inconnue, paramètres
-  invalides) ; pause et reprise ; lien profond vers une app connectée, déconnectée ou absente.
+  invalides) ; lien profond vers une app connectée, déconnectée ou absente.
 
 ## 14. Versions
 
@@ -375,18 +371,17 @@ mémoire** dans le Hub.
 - `link.minProtocol` (catalogue) dit quel protocole une app exige. Le Hub refuse proprement une
   app qui demande plus qu'il ne sait faire, et sa fiche l'explique.
 
-## 15. Décisions à valider
+## 15. Décisions (validées le 2026-10-01, ADR-023)
 
-1. **Renommages** `pomodoro.*` → `clock.*` et `nebula.store.present` → `nebula.hub.present`
-   (§ 10).
+1. **Renommages** `pomodoro.*` → `clock.*`, `nebula.store.present` → `nebula.hub.present` :
+   acceptés.
 2. **Consentement non bloquant** : la première demande privée reçoit `consent-required` et la
-   question est posée dans le Hub, plutôt que de faire attendre l'app (§ 6).
-3. **Notifications privées** gardées en mémoire seulement, jamais sur disque (§ 10, I5).
-4. **Pause de Link persistante** après un redémarrage du Hub (§ 6).
-5. **Authentification mutuelle par HMAC** : le jeton ne circule jamais, et le client vérifie aussi
-   le Hub (§ 4.2).
-6. **Propositions hors V1** confirmées hors périmètre : recherche globale, profil partagé,
-   actualité → simulateur (§ 10).
-7. **Le Hub refuse une app dont le manifeste installé ne correspond pas** à celui qu'elle annonce
-   (§ 4.2, étape 5). Conséquence : une app en développement (non installée) ne se connecte qu'au
+   question est posée dans le Hub (laissé à mon choix).
+3. **Notifications privées gardées** 30 jours comme les publiques, avec un effacement dans
+   Réglages → Avancé (demande explicite).
+4. **Pas de pause globale de Link** (« inutile ») : retirée du protocole et de l'interface.
+5. **Authentification mutuelle par HMAC**, le jeton ne circulant jamais : retenue.
+6. **Propositions hors V1** (recherche globale, profil partagé, actualité → simulateur) : non
+   implémentées.
+7. **Manifeste vérifié sur l'app installée** : retenu ; une app en développement se connecte au
    Hub en mode test.

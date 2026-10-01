@@ -541,3 +541,27 @@ Les constats qui fondent ces décisions sont détaillés dans [DISCOVERY.md](DIS
   deux comptes avec des données par l'interface de Finterest, puis lance (a) la mise à jour,
   (b) la réparation et (c) la désinstallation, suivie de la réinstallation et de l'import compte
   par compte. Après chaque étape, il relit les données par Finterest elle-même.
+
+## ADR-023 — Validation de la spécification Nebula Link (M6)
+
+- **Statut** : Accepté (2026-10-01, réponses à la spécification `docs/NEBULA_LINK.md`).
+- **Décisions** :
+  - Renommages `pomodoro.*` → `clock.*` et `nebula.store.present` → `nebula.hub.present` acceptés.
+  - Consentement **non bloquant** : la première demande d'une donnée privée reçoit
+    `consent-required`, et la question est posée dans le Hub.
+  - **Notifications privées gardées** 30 jours comme les publiques (amende la proposition « en
+    mémoire seulement »). L'historique, entier ou celui d'une app, s'efface dans Réglages → Avancé
+    (M7, avec le centre d'activité). Les valeurs des widgets (dont le reste à vivre de Finterest)
+    restent jamais écrites sur disque, comme l'exige le brief.
+  - **Pas de pause globale de Link.** Écart au brief (§ 8.5 « Tout couper », § 9.6 « bouton pause »,
+    § 9.8 tray) : jugée inutile, puisque chaque intégration se coupe en refusant sa paire. Le code
+    d'erreur `-32008` reste réservé.
+  - Authentification mutuelle par HMAC-SHA256 (le jeton ne circule jamais) et vérification du
+    manifeste de l'app installée : retenues.
+  - Propositions « hors V1 » du brief (recherche globale, profil partagé, actualité économique →
+    simulateur) : non implémentées.
+- **Recettes Windows Sandbox mises de côté** (même date, à la demande de l'utilisateur) : la
+  Sandbox perd sa connexion sur la machine de développement. Le kit `scripts/sandbox/` reste
+  disponible ; les trois tests [CRITIQUE] de la section 7.6 et la recette M4 ne sont **pas
+  exécutés**, et ce risque est connu et accepté. Les comportements restent couverts par les tests
+  automatiques.

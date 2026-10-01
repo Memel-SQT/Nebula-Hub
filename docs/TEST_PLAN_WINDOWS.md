@@ -79,7 +79,8 @@ Recette automatisée : `scripts/sandbox.ps1 -Recipe m5`, résultats dans
 | 5.5 | Sauvegarde impossible (par exemple, renommer l'exécutable de Finterest puis demander une réparation). | « Sauvegarde impossible » ; rien n'est modifié ; « Continuer sans sauvegarde » demande une seconde confirmation. | |
 | 5.6 | Activer « Mise à jour automatique » pour Finterest. | Confirmation (sauvegarde avant chaque mise à jour) ; à la publication suivante, mise à jour quand Finterest est fermée. | |
 
-**État au 2026-10-01** : recettes prêtes mais **non exécutées**. Windows Sandbox démarre puis perd
+**État au 2026-10-01** : recettes prêtes mais **non exécutées**, et mises de côté à la demande de
+l'utilisateur (ADR-023). Windows Sandbox démarre puis perd
 sa connexion avec la machine virtuelle (« La connexion à l'environnement Bac à sable Windows a
 été perdue »). C'est le cas même pour une sandbox vide, sans dossier partagé ni commande ; la
 machine de développement est elle-même utilisée en Bureau à distance. Les comportements sont
