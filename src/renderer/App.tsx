@@ -5,6 +5,8 @@ import { EMPTY_CATALOG_VIEW, type CatalogView } from '@shared/catalog-view';
 import { EMPTY_INSTALLED_VIEW, type InstalledView } from '@shared/installed-view';
 import { needsConfirmation, type DownloadsView, type OperationKind, type OperationPlan, type OperationView } from '@shared/install-state';
 import { updateAvailable } from '@shared/installed-view';
+import type { ConsentState } from '@shared/consent';
+import type { LinkView } from '@shared/link-view';
 import { playSound } from '@nebula/design';
 import type { HubSettings, SettingsPatch } from '@shared/settings';
 import { localize } from '@shared/catalog';
@@ -40,6 +42,7 @@ export function App() {
   const [launchError, setLaunchError] = useState<string | null>(null);
   const [downloads, setDownloads] = useState<DownloadsView | undefined>(undefined);
   const [dialog, setDialog] = useState<Dialog | null>(null);
+  const [link, setLink] = useState<LinkView | undefined>(undefined);
   const appearance = settings.appearance;
   const language = appearance.language;
 
@@ -128,6 +131,25 @@ export function App() {
       () => setLaunchError(translate(language, 'install.failure.internal')),
     );
   }, [bridge, catalog.entries, language]);
+
+  // Nebula Link: connected apps, capabilities, consents (M6), then every change from the main process.
+  useEffect(() => {
+    let active = true;
+    void bridge.getLink().then((view) => active && setLink(view), () => undefined);
+    const unsubscribe = bridge.onLinkChanged(setLink);
+    return () => {
+      active = false;
+      unsubscribe();
+    };
+  }, [bridge]);
+
+  const setLinkConsent = useCallback((consumer: string, capability: string, state: ConsentState | null) => {
+    void bridge.setLinkConsent(consumer, capability, state).then(setLink, () => undefined);
+  }, [bridge]);
+
+  const denyLinkApp = useCallback((appId: string) => {
+    void bridge.denyLinkApp(appId).then(setLink, () => undefined);
+  }, [bridge]);
 
   const appName = useCallback((appId: string) => catalog.entries.find((entry) => entry.app.id === appId)?.app.name ?? appId, [catalog.entries]);
 
@@ -240,7 +262,7 @@ export function App() {
   }, [catalog.entries, settings.autoUpdate, updateSettings]);
 
   // The tray can ask for a screen (e.g. "Updates available").
-  useEffect(() => bridge.onNavigateRequest((screen) => setRoute({ screen })), [bridge]);
+  useEffect(() => bridge.onNavigateRequest(setRoute), [bridge]);
 
   // Keyboard and screen-reader users land on the new page title after each navigation.
   const firstRender = useRef(true);
@@ -266,7 +288,6 @@ export function App() {
     );
   }
 
-  const screenProps = { status: 'empty' as const, onNavigate: setRoute };
   const catalogProps = {
     catalog,
     installed,
@@ -293,16 +314,16 @@ export function App() {
       {background}
       <div className="titlebar-drag" aria-hidden="true" />
       <main className="app-shell">
-        <Sidebar active={sectionOf(route)} version={initial.appVersion} launcher={familyEntries(catalog)} installed={installed} downloads={downloads} onNavigate={setRoute} onLaunch={launchApp} />
+        <Sidebar active={sectionOf(route)} version={initial.appVersion} launcher={familyEntries(catalog)} installed={installed} downloads={downloads} link={link} onNavigate={setRoute} onLaunch={launchApp} />
         <div className="workspace-column">
           {saveError ? <ErrorState message={t('error.saveSettings')} /> : null}
           {launchError ? <ErrorState message={launchError} onRetry={() => setLaunchError(null)} /> : null}
-          {route.screen === 'home' ? <HomeScreen {...catalogProps} version={initial.appVersion} /> : null}
+          {route.screen === 'home' ? <HomeScreen {...catalogProps} link={link} version={initial.appVersion} /> : null}
           {route.screen === 'discover' ? <DiscoverScreen {...catalogProps} /> : null}
           {route.screen === 'app' ? <AppDetailScreen key={route.appId} {...catalogProps} appId={route.appId} loadAsset={loadAsset} onOpenLink={openLink} /> : null}
           {route.screen === 'my-apps' ? <MyAppsScreen {...catalogProps} onRefreshInstalled={refreshInstalled} /> : null}
           {route.screen === 'downloads' ? <DownloadsScreen {...catalogProps} onExportHistory={exportHistory} /> : null}
-          {route.screen === 'integrations' ? <IntegrationsScreen {...screenProps} /> : null}
+          {route.screen === 'integrations' ? <IntegrationsScreen link={link} catalog={catalog} onNavigate={setRoute} onSetConsent={setLinkConsent} onDenyApp={denyLinkApp} /> : null}
           {route.screen === 'settings' ? (
             <SettingsScreen settings={settings} resolvedTheme={resolvedTheme} version={initial.appVersion} catalog={catalog} onAppearanceChange={updateAppearance} onSettingsChange={updateSettings} onRefreshCatalog={refreshCatalog} onPickInstallDirectory={pickInstallDirectory} />
           ) : null}

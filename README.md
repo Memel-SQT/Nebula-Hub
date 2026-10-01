@@ -6,7 +6,9 @@ Windows, sans compte et sans télémétrie.
 
 > Projet en cours de développement : le catalogue signé, les fiches des apps, la
 > personnalisation, le lanceur, l’installation, les mises à jour, la réparation et la
-> désinstallation sont en place ; Nebula Link arrive dans les jalons suivants.
+> désinstallation sont en place, ainsi que le cœur de Nebula Link et son centre de
+> consentements ; les widgets, le centre d’activité et l’adoption de Link par chaque app arrivent
+> dans les jalons suivants.
 
 ## Ce que fait Nebula Hub
 
@@ -96,3 +98,10 @@ git push origin main v0.2.0
 
 Le workflow `release.yml` construit l’installeur et publie la release avec `latest.yml` (mises à
 jour automatiques du Hub) et le catalogue signé. Une version `-beta.N` part en pré-version.
+
+### Nebula Link et son SDK
+
+La spécification du protocole est dans [`docs/NEBULA_LINK.md`](docs/NEBULA_LINK.md), le SDK des
+apps dans [`packages/nebula-link`](packages/nebula-link) (voir son README). Le banc d’essai se
+lance avec `npm run link:demo`. Le SDK se publie par un tag `link-vX.Y.Z` (workflow
+`link-release.yml`), en release non marquée « latest » pour ne pas gêner les mises à jour du Hub.

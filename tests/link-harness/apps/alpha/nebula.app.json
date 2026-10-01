@@ -1,0 +1,17 @@
+{
+  "schema": 1,
+  "appId": "nebula.alpha",
+  "provides": [
+    { "id": "alpha.time", "kind": "query", "sensitivity": "public", "title": { "fr": "Heure d'Alpha", "en": "Alpha's time" }, "description": { "fr": "Heure locale vue par Alpha." }, "resultSchema": "WidgetV1" },
+    { "id": "alpha.secret", "kind": "query", "sensitivity": "private", "title": { "fr": "Solde d'Alpha" }, "description": { "fr": "Une valeur privée d'Alpha." }, "resultSchema": "WidgetV1" },
+    { "id": "alpha.status", "kind": "widget", "sensitivity": "private", "title": { "fr": "État d'Alpha" }, "description": { "fr": "Carte de l'accueil du Hub." }, "resultSchema": "WidgetV1", "refreshSeconds": 60 },
+    { "id": "alpha.tick", "kind": "event", "sensitivity": "public", "title": { "fr": "Pause d'Alpha" }, "description": { "fr": "Alpha commence une pause." }, "payloadSchema": "BreakStartedV1" },
+    { "id": "alpha.alert", "kind": "event", "sensitivity": "private", "title": { "fr": "Alerte d'Alpha" }, "description": { "fr": "Une notification privée d'Alpha." }, "payloadSchema": "NotificationV1" },
+    { "id": "alpha.open-panel", "kind": "intent", "sensitivity": "public", "title": { "fr": "Ouvrir le panneau" }, "description": { "fr": "Ouvre le panneau d'Alpha." }, "payloadSchema": "EmptyV1", "path": "/panel" }
+  ],
+  "consumes": [{ "id": "nebula.appearance.changed", "kind": "event" }],
+  "deepLinks": [
+    { "path": "/panel", "params": { "tab": ["a", "b"] } },
+    { "path": "/calendar", "params": { "date": "date" } }
+  ]
+}

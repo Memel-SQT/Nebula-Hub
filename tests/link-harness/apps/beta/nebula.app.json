@@ -1,0 +1,15 @@
+{
+  "schema": 1,
+  "appId": "nebula.beta",
+  "provides": [],
+  "consumes": [
+    { "id": "alpha.time", "kind": "query" },
+    { "id": "alpha.secret", "kind": "query" },
+    { "id": "alpha.tick", "kind": "event" },
+    { "id": "alpha.alert", "kind": "event" },
+    { "id": "alpha.open-panel", "kind": "intent" },
+    { "id": "nebula.appearance.changed", "kind": "event" },
+    { "id": "nebula.hub.present", "kind": "event" }
+  ],
+  "deepLinks": [{ "path": "/", "params": {} }]
+}

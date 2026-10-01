@@ -2,6 +2,9 @@ import type { NebulaAppearance } from '@nebula/design';
 import type { CatalogView } from './catalog-view';
 import type { DownloadsView, EnqueueResult, OperationKind, OperationPlan } from './install-state';
 import type { InstalledView, LaunchResult } from './installed-view';
+import type { ConsentState } from './consent';
+import type { LinkView } from './link-view';
+import type { Route } from './route';
 import type { HubSettings, SettingsPatch } from './settings';
 
 /** IPC channel names: the only routes between the renderer and the main process. */
@@ -33,10 +36,14 @@ export const CHANNELS = {
   operationRequestClose: 'operations:request-close',
   operationContinue: 'operations:continue-without-backup',
   navigate: 'hub:navigate',
+  linkGet: 'link:get',
+  linkChanged: 'link:changed',
+  linkSetConsent: 'link:set-consent',
+  linkDenyApp: 'link:deny-app',
 } as const;
 
-/** Screens the main process may ask the renderer to show (tray menu). */
-export type NavigateRequest = 'my-apps' | 'downloads';
+/** Screens the main process may ask the renderer to show (tray menu, Nebula Link). */
+export type NavigateRequest = Route;
 
 /** Result of exporting the operations journal. */
 export type ExportResult = 'saved' | 'cancelled' | 'failed';
@@ -100,4 +107,11 @@ export interface NebulaHubBridge {
   /** R04: second confirmation after a failed backup. */
   continueWithoutBackup(operationId: string): Promise<boolean>;
   onNavigateRequest(callback: (screen: NavigateRequest) => void): () => void;
+  /** Nebula Link: connected apps, capabilities, consents and pending requests. */
+  getLink(): Promise<LinkView>;
+  onLinkChanged(callback: (view: LinkView) => void): () => void;
+  /** Grants, refuses, or forgets (null) the user's decision for one pair. */
+  setLinkConsent(consumer: string, capability: string, state: ConsentState | null): Promise<LinkView>;
+  /** Refuses every pair of an app (as consumer or provider). */
+  denyLinkApp(appId: string): Promise<LinkView>;
 }

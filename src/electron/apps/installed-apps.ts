@@ -129,9 +129,10 @@ export class InstalledAppsService {
 
   /**
    * Starts an installed app (brief §7.8): only the catalog's `exeName` inside the registered
-   * install folder, after checking it exists. The Hub never launches itself.
+   * install folder, after checking it exists. The Hub never launches itself. `args` only ever
+   * carries the Link intent built by the Hub (`--nebula-intent=<base64url>`, docs/NEBULA_LINK.md § 7).
    */
-  async launch(appId: string): Promise<LaunchResult> {
+  async launch(appId: string, args: readonly string[] = []): Promise<LaunchResult> {
     const app = this.deps.apps().find((candidate) => candidate.id === appId);
     if (app?.role === 'hub') return 'is-hub';
     const record = this.records.get(appId);
@@ -142,7 +143,7 @@ export class InstalledAppsService {
       return 'missing-exe';
     }
     try {
-      await this.deps.probe.start(exePath, record.location);
+      await this.deps.probe.start(exePath, record.location, args);
     } catch {
       return 'failed';
     }

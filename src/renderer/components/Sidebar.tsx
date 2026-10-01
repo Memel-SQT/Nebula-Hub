@@ -2,6 +2,7 @@ import { Icon } from '@nebula/design/react';
 import type { CatalogEntry } from '@shared/catalog-view';
 import type { InstalledView } from '@shared/installed-view';
 import { isActive, type DownloadsView } from '@shared/install-state';
+import type { LinkView } from '@shared/link-view';
 import { installedOf } from '../catalog';
 import { HubMark } from '../brand/HubMark';
 import { useT } from '../i18n';
@@ -13,17 +14,20 @@ import { AppIcon } from './Cards';
  * the Nebula Link state), the section navigation, then the launcher rail ("waffle") with the
  * family apps, and the local-only footer.
  */
-export function Sidebar({ active, version, launcher, installed, downloads, onNavigate, onLaunch }: {
+export function Sidebar({ active, version, launcher, installed, downloads, link, onNavigate, onLaunch }: {
   active: Section;
   version: string;
   launcher: CatalogEntry[];
   installed?: InstalledView;
   downloads?: DownloadsView;
+  link?: LinkView;
   onNavigate: (route: Route) => void;
   onLaunch?: (appId: string) => void;
 }) {
   const t = useT();
   const running = downloads?.operations.filter((operation) => isActive(operation.phase)).length ?? 0;
+  const connected = link?.connected.length ?? 0;
+  const linkLabel = !link || link.state === 'starting' ? t('link.starting') : link.state === 'error' ? t('link.unavailable') : connected > 0 ? t('link.onlineCount', { count: String(connected) }) : t('link.ready');
   return (
     <aside className="sidebar nebula-surface nebula-sidebar">
       <div className="brand-lockup">
@@ -35,8 +39,8 @@ export function Sidebar({ active, version, launcher, installed, downloads, onNav
       </div>
 
       <button type="button" className="status-chip-button plain" data-sound="nav" onClick={() => onNavigate({ screen: 'integrations' })}>
-        <span className="status-dot warn" aria-hidden="true" />
-        <span>{t('link.offline')}</span>
+        <span className={`status-dot ${link?.state === 'listening' ? '' : 'warn'}`} aria-hidden="true" />
+        <span>{linkLabel}</span>
         <b><Icon name="chevronRight" size={14} /></b>
       </button>
 

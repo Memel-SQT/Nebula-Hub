@@ -1,15 +1,9 @@
 import type { IconName } from '@nebula/design/react';
+import type { Route } from '@shared/route';
 import type { TranslationKey } from './i18n';
 
-/** Navigation is typed application state (no router), as in Nebula Finterest. */
-export type Route =
-  | { screen: 'home' }
-  | { screen: 'discover' }
-  | { screen: 'app'; appId: string }
-  | { screen: 'my-apps' }
-  | { screen: 'downloads' }
-  | { screen: 'integrations' }
-  | { screen: 'settings' };
+/** Navigation is typed application state (no router), shared with the main process. */
+export type { Route };
 
 export type Section = Exclude<Route['screen'], 'app'>;
 

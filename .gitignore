@@ -16,3 +16,4 @@ Thumbs.db
 *.pem
 *.key
 .sandbox/
+packages/*/dist/

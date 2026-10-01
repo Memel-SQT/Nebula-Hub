@@ -9,6 +9,7 @@ const moduleNameMapper = {
   '^@renderer/(.*)$': '<rootDir>/src/renderer/$1',
   '^@nebula/design/react$': '<rootDir>/packages/nebula-design/src/react.ts',
   '^@nebula/design$': '<rootDir>/packages/nebula-design/src/index.ts',
+  '^@nebula/link$': '<rootDir>/packages/nebula-link/src/index.ts',
 };
 
 const config: Config = {

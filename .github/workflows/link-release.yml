@@ -1,0 +1,64 @@
+name: Link SDK release
+
+# Pushing a tag link-vX.Y.Z publishes the @nebula/link archive (ADR-008):
+#   git tag -a link-v1.0.0 -F notes.md
+#   git push origin link-v1.0.0
+# The apps depend on https://github.com/Memel-SQT/Nebula-Hub/releases/download/link-vX.Y.Z/nebula-link-X.Y.Z.tgz
+# The release is NOT marked "latest": the Hub reads its own latest release (catalog source,
+# updates), which must stay a Hub release.
+
+on:
+  push:
+    tags: ['link-v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build and publish the SDK
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Tag matches the SDK version
+        shell: pwsh
+        run: |
+          $version = (Get-Content packages/nebula-link/package.json -Raw | ConvertFrom-Json).version
+          if ("link-v$version" -ne "${{ github.ref_name }}") { throw "Tag ${{ github.ref_name }} does not match @nebula/link $version." }
+
+      - name: Quality gates
+        run: |
+          npm run typecheck
+          npm run lint
+          npm test -- --ci
+
+      - name: Pack
+        run: npm run link:pack
+
+      - name: Publish the release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $version = $tag.Substring(5)
+          git fetch --force origin "refs/tags/${tag}:refs/tags/${tag}"
+          $notes = git tag -l --format='%(contents)' $tag | Out-String
+          if (-not $notes.Trim()) { $notes = "@nebula/link $version" }
+          Set-Content -Path link-notes.md -Value $notes -Encoding utf8
+          $asset = "install/link/nebula-link-$version.tgz"
+          if (-not (Test-Path $asset)) { throw "Missing $asset" }
+          gh release create $tag $asset --title "@nebula/link $version" --notes-file link-notes.md --latest=false

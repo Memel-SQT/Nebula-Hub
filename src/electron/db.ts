@@ -22,6 +22,14 @@ const MIGRATIONS: string[][] = [
   [
     'CREATE TABLE IF NOT EXISTS install_history (id INTEGER PRIMARY KEY AUTOINCREMENT, app_id TEXT NOT NULL, kind TEXT NOT NULL, version TEXT NOT NULL, from_version TEXT, outcome TEXT NOT NULL, failure TEXT, detail TEXT, started_at TEXT NOT NULL, finished_at TEXT NOT NULL)',
   ],
+  // 3 — M6: Nebula Link consents (archived, never deleted, on uninstall), exchange journal
+  // without contents, and the activity center's notifications (docs/NEBULA_LINK.md § 12).
+  [
+    'CREATE TABLE IF NOT EXISTS consents (consumer TEXT NOT NULL, capability TEXT NOT NULL, state TEXT NOT NULL, decided_at TEXT NOT NULL, archived_at TEXT, PRIMARY KEY (consumer, capability))',
+    'CREATE TABLE IF NOT EXISTS link_audit (id INTEGER PRIMARY KEY AUTOINCREMENT, at TEXT NOT NULL, consumer TEXT NOT NULL, provider TEXT NOT NULL, capability TEXT NOT NULL, kind TEXT NOT NULL, outcome TEXT NOT NULL, bytes INTEGER NOT NULL)',
+    'CREATE INDEX IF NOT EXISTS link_audit_pair ON link_audit (consumer, capability, at)',
+    'CREATE TABLE IF NOT EXISTS notifications (id INTEGER PRIMARY KEY AUTOINCREMENT, app_id TEXT NOT NULL, received_at TEXT NOT NULL, notification_id TEXT, title TEXT NOT NULL, body TEXT NOT NULL, sensitivity TEXT NOT NULL, deep_link TEXT, category TEXT)',
+  ],
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;

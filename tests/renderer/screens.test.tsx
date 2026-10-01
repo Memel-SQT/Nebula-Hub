@@ -2,7 +2,6 @@ import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ComponentType } from 'react';
 import { LanguageContext } from '../../src/renderer/i18n';
-import type { LoadState } from '../../src/renderer/components/ScreenState';
 import { AppDetailScreen } from '../../src/renderer/screens/AppDetailScreen';
 import { DiscoverScreen } from '../../src/renderer/screens/DiscoverScreen';
 import { DownloadsScreen } from '../../src/renderer/screens/DownloadsScreen';
@@ -13,7 +12,8 @@ import { SettingsScreen } from '../../src/renderer/screens/SettingsScreen';
 import { OperationStatus } from '../../src/renderer/components/Operation';
 import type { OperationView } from '../../src/shared/install-state';
 import { DEFAULT_SETTINGS } from '../../src/shared/settings';
-import type { CatalogScreenProps, DataScreenProps } from '../../src/renderer/screens/types';
+import type { CatalogScreenProps } from '../../src/renderer/screens/types';
+import { EMPTY_LINK_VIEW, type LinkView } from '../../src/shared/link-view';
 import type { CatalogView } from '../../src/shared/catalog-view';
 import { EMPTY_INSTALLED_VIEW } from '../../src/shared/installed-view';
 import { catalogView, downloadsView, historyEntry, installedView, operation } from './fixtures';
@@ -22,58 +22,83 @@ function wrap(node: JSX.Element) {
   return render(<LanguageContext.Provider value="fr">{node}</LanguageContext.Provider>);
 }
 
-// ---- Screens whose data arrives in later milestones: the four states. ----
+// ---- Integrations: Nebula Link consent center (M6). ----
 
-const DATA_SCREENS: Array<[string, ComponentType<DataScreenProps>, RegExp]> = [
-  ['Integrations', IntegrationsScreen, /Intégrations/],
-];
+const LINK: LinkView = {
+  state: 'listening',
+  connected: [{ appId: 'nebula.finterest', since: '2026-10-02T08:00:00.000Z' }],
+  capabilities: [
+    { id: 'finterest.budget.remaining', provider: 'nebula.finterest', kind: 'widget', sensitivity: 'private', title: { fr: 'Reste à vivre' }, description: { fr: 'Montant restant ce mois-ci pour le compte ouvert.' } },
+    { id: 'nebula.appearance.changed', provider: 'nebula.hub', kind: 'event', sensitivity: 'public', title: { fr: 'Apparence Nebula' }, description: { fr: 'Thème et accent.' } },
+    { id: 'finterest.notify', provider: 'nebula.finterest', kind: 'event', sensitivity: 'private', title: { fr: 'Notifications privées' }, description: { fr: 'Vers le centre d’activité.' } },
+  ],
+  pairs: [
+    { consumer: 'nebula.hub', capability: 'finterest.budget.remaining', provider: 'nebula.finterest', sensitivity: 'private', state: null, decision: 'ask', lastExchange: null },
+    { consumer: 'nebula.finterest', capability: 'nebula.appearance.changed', provider: 'nebula.hub', sensitivity: 'public', state: null, decision: 'allow', lastExchange: '2026-10-02T08:00:00.000Z' },
+    { consumer: 'nebula.hub', capability: 'finterest.notify', provider: 'nebula.finterest', sensitivity: 'private', state: 'denied', decision: 'deny', lastExchange: null },
+  ],
+  pending: [{ consumer: 'nebula.hub', capability: 'finterest.budget.remaining', at: '2026-10-02T08:01:00.000Z' }],
+};
 
-function renderData(Screen: ComponentType<DataScreenProps>, status: LoadState, extra: Partial<DataScreenProps> = {}) {
-  const onNavigate = jest.fn();
-  const onRetry = jest.fn();
-  wrap(<Screen status={status} onNavigate={onNavigate} onRetry={onRetry} {...extra} />);
-  return { onNavigate, onRetry };
-}
+describe('Integrations (Nebula Link)', () => {
+  /** `null`: Link has not answered yet. */
+  function renderIntegrations(link: LinkView | null = LINK) {
+    const props = { onNavigate: jest.fn(), onSetConsent: jest.fn(), onDenyApp: jest.fn() };
+    wrap(<IntegrationsScreen link={link ?? undefined} catalog={catalogView()} {...props} />);
+    return props;
+  }
 
-describe.each(DATA_SCREENS)('%s screen', (_name, Screen, title) => {
-  it('has a level-1 title', () => {
-    renderData(Screen, 'empty');
-    expect(screen.getByRole('heading', { level: 1, name: title })).toBeInTheDocument();
+  it('has a level-1 title and skeletons while Link starts', () => {
+    renderIntegrations(null);
+    expect(screen.getByRole('heading', { level: 1, name: 'Intégrations' })).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveAttribute('aria-busy', 'true');
   });
 
-  it('shows skeletons while loading, never a bare spinner', () => {
-    renderData(Screen, 'loading');
-    const status = screen.getByRole('status');
-    expect(status).toHaveAttribute('aria-busy', 'true');
-    expect(within(status).getByText('Chargement…')).toBeInTheDocument();
-    expect(status.querySelectorAll('.skeleton-card')).toHaveLength(3);
+  it('says clearly when Link could not start', () => {
+    renderIntegrations({ ...LINK, state: 'error' });
+    expect(screen.getByRole('alert')).toHaveTextContent('Nebula Link n’a pas pu démarrer.');
   });
 
-  it('shows an empty state with a useful action', () => {
-    renderData(Screen, 'empty');
-    expect(screen.getByRole('heading', { level: 3 })).toBeInTheDocument();
-    expect(screen.getAllByRole('button').length).toBeGreaterThan(0);
+  it('has a useful empty state', async () => {
+    const props = renderIntegrations({ ...EMPTY_LINK_VIEW, state: 'listening' });
+    expect(screen.getByText('Aucune intégration pour l’instant')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /Voir mes apps/ }));
+    expect(props.onNavigate).toHaveBeenCalledWith({ screen: 'my-apps' });
   });
 
-  it('shows the offline banner with the last sync date', () => {
-    renderData(Screen, 'offline', { syncedAt: '2026-10-01T10:00:00Z' });
-    expect(screen.getByText('Vous êtes hors ligne')).toBeInTheDocument();
-    expect(screen.getByText(/synchronisées le/)).toBeInTheDocument();
+  it('asks for pending private requests in plain words', async () => {
+    const props = renderIntegrations();
+    const pending = within(screen.getByRole('region', { name: 'Demandes en attente' }));
+    expect(pending.getByText('Nebula Hub demande « Reste à vivre » à Nebula Finterest.')).toBeInTheDocument();
+    await userEvent.click(pending.getByRole('button', { name: /Autoriser/ }));
+    expect(props.onSetConsent).toHaveBeenLastCalledWith('nebula.hub', 'finterest.budget.remaining', 'granted');
+    await userEvent.click(pending.getByRole('button', { name: 'Refuser' }));
+    expect(props.onSetConsent).toHaveBeenLastCalledWith('nebula.hub', 'finterest.budget.remaining', 'denied');
   });
 
-  it('shows a clear error with a working retry button', async () => {
-    const { onRetry } = renderData(Screen, 'error');
-    const alert = screen.getByRole('alert');
-    expect(within(alert).getByText('Une erreur est survenue')).toBeInTheDocument();
-    await userEvent.click(within(alert).getByRole('button', { name: /Réessayer/ }));
-    expect(onRetry).toHaveBeenCalledTimes(1);
+  it('shows the matrix with the state and last exchange of each pair', async () => {
+    const props = renderIntegrations();
+    expect(within(screen.getByText('Apps connectées').closest('article')!).getByText('1')).toBeInTheDocument();
+    expect(screen.getByText('À l’écoute')).toBeInTheDocument();
+    const appearance = screen.getByRole('switch', { name: 'Autoriser Nebula Finterest : Apparence Nebula' });
+    expect(appearance).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByText(/dernier échange le/)).toBeInTheDocument();
+    await userEvent.click(appearance);
+    expect(props.onSetConsent).toHaveBeenLastCalledWith('nebula.finterest', 'nebula.appearance.changed', 'denied');
+    const budget = screen.getByRole('switch', { name: 'Autoriser Nebula Hub : Reste à vivre' });
+    expect(budget).toHaveAttribute('aria-checked', 'false');
+    await userEvent.click(budget);
+    expect(props.onSetConsent).toHaveBeenLastCalledWith('nebula.hub', 'finterest.budget.remaining', 'granted');
   });
-});
 
-it('Integrations empty state leads to My apps', async () => {
-  const { onNavigate } = renderData(IntegrationsScreen, 'empty');
-  await userEvent.click(screen.getByRole('button', { name: /Voir mes apps/ }));
-  expect(onNavigate).toHaveBeenCalledWith({ screen: 'my-apps' });
+  it('can go back to the default and refuse everything for an app', async () => {
+    const props = renderIntegrations();
+    await userEvent.click(screen.getByRole('button', { name: 'Réglage par défaut' }));
+    expect(props.onSetConsent).toHaveBeenLastCalledWith('nebula.hub', 'finterest.notify', null);
+    await userEvent.click(screen.getByRole('button', { name: 'Tout refuser pour Nebula Finterest' }));
+    expect(props.onDenyApp).toHaveBeenCalledWith('nebula.finterest');
+    expect(screen.getByText('Connectée')).toBeInTheDocument();
+  });
 });
 
 // ---- Catalog screens (M2). ----

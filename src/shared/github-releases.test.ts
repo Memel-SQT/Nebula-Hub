@@ -28,6 +28,11 @@ describe('parseReleases', () => {
     expect(parsed.map((item) => item.tag)).toEqual(['v0.2.0-desktop']);
   });
 
+  it('ignores the Link SDK releases of the Hub repository (link-vX.Y.Z), so they never pass for a Hub version', () => {
+    const parsed = parseReleases([release('link-v1.0.0'), release('v0.1.0')]);
+    expect(parsed.map((item) => item.tag)).toEqual(['v0.1.0']);
+  });
+
   it('drops assets that are not downloadable from the allowlist', () => {
     const [parsed] = parseReleases([release('v1.0.0', { assets: [
       { name: 'evil.exe', size: 1, browser_download_url: 'https://evil.example/evil.exe' },

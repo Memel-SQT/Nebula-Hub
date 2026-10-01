@@ -6,6 +6,7 @@ import { EmptyState, StateView } from '../components/ScreenState';
 import { UpdatesPanel } from '../components/UpdatesPanel';
 import { ScreenFrame } from '../components/ScreenFrame';
 import { formatDateTime, useLanguage, useT } from '../i18n';
+import type { LinkView } from '@shared/link-view';
 import type { CatalogScreenProps } from './types';
 
 /**
@@ -13,7 +14,7 @@ import type { CatalogScreenProps } from './types';
  * a summary panel, then the activity center. The Hub is first a launcher (ADR-013): installed
  * state and launch arrive with detection (M3), widgets and notifications with Link (M6–M7).
  */
-export function HomeScreen({ catalog, installed, downloads, version = '', onNavigate, onRefresh, onLaunch, onOperation, onUpdateAll }: CatalogScreenProps & { version?: string }) {
+export function HomeScreen({ catalog, installed, downloads, link, version = '', onNavigate, onRefresh, onLaunch, onOperation, onUpdateAll }: CatalogScreenProps & { version?: string; link?: LinkView }) {
   const t = useT();
   const language = useLanguage();
   const apps = familyEntries(catalog);
@@ -46,7 +47,7 @@ export function HomeScreen({ catalog, installed, downloads, version = '', onNavi
           <SummaryCard label={t('home.card.family')} value={String(apps.length)} icon="sparkles" tone="accent" />
           <SummaryCard label={t('home.card.installed')} value={detected ? String(summary.installed) : t('home.card.unknown')} icon="grid" tone="positive" />
           <SummaryCard label={t('home.card.updates')} value={detected ? String(summary.updates) : t('home.card.unknown')} icon="update" tone="gold" />
-          <SummaryCard label={t('home.card.link')} value={t('home.card.linkOffline')} icon="link" tone="warning" />
+          <SummaryCard label={t('home.card.link')} value={t(`integrations.state.${link?.state ?? 'starting'}`)} icon="link" tone={link?.state === 'listening' ? 'accent' : 'warning'} />
         </div>
 
         <UpdatesPanel catalog={catalog} installed={installed} downloads={downloads} onOperation={onOperation} onUpdateAll={onUpdateAll} />

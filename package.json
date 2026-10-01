@@ -26,7 +26,10 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint \"src/**/*.{ts,tsx}\" \"tests/**/*.{ts,tsx}\" \"packages/*/src/**/*.{ts,tsx}\" \"scripts/**/*.ts\"",
     "catalog:sign": "ts-node --transpile-only -O \"{\\\"module\\\":\\\"commonjs\\\",\\\"moduleResolution\\\":\\\"node\\\"}\" scripts/sign-catalog.ts",
-    "catalog:verify": "ts-node --transpile-only -O \"{\\\"module\\\":\\\"commonjs\\\",\\\"moduleResolution\\\":\\\"node\\\"}\" scripts/verify-catalog.ts"
+    "catalog:verify": "ts-node --transpile-only -O \"{\\\"module\\\":\\\"commonjs\\\",\\\"moduleResolution\\\":\\\"node\\\"}\" scripts/verify-catalog.ts",
+    "link:build": "npm run build --workspace @nebula/link",
+    "link:pack": "npm run link:build && node -e \"require('fs').mkdirSync('install/link', { recursive: true })\" && npm pack --workspace @nebula/link --pack-destination install/link",
+    "link:demo": "tsup tests/link-harness/demo.ts --format cjs --out-dir dist/link-demo --silent && node dist/link-demo/demo.js"
   },
   "dependencies": {
     "electron-updater": "^6.8.9",

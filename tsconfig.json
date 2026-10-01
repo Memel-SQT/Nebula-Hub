@@ -18,7 +18,8 @@
       "@shared/*": ["src/shared/*"],
       "@renderer/*": ["src/renderer/*"],
       "@nebula/design": ["packages/nebula-design/src/index.ts"],
-      "@nebula/design/react": ["packages/nebula-design/src/react.ts"]
+      "@nebula/design/react": ["packages/nebula-design/src/react.ts"],
+      "@nebula/link": ["packages/nebula-link/src/index.ts"]
     },
     "types": ["jest", "node"]
   },

@@ -2,7 +2,9 @@ import { act, render as rtlRender, screen, within } from '@testing-library/react
 import userEvent from '@testing-library/user-event';
 import { DEFAULT_SETTINGS, type HubSettings } from '../../src/shared/settings';
 import type { NebulaHubBridge } from '../../src/shared/bridge';
+import type { Route } from '../../src/shared/route';
 import type { DownloadsView } from '../../src/shared/install-state';
+import { EMPTY_LINK_VIEW } from '../../src/shared/link-view';
 import { App } from '../../src/renderer/App';
 import { catalogView, downloadsView, installedView, operation } from './fixtures';
 
@@ -59,6 +61,10 @@ function installBridge(overrides: Partial<HubSettings> = {}, startedHidden = tru
     requestAppClose: jest.fn(async () => true),
     continueWithoutBackup: jest.fn(async () => true),
     onNavigateRequest: () => () => undefined,
+    getLink: jest.fn(async () => EMPTY_LINK_VIEW),
+    onLinkChanged: () => () => undefined,
+    setLinkConsent: jest.fn(async () => EMPTY_LINK_VIEW),
+    denyLinkApp: jest.fn(async () => EMPTY_LINK_VIEW),
   };
   window.nebulaHub = bridge;
   return {
@@ -235,13 +241,13 @@ describe('App: confirmations (R04)', () => {
 
   it('opens the screen the tray asks for', async () => {
     const { bridge } = installBridge();
-    let navigate: (screen: 'my-apps' | 'downloads') => void = () => undefined;
+    let navigate: (route: Route) => void = () => undefined;
     bridge.onNavigateRequest = (callback) => {
       navigate = callback;
       return () => undefined;
     };
     await render(<App />);
-    await act(async () => navigate('downloads'));
+    await act(async () => navigate({ screen: 'downloads' }));
     expect(screen.getByRole('heading', { level: 1, name: 'Téléchargements' })).toBeInTheDocument();
   });
 });

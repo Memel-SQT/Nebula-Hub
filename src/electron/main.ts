@@ -1,6 +1,7 @@
 import path from 'node:path';
 import { app, dialog, ipcMain, nativeTheme, shell } from 'electron';
 import { CHANNELS, type InitialState, type NavigateRequest } from '../shared/bridge';
+import type { ConsentState } from '../shared/consent';
 import type { OperationKind } from '../shared/install-state';
 import { updateAvailable } from '../shared/installed-view';
 import type { HubSettings } from '../shared/settings';
@@ -10,6 +11,8 @@ import { windowsProbe } from './apps/system-probe';
 import { CatalogService } from './catalog/catalog-service';
 import { CATALOG_PUBLIC_KEY } from './catalog-key';
 import { HubDatabase } from './db';
+import { LinkHub } from './link/link-hub';
+import { defaultSessionDir, userPipe } from './link/session';
 import { writeFileAtomic } from './fsutil';
 import { InstallHistory } from './install/history';
 import { InstallManager } from './install/install-manager';
@@ -34,6 +37,7 @@ const database = HubDatabase.inDirectory(app.getPath('userData'));
 let catalog: CatalogService | null = null;
 let installed: InstalledAppsService | null = null;
 let installs: InstallManager | null = null;
+let link: LinkHub | null = null;
 
 /**
  * Installers are downloaded to %LOCALAPPDATA%\Nebula Hub\downloads (brief §5.3): local, never
@@ -54,7 +58,11 @@ hardenApp();
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
-  app.on('second-instance', () => void openWindow());
+  app.on('second-instance', (_event, argv) => {
+    const url = deepLinkIn(argv);
+    if (url) void link?.routeDeepLink(url);
+    else void openWindow();
+  });
 
   app.whenReady().then(async () => {
     hardenSession();
@@ -94,6 +102,23 @@ if (!app.requestSingleInstanceLock()) {
     });
     await installs.cleanup();
     installs.onChange((view) => getMainWindow()?.webContents.send(CHANNELS.downloadsChanged, view));
+    link = new LinkHub({
+      db: database,
+      hubVersion: app.getVersion(),
+      // A throwaway data folder (manual tests) gets its own pipe and session file.
+      sessionDir: process.env.NEBULA_HUB_USER_DATA_DIR ? path.join(app.getPath('userData'), 'link') : defaultSessionDir(),
+      pipe: process.env.NEBULA_HUB_USER_DATA_DIR ? `\\\\.\\pipe\\nebula-link-dev-${process.pid}` : await userPipe(),
+      catalogApps: () => catalog?.catalogApps() ?? [],
+      installedView: () => installed?.getView() ?? { state: 'loading', apps: [], detectedAt: null },
+      record: (appId) => installed?.record(appId),
+      launch: async (appId, args) => (await installed?.launch(appId, args)) === 'launched',
+      appearance: () => settingsStore.get().appearance,
+      navigate: (route) => void openWindowOn(route),
+      onChange: (view) => getMainWindow()?.webContents.send(CHANNELS.linkChanged, view),
+    });
+    await link.start();
+    installed.onChange((view) => void link?.onInstalledChanged(view));
+    if (app.isPackaged) app.setAsDefaultProtocolClient('nebula');
     // A new catalog may list new apps: detect again.
     catalog.onChange(() => installed?.requestDetect());
     registerIpcHandlers();
@@ -102,6 +127,8 @@ if (!app.requestSingleInstanceLock()) {
     createTray(trayOptions());
     // 'system' follows Windows: keep the native controls in step when the OS theme flips.
     nativeTheme.on('updated', () => applyWindowTheme(settingsStore.get()));
+    const startLink = deepLinkIn(process.argv);
+    if (startLink) void link.routeDeepLink(startLink);
     // Network refresh in the background (reused if younger than 6 h): the window never waits.
     void catalog.refresh();
   });
@@ -109,6 +136,7 @@ if (!app.requestSingleInstanceLock()) {
   app.on('before-quit', () => {
     setQuitting(true);
     destroyTray();
+    void link?.stop();
   });
 
   // With the tray, closing the window is not quitting; this only fires when the window was
@@ -178,13 +206,14 @@ function trayOptions(): TrayOptions {
     updates,
     onOpen: () => void openWindow(),
     onCheckUpdates: () => void catalog?.refresh(true).then(() => installed?.detect()),
-    onShowUpdates: () => void openWindowOn('my-apps'),
+    onShowUpdates: () => void openWindowOn({ screen: 'my-apps' }),
     onLaunch: (appId) => void installed?.launch(appId),
     onQuit: quit,
   };
 }
 
 function broadcastSettings(settings: HubSettings): void {
+  link?.broadcastAppearance(settings.appearance);
   getMainWindow()?.webContents.send(CHANNELS.settingsChanged, settings);
   applyWindowTheme(settings);
   updateTray(trayOptions());
@@ -346,6 +375,21 @@ function registerIpcHandlers(): void {
     return settings;
   });
 
+  ipcMain.handle(CHANNELS.linkGet, (event) => {
+    if (!isTrustedSender(event) || !link) throw new Error('ERR_UNTRUSTED_SENDER');
+    return link.view();
+  });
+
+  ipcMain.handle(CHANNELS.linkSetConsent, async (event, consumer: unknown, capability: unknown, state: unknown) => {
+    if (!isTrustedSender(event) || !link || typeof consumer !== 'string' || typeof capability !== 'string' || !(state === 'granted' || state === 'denied' || state === null)) throw new Error('ERR_BAD_REQUEST');
+    return link.setConsent(consumer, capability, state as ConsentState | null);
+  });
+
+  ipcMain.handle(CHANNELS.linkDenyApp, async (event, appId: unknown) => {
+    if (!isTrustedSender(event) || !link || typeof appId !== 'string') throw new Error('ERR_BAD_REQUEST');
+    return link.denyApp(appId);
+  });
+
   ipcMain.handle(CHANNELS.catalogAsset, async (event, appId: unknown, assetPath: unknown) => {
     if (!isTrustedSender(event) || !catalog || typeof appId !== 'string' || typeof assetPath !== 'string') return null;
     return catalog.getAsset(appId, assetPath);
@@ -354,4 +398,9 @@ function registerIpcHandlers(): void {
 
 function isOperationKind(value: unknown): value is OperationKind {
   return value === 'install' || value === 'update' || value === 'repair' || value === 'uninstall';
+}
+
+/** The `nebula://` link Windows passed on the command line, if any (§ 7). */
+function deepLinkIn(argv: readonly string[]): string | null {
+  return argv.find((arg) => arg.startsWith('nebula://')) ?? null;
 }

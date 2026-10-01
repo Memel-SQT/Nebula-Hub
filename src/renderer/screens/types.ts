@@ -1,17 +1,7 @@
 import type { CatalogView } from '@shared/catalog-view';
 import type { DownloadsView, OperationKind, OperationView } from '@shared/install-state';
 import type { InstalledView } from '@shared/installed-view';
-import type { LoadState } from '../components/ScreenState';
 import type { Route } from '../navigation';
-
-/** Common props of the data screens. */
-export interface DataScreenProps {
-  status: LoadState;
-  /** Date of the last successful sync, shown by the offline state. */
-  syncedAt?: string | null;
-  onNavigate: (route: Route) => void;
-  onRetry?: () => void;
-}
 
 /** Screens fed by the signed catalog (M2) and the detection of installed apps (M3). */
 export interface CatalogScreenProps {

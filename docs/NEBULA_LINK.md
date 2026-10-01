@@ -385,3 +385,26 @@ les notifications sont gardées, puisque c'est leur rôle (historique).
    implémentées.
 7. **Manifeste vérifié sur l'app installée** : retenu ; une app en développement se connecte au
    Hub en mode test.
+
+## 16. Précisions de mise en œuvre (M6, ADR-024)
+
+Ces points complètent la spécification sans en changer les règles.
+
+- **Notifications et consentement** : `link.notify` passe par une capacité implicite par app,
+  `<nom court>.notify` (par exemple `finterest.notify`), consommée par le Hub. Les notifications
+  publiques sont acceptées ; les privées suivent la paire « Nebula Hub ↔ `<app>.notify` »,
+  affichée dans la matrice sous « Notifications privées ».
+- **Le Hub ne consomme que des widgets** et des événements de type `NotificationV1` ; il
+  n'appelle jamais une `query` d'app.
+- **Ouverture d'écran** : une intent vers un chemin couvert par une capacité `intent` suit le
+  consentement de cette capacité (publique : autorisée par défaut), et l'app appelante doit la
+  déclarer dans `consumes`. Un chemin sans capacité `intent` reste une simple navigation.
+- **Événements d'état du Hub** : `nebula.appearance.changed` et `nebula.hub.present` sont envoyés
+  dès l'abonnement, pour qu'un client démarre synchronisé.
+- **Hello identique pour toute app** : le Hub répond à `link.hello` sans regarder si l'app est
+  installée ; l'admission se joue à `link.auth`, sans dire pourquoi elle échoue.
+- **Mode test et développement** : avec `NEBULA_HUB_USER_DATA_DIR`, le Hub utilise un pipe
+  `nebula-link-dev-<pid>` et un fichier de session dans ce dossier, pour ne jamais entrer en
+  collision avec le Hub installé.
+- **Manifeste** : un chemin d'intent (`path`) doit figurer dans `deepLinks` ; les segments `.` et
+  `..` d'un lien `nebula://` sont refusés avant toute normalisation.

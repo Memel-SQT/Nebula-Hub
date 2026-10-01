@@ -565,3 +565,39 @@ Les constats qui fondent ces décisions sont détaillés dans [DISCOVERY.md](DIS
   disponible ; les trois tests [CRITIQUE] de la section 7.6 et la recette M4 ne sont **pas
   exécutés**, et ce risque est connu et accepté. Les comportements restent couverts par les tests
   automatiques.
+
+## ADR-024 — Nebula Link : mise en œuvre (M6)
+
+- **Statut** : Accepté (M6). Applique `docs/NEBULA_LINK.md` (ADR-023) ; précisions au § 16 de la
+  spécification.
+- **Paquet `@nebula/link`** (`packages/nebula-link`) : le protocole (framing NDJSON, JSON-RPC,
+  preuves HMAC, fichier de session), les manifestes, les schémas, les liens profonds et le client.
+  Le Hub l'utilise depuis ses sources (alias, comme `@nebula/design`) : **le serveur et le SDK
+  partagent exactement le même code de validation**. Construit par tsup en CJS (`.cjs`), ESM
+  (`.mjs`) et types, sans aucune dépendance (modules Node seulement). Vérifié en l'installant
+  depuis son archive dans un projet CommonJS vierge.
+- **Distribution** (ADR-008) : `npm run link:pack` produit `install/link/nebula-link-<v>.tgz`. Le
+  workflow `link-release.yml` publie un tag `link-v<v>` en release **non marquée « latest »**,
+  parce que le Hub lit sa propre dernière release (source du catalogue, mises à jour). Les tags
+  `link-v*` ne sont pas du semver : le sélecteur de versions du Hub les ignore déjà, et un test
+  le verrouille.
+- **Serveur** (`src/electron/link/`) : `link-server.ts` (pipe, poignée de main, routage, limites),
+  `link-store.ts` (consentements archivés à la désinstallation, journal écrit par lots de 5 s car
+  chaque écriture de `store.sqlite` réécrit le fichier entier, notifications 30 jours),
+  `session.ts` (pipe nommé d'après le SID, jeton, lecture du manifeste dans `resources\` du
+  dossier d'installation), `link-hub.ts` (assemblage, vue de l'écran Intégrations).
+- **Pipe pris** (autre Hub de l'utilisateur, ou squat) : Link passe « indisponible », le reste du
+  Hub fonctionne.
+- **Lancement avec intent** : le lanceur (ADR-020) accepte un seul argument, toujours construit
+  par le Hub (`--nebula-intent=<base64url>`).
+- **Protocole `nebula://`** : enregistré par la version installée seulement
+  (`setAsDefaultProtocolClient`) ; liens reçus au démarrage et par `second-instance`.
+- **Écran Intégrations** : demandes en attente (Autoriser / Refuser), matrice app × capacité avec
+  interrupteur par paire, retour au réglage par défaut, « Tout refuser pour <app> », date du
+  dernier échange. Indicateur Link réel dans la barre latérale et sur l'accueil.
+- **Reporté à M7** : effacement de l'historique des notifications dans Réglages → Avancé (le
+  stockage et la suppression sont déjà dans `LinkStore`), widgets de l'accueil, centre
+  d'activité, notifications Windows.
+- **Banc d'essai** (`tests/link-harness/`) : Hub en mode test, deux fausses apps sur le vrai SDK,
+  un client brut pour les messages invalides. Il est joué par Jest et par `npm run link:demo`,
+  sur de vrais named pipes.

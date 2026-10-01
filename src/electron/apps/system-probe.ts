@@ -17,7 +17,7 @@ export interface SystemProbe {
   runningProcesses(): Promise<Set<string>>;
   fileExists(filePath: string): Promise<boolean>;
   /** Starts a program detached from the Hub (it keeps running if the Hub quits). */
-  start(executable: string, workingDirectory: string): Promise<void>;
+  start(executable: string, workingDirectory: string, args?: readonly string[]): Promise<void>;
   /**
    * Asks a program to close, politely: `taskkill /IM <exe>` **without** `/F` sends a close
    * message to its windows, exactly like clicking their close button. Never forced (R08); only
@@ -72,9 +72,9 @@ export const windowsProbe: SystemProbe = {
     await run('taskkill.exe', ['/IM', exeName], { timeout: 10_000 }).catch(() => undefined);
   },
 
-  start(executable, workingDirectory) {
+  start(executable, workingDirectory, args = []) {
     return new Promise((resolve, reject) => {
-      const child = spawn(executable, [], { cwd: workingDirectory, detached: true, stdio: 'ignore', windowsHide: false });
+      const child = spawn(executable, [...args], { cwd: workingDirectory, detached: true, stdio: 'ignore', windowsHide: false });
       child.once('error', reject);
       child.once('spawn', () => {
         child.unref();
