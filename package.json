@@ -1,6 +1,6 @@
 {
   "name": "nebula-hub",
-  "version": "0.1.0",
+  "version": "0.2.0-beta.1",
   "private": true,
   "author": "Nebula Hub",
   "description": "Nebula Hub launches, installs, updates and connects the Nebula desktop apps, locally and without any account.",
