@@ -12,6 +12,9 @@ Technical log, newest session first. Release notes live only in the GitHub relea
 - **Test bench** `tests/link-harness/`: test-mode Hub, fake apps Alpha (provider) and Beta (consumer) on the real SDK, raw client; 29 scenarios over real pipes (each capability kind, consent ask/grant/deny/revoke, absent Hub then reconnection, fake Hub, fake clients, invalid / oversized / flooding messages, deep links); `npm run link:demo` narrates them.
 - **Live check** (dev Hub, throwaway folder): session file and pipe created, Link listening, sidebar "Link prêt", a client posing as Finterest refused (no installed manifest yet) and offline without error, `nebula://hub/downloads` from a second instance opens Downloads, matrix rendering checked with an injected view; no console error.
 - Validation: typecheck, lint, tests, build, dist:win, SDK built and installed from its archive in a bare CommonJS project.
+- **Layout** (user feedback): the splash was a relative block stuck to the top (shared app.css rule since M1) and is centered again; compact mode under 1100 px (icon rail sidebar, labels kept for screen readers), shorter cards and paddings on low windows, window sized to the screen it opens on (min 720 x 520), sidebar items spaced out. No horizontal overflow measured at 1280, 1050, 820 and 720 px on every screen.
+- **Fixes**: the M6 commit lacked the new workspace in package-lock.json (CI red); fixed.
+- **v0.2.0-beta.1** published as a GitHub pre-release (installer, blockmap, latest.yml, signed catalog); v0.1.0 stays the latest stable release.
 
 ## [2026-10-01] - Nebula Hub Session #6 — M5: updates, repair, uninstall, data protection
 
