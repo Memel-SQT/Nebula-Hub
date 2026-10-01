@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { validateCatalog } from '../../src/shared/catalog';
 import { EMPTY_CATALOG_VIEW, type CatalogEntry, type CatalogView } from '../../src/shared/catalog-view';
+import type { InstalledView } from '../../src/shared/installed-view';
 
 const raw = JSON.parse(fs.readFileSync(path.join(__dirname, '../../catalog/nebula-catalog.json'), 'utf8'));
 const validation = validateCatalog(raw);
@@ -43,6 +44,19 @@ export function catalogView(patch: Partial<CatalogView> = {}): CatalogView {
     syncedAt: '2026-10-01T10:00:00Z',
     publicKeyFingerprint: 'ABCD 1234',
     sources: [{ id: 'raw', url: 'https://raw.githubusercontent.com/x' }, { id: 'bundled', url: 'app' }],
+    ...patch,
+  };
+}
+
+export function installedView(patch: Partial<InstalledView> = {}): InstalledView {
+  return {
+    state: 'ready',
+    detectedAt: '2026-10-01T10:05:00Z',
+    apps: [
+      { appId: 'nebula.finterest', version: '0.1.35', scope: 'user', location: 'C:\\Users\\<user>\\AppData\\Local\\Programs\\finterest', exeFound: true, running: false },
+      { appId: 'nebula.clock', version: '1.1.3', scope: 'user', location: 'C:\\Users\\<user>\\AppData\\Local\\Programs\\Nebula Clock', exeFound: true, running: true },
+      { appId: 'nebula.news', version: '0.1.0', scope: 'user', location: 'C:\\Users\\<user>\\AppData\\Local\\Programs\\Nebula News', exeFound: false, running: false },
+    ],
     ...patch,
   };
 }

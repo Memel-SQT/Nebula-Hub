@@ -1,6 +1,6 @@
 import { execFile } from 'node:child_process';
 import path from 'node:path';
-import { Menu, nativeImage, nativeTheme, Tray } from 'electron';
+import { Menu, nativeImage, nativeTheme, Tray, type MenuItemConstructorOptions } from 'electron';
 import type { Language } from '@nebula/design';
 import { mainString } from '../shared/main-strings';
 import { parseRegDword } from '../shared/registry-dword';
@@ -8,9 +8,12 @@ import { parseRegDword } from '../shared/registry-dword';
 let tray: Tray | null = null;
 let current: TrayOptions | null = null;
 
-interface TrayOptions {
+export interface TrayOptions {
   language: Language;
+  /** Installed apps that can be started from the tray (brief §9.8). */
+  apps: Array<{ id: string; name: string }>;
   onOpen: () => void;
+  onLaunch: (appId: string) => void;
   onQuit: () => void;
 }
 
@@ -39,8 +42,8 @@ async function refreshIcon(): Promise<void> {
 }
 
 /**
- * The Hub lives in the tray so it can launch the Nebula apps and host Nebula Link. M1: open and
- * quit; per-app launchers, update badge and Link pause arrive in M7.
+ * The Hub lives in the tray so it can launch the Nebula apps and host Nebula Link: open, one
+ * entry per installed app, quit. Update badge and Link pause arrive in M7.
  */
 export function createTray(options: TrayOptions): void {
   tray = new Tray(nativeImage.createFromPath(path.join(__dirname, '../../assets/tray-dark.png')));
@@ -55,10 +58,15 @@ export function updateTray(options: TrayOptions): void {
   if (!tray) {
     return;
   }
+  const launchers: MenuItemConstructorOptions[] = options.apps.map((app) => ({
+    label: mainString(options.language, 'trayLaunch').replace('{name}', app.name),
+    click: () => options.onLaunch(app.id),
+  }));
   tray.setToolTip(mainString(options.language, 'trayTooltip'));
   tray.setContextMenu(
     Menu.buildFromTemplate([
       { label: mainString(options.language, 'trayOpen'), click: options.onOpen },
+      ...(launchers.length ? [{ type: 'separator' as const }, ...launchers] : []),
       { type: 'separator' },
       { label: mainString(options.language, 'trayQuit'), click: options.onQuit },
     ]),

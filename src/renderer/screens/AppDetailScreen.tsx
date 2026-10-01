@@ -1,7 +1,7 @@
 import { Icon } from '@nebula/design/react';
 import { localize } from '@shared/catalog';
-import { catalogLoadState, findEntry } from '../catalog';
-import { AppIcon, Panel, SnapshotRow, StatusChip } from '../components/Cards';
+import { catalogLoadState, findEntry, installedOf } from '../catalog';
+import { AppIcon, AppStateChip, Panel, SnapshotRow, StatusChip } from '../components/Cards';
 import { CatalogNotices } from '../components/CatalogNotices';
 import { Markdown } from '../components/Markdown';
 import { Screenshots } from '../components/Screenshots';
@@ -15,7 +15,7 @@ import type { CatalogScreenProps } from './types';
  * size, the release notes (rendered from tokens, R12), the data notice and the facts. Install,
  * update, repair and uninstall actions arrive in M4–M5; integrations (manifest) in M6.
  */
-export function AppDetailScreen({ appId, catalog, onNavigate, onRefresh, loadAsset, onOpenLink }: CatalogScreenProps & {
+export function AppDetailScreen({ appId, catalog, installed, onNavigate, onRefresh, onLaunch, onShowFolder, loadAsset, onOpenLink }: CatalogScreenProps & {
   appId: string;
   loadAsset: (appId: string, path: string) => Promise<string | null>;
   onOpenLink: (url: string) => void;
@@ -23,6 +23,8 @@ export function AppDetailScreen({ appId, catalog, onNavigate, onRefresh, loadAss
   const t = useT();
   const language = useLanguage();
   const entry = findEntry(catalog, appId);
+  const local = installedOf(installed, appId);
+  const isHub = entry?.app.role === 'hub';
   const base = catalogLoadState(catalog);
   const status = base === 'loading' || base === 'error' ? base : !entry ? 'empty' : base === 'offline' ? 'offline' : 'ready';
   const date = (iso: string) => new Intl.DateTimeFormat(locale(language), { dateStyle: 'long' }).format(new Date(iso));
@@ -54,12 +56,30 @@ export function AppDetailScreen({ appId, catalog, onNavigate, onRefresh, loadAss
               <div className="app-hero-body">
                 <p className="app-hero-tagline">{localize(entry.app.tagline, language)}</p>
                 <div className="app-hero-chips">
+                  {local ? <AppStateChip entry={entry} installed={local} /> : null}
                   <StatusChip status={entry.app.status} />
                   <span className="category-chip">{t(`category.${entry.app.category}`)}</span>
                   {entry.release?.prerelease ? <span className="status-chip status-beta">{t('appDetail.prerelease')}</span> : null}
                 </div>
+                {local ? (
+                  <div className="app-hero-actions">
+                    {!isHub && local.exeFound && onLaunch ? (
+                      <button type="button" data-sound="none" onClick={() => onLaunch(entry.app.id)}>
+                        <Icon name="play" size={16} />{t('app.action.openNamed', { name: entry.app.name })}
+                      </button>
+                    ) : null}
+                    {local.exeFound && onShowFolder ? (
+                      <button type="button" className="ghost" onClick={() => onShowFolder(entry.app.id)}>
+                        <Icon name="external" size={16} />{t('app.action.folder')}
+                      </button>
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
               <div className="app-hero-version">
+                {local ? (
+                  <span className="installed-version tabular">{t('app.installedVersion')} : {local.version ? `v${local.version}` : t('myApps.unknownVersion')}</span>
+                ) : null}
                 {entry.release ? (
                   <>
                     <span>{t('appDetail.available')}</span>

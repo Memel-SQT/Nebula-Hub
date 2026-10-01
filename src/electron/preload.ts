@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import { CHANNELS, type InitialState, type NebulaHubBridge } from '../shared/bridge';
 import type { CatalogView } from '../shared/catalog-view';
+import type { InstalledView } from '../shared/installed-view';
 import type { HubSettings } from '../shared/settings';
 
 function subscribe<T>(channel: string, callback: (payload: T) => void): () => void {
@@ -24,6 +25,11 @@ const bridge: NebulaHubBridge = {
   refreshCatalog: () => ipcRenderer.invoke(CHANNELS.catalogRefresh),
   getCatalogAsset: (appId, assetPath) => ipcRenderer.invoke(CHANNELS.catalogAsset, appId, assetPath),
   onCatalogChanged: (callback) => subscribe<CatalogView>(CHANNELS.catalogChanged, callback),
+  getInstalled: () => ipcRenderer.invoke(CHANNELS.installedGet),
+  refreshInstalled: () => ipcRenderer.invoke(CHANNELS.installedRefresh),
+  onInstalledChanged: (callback) => subscribe<InstalledView>(CHANNELS.installedChanged, callback),
+  launchApp: (appId) => ipcRenderer.invoke(CHANNELS.appLaunch, appId),
+  showAppFolder: (appId) => ipcRenderer.invoke(CHANNELS.appShowFolder, appId),
 };
 
 contextBridge.exposeInMainWorld('nebulaHub', bridge);

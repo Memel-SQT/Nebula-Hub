@@ -11,7 +11,8 @@ import { IntegrationsScreen } from '../../src/renderer/screens/IntegrationsScree
 import { MyAppsScreen } from '../../src/renderer/screens/MyAppsScreen';
 import type { CatalogScreenProps, DataScreenProps } from '../../src/renderer/screens/types';
 import type { CatalogView } from '../../src/shared/catalog-view';
-import { catalogView } from './fixtures';
+import { EMPTY_INSTALLED_VIEW } from '../../src/shared/installed-view';
+import { catalogView, installedView } from './fixtures';
 
 function wrap(node: JSX.Element) {
   return render(<LanguageContext.Provider value="fr">{node}</LanguageContext.Provider>);
@@ -20,7 +21,6 @@ function wrap(node: JSX.Element) {
 // ---- Screens whose data arrives in later milestones: the four states. ----
 
 const DATA_SCREENS: Array<[string, ComponentType<DataScreenProps>, RegExp]> = [
-  ['MyApps', MyAppsScreen, /Mes apps/],
   ['Downloads', DownloadsScreen, /Téléchargements/],
   ['Integrations', IntegrationsScreen, /Intégrations/],
 ];
@@ -203,5 +203,99 @@ describe('AppDetail', () => {
   it('says so when the app is unknown', () => {
     wrap(<AppDetailScreen catalog={catalogView()} onNavigate={jest.fn()} onRefresh={jest.fn()} appId="nebula.unknown" loadAsset={loadAsset} onOpenLink={jest.fn()} />);
     expect(screen.getByText('App introuvable')).toBeInTheDocument();
+  });
+});
+
+// ---- Installed apps (M3). ----
+
+describe('My apps', () => {
+  function renderMyApps(installed = installedView()) {
+    const props = { onNavigate: jest.fn(), onRefresh: jest.fn(), onLaunch: jest.fn(), onShowFolder: jest.fn(), onRefreshInstalled: jest.fn() };
+    wrap(<MyAppsScreen catalog={catalogView()} installed={installed} {...props} />);
+    return props;
+  }
+
+  it('shows skeletons while detecting', () => {
+    renderMyApps(EMPTY_INSTALLED_VIEW);
+    expect(screen.getAllByRole('status')[0]).toHaveAttribute('aria-busy', 'true');
+  });
+
+  it('lists each detected app with its version, scope, location and state', () => {
+    renderMyApps();
+    expect(screen.getByText('3 installée(s)')).toBeInTheDocument();
+    expect(screen.getByText('v0.1.35 → v0.1.36')).toBeInTheDocument();
+    expect(screen.getByText('Mise à jour v0.1.36')).toBeInTheDocument();
+    expect(screen.getByText('C:\\Users\\<user>\\AppData\\Local\\Programs\\finterest')).toBeInTheDocument();
+    expect(screen.getAllByText('Pour cet utilisateur')).toHaveLength(3);
+    expect(screen.getByText('Ouverte')).toBeInTheDocument();
+    expect(screen.getByText(/Installation incomplète/)).toBeInTheDocument();
+  });
+
+  it('opens, shows the folder and the page of an app', async () => {
+    const props = renderMyApps();
+    await userEvent.click(screen.getByRole('button', { name: 'Ouvrir Nebula Finterest' }));
+    expect(props.onLaunch).toHaveBeenCalledWith('nebula.finterest');
+    await userEvent.click(screen.getAllByRole('button', { name: /Afficher le dossier/ })[0]);
+    expect(props.onShowFolder).toHaveBeenCalledWith('nebula.finterest');
+    await userEvent.click(screen.getByRole('button', { name: 'Voir la fiche de Nebula Clock' }));
+    expect(props.onNavigate).toHaveBeenCalledWith({ screen: 'app', appId: 'nebula.clock' });
+  });
+
+  it('never offers to open a broken install', () => {
+    renderMyApps();
+    expect(screen.queryByRole('button', { name: 'Ouvrir Nebula News' })).not.toBeInTheDocument();
+  });
+
+  it('shows the Hub itself without a launch button', () => {
+    renderMyApps(installedView({ apps: [{ appId: 'nebula.hub', version: '0.1.0', scope: 'user', location: 'C:\\Hub', exeFound: true, running: true }] }));
+    expect(screen.getByText('C’est l’app que vous utilisez')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Ouvrir Nebula Hub' })).not.toBeInTheDocument();
+  });
+
+  it('has a useful empty state, the available apps and a detection retry', async () => {
+    const props = renderMyApps(installedView({ apps: [] }));
+    expect(screen.getByText('Aucune app installée détectée')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 2, name: 'Disponibles' })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /Détecter à nouveau/ }));
+    expect(props.onRefreshInstalled).toHaveBeenCalled();
+  });
+
+  it('explains a detection error with a retry', async () => {
+    const props = renderMyApps(installedView({ state: 'error', apps: [] }));
+    await userEvent.click(within(screen.getByRole('alert')).getByRole('button', { name: /Réessayer/ }));
+    expect(props.onRefreshInstalled).toHaveBeenCalled();
+  });
+});
+
+describe('Launcher (Home)', () => {
+  it('launches an installed app in one click and keeps its page one button away', async () => {
+    const onLaunch = jest.fn();
+    const onNavigate = jest.fn();
+    wrap(<HomeScreen catalog={catalogView()} installed={installedView()} onNavigate={onNavigate} onRefresh={jest.fn()} onLaunch={onLaunch} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Ouvrir Nebula Finterest' }));
+    expect(onLaunch).toHaveBeenCalledWith('nebula.finterest');
+    await userEvent.click(screen.getByRole('button', { name: 'Voir la fiche de Nebula Finterest' }));
+    expect(onNavigate).toHaveBeenCalledWith({ screen: 'app', appId: 'nebula.finterest' });
+  });
+
+  it('counts installed apps and updates', () => {
+    wrap(<HomeScreen catalog={catalogView()} installed={installedView()} onNavigate={jest.fn()} onRefresh={jest.fn()} />);
+    const installedCard = screen.getByText('Installées').closest('article')!;
+    expect(within(installedCard).getByText('3')).toBeInTheDocument();
+    const updatesCard = screen.getByText('Mises à jour').closest('article')!;
+    expect(within(updatesCard).getByText('1')).toBeInTheDocument();
+  });
+});
+
+describe('App page with an installed app', () => {
+  it('shows the installed version and the open and folder actions', async () => {
+    const onLaunch = jest.fn();
+    const onShowFolder = jest.fn();
+    wrap(<AppDetailScreen catalog={catalogView()} installed={installedView()} onNavigate={jest.fn()} onRefresh={jest.fn()} onLaunch={onLaunch} onShowFolder={onShowFolder} appId="nebula.finterest" loadAsset={loadAsset} onOpenLink={jest.fn()} />);
+    expect(screen.getByText('Version installée : v0.1.35')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /Ouvrir Nebula Finterest/ }));
+    expect(onLaunch).toHaveBeenCalledWith('nebula.finterest');
+    await userEvent.click(screen.getByRole('button', { name: /Afficher le dossier/ }));
+    expect(onShowFolder).toHaveBeenCalledWith('nebula.finterest');
   });
 });

@@ -1,0 +1,61 @@
+/* Installed apps (M3): launcher tiles, state chips, My apps list, app page actions. */
+
+/* Buttons that should look like the element they wrap, not like a call to action. */
+button.plain { min-height: auto; padding: 0; border: 0; border-radius: 0; background: transparent; color: inherit; font-weight: inherit; letter-spacing: inherit; box-shadow: none; }
+button.plain:hover, button.plain:active { transform: none; background: transparent; box-shadow: none; }
+
+/* The tile is an article: the main button fills it, the footer holds its own button. */
+.app-tile { padding: 0; }
+.app-tile .app-tile-main { display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 0.35rem; width: 100%; padding: 1.1rem 1.1rem 0; border-radius: var(--radius) var(--radius) 0 0; text-align: left; }
+.app-tile-main:focus-visible { outline-offset: -2px; }
+.app-tile .app-tile-foot { padding: 0.9rem 1.1rem 1.1rem; }
+button.app-tile-more:hover { color: var(--accent); }
+.app-tile.is-installed { border-color: color-mix(in srgb, var(--accent) 28%, var(--line)); }
+
+/* State chips. */
+.status-chip { gap: 0.3rem; }
+.status-chip.status-update { background: var(--accent-soft); color: var(--accent-hover); }
+.status-chip.status-running .status-dot { width: 6px; height: 6px; box-shadow: 0 0 0 2px var(--positive-soft); }
+@keyframes chip-pulse-once {
+  0% { box-shadow: 0 0 0 0 var(--accent-glow); }
+  100% { box-shadow: 0 0 0 8px transparent; }
+}
+.pulse-once { animation: chip-pulse-once 900ms var(--ease-out) 300ms 1 both; }
+:root[data-motion='off'] .pulse-once, :root[data-motion='reduced'] .pulse-once { animation: none; }
+
+/* Sidebar launcher: installed apps read as ready, the others stay quieter. */
+.launcher-app { grid-template-columns: 30px minmax(0, 1fr) auto; }
+.launcher-app.available { color: var(--muted); }
+.launcher-app.available .app-icon { opacity: 0.6; filter: saturate(0.6); }
+.launcher-app.available:hover .app-icon { opacity: 1; filter: none; }
+.launcher-app .status-dot { width: 7px; height: 7px; margin-right: 0.2rem; }
+
+/* My apps. */
+.installed-list { display: grid; gap: 0.6rem; margin: 0; padding: 0; list-style: none; }
+.installed-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "icon main actions" ". details details"; align-items: start; gap: 0.2rem 1rem; padding: 1rem; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface-muted); transition: border-color var(--motion-base) var(--ease), background var(--motion-base) var(--ease); }
+.installed-row:hover { border-color: color-mix(in srgb, var(--accent) 45%, transparent); background: var(--surface); }
+.installed-row.broken { border-color: color-mix(in srgb, var(--warning) 45%, transparent); }
+.installed-row > .app-icon { grid-area: icon; }
+.installed-main { display: grid; grid-area: main; gap: 0.3rem; min-width: 0; }
+.installed-details { grid-area: details; min-width: 0; }
+.installed-title { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; }
+.installed-title strong { font-size: 0.98rem; letter-spacing: -0.01em; }
+.installed-tagline { color: var(--muted); font-size: 0.78rem; }
+.installed-meta { display: flex; flex-wrap: wrap; gap: 0.4rem 1.4rem; margin: 0.35rem 0 0; }
+.installed-meta div { display: grid; gap: 0.1rem; min-width: 0; }
+.installed-meta .wide { flex: 1 1 260px; }
+.installed-meta dt { color: var(--muted); font-size: 0.64rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+.installed-meta dd { margin: 0; font-size: 0.8rem; font-weight: 600; }
+.installed-meta dd.path { color: var(--muted); font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace; font-size: 0.72rem; font-weight: 500; overflow-wrap: anywhere; user-select: text; }
+.installed-warning { display: flex; align-items: center; gap: 0.4rem; margin: 0.3rem 0 0; color: var(--warning); font-size: 0.76rem; font-weight: 650; }
+.installed-actions { display: flex; grid-area: actions; flex-wrap: wrap; justify-content: flex-end; gap: 0.4rem; }
+.available-panel { margin-top: 1rem; }
+
+/* App page. */
+.app-hero-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1rem; }
+.installed-version { margin-bottom: 0.4rem; padding: 0.22rem 0.55rem; border-radius: 999px; background: var(--positive-soft); color: var(--positive) !important; font-size: 0.68rem !important; font-weight: 750; }
+
+@media (max-width: 760px) {
+  .installed-row { grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "icon main" ". details" "actions actions"; }
+  .installed-actions { justify-content: flex-start; margin-top: 0.6rem; }
+}

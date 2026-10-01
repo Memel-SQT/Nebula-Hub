@@ -1,5 +1,6 @@
 import type { NebulaAppearance } from '@nebula/design';
 import type { CatalogView } from './catalog-view';
+import type { InstalledView, LaunchResult } from './installed-view';
 import type { HubSettings, SettingsPatch } from './settings';
 
 /** IPC channel names: the only routes between the renderer and the main process. */
@@ -14,6 +15,11 @@ export const CHANNELS = {
   catalogRefresh: 'catalog:refresh',
   catalogAsset: 'catalog:asset',
   catalogChanged: 'catalog:changed',
+  installedGet: 'installed:get',
+  installedRefresh: 'installed:refresh',
+  installedChanged: 'installed:changed',
+  appLaunch: 'apps:launch',
+  appShowFolder: 'apps:show-folder',
 } as const;
 
 /** Read once, synchronously, by the preload so the first paint has the right theme. */
@@ -44,4 +50,13 @@ export interface NebulaHubBridge {
   /** A declared icon or screenshot of a catalog app, as a data: URL (null if unavailable). */
   getCatalogAsset(appId: string, assetPath: string): Promise<string | null>;
   onCatalogChanged(callback: (view: CatalogView) => void): () => void;
+  /** Installed Nebula apps as last detected (registry, executable, process list). */
+  getInstalled(): Promise<InstalledView>;
+  /** Runs a detection now. */
+  refreshInstalled(): Promise<InstalledView>;
+  onInstalledChanged(callback: (view: InstalledView) => void): () => void;
+  /** Starts an installed app (its catalog executable, inside its registered folder). */
+  launchApp(appId: string): Promise<LaunchResult>;
+  /** Shows the app's executable in File Explorer. */
+  showAppFolder(appId: string): Promise<boolean>;
 }

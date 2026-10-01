@@ -2,6 +2,8 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { setSoundsSuppressed, type NebulaAppearance } from '@nebula/design';
 import { BackgroundFx, Splash, useAppliedAppearance, useInterfaceEffects, useResolvedTheme } from '@nebula/design/react';
 import { EMPTY_CATALOG_VIEW, type CatalogView } from '@shared/catalog-view';
+import { EMPTY_INSTALLED_VIEW, type InstalledView } from '@shared/installed-view';
+import { playSound } from '@nebula/design';
 import type { HubSettings, SettingsPatch } from '@shared/settings';
 import { familyEntries } from './catalog';
 import { HubMark } from './brand/HubMark';
@@ -30,6 +32,8 @@ export function App() {
   const [visible, setVisible] = useState(!initial.startedHidden);
   const [saveError, setSaveError] = useState(false);
   const [catalog, setCatalog] = useState<CatalogView>(EMPTY_CATALOG_VIEW);
+  const [installed, setInstalled] = useState<InstalledView>(EMPTY_INSTALLED_VIEW);
+  const [launchError, setLaunchError] = useState<string | null>(null);
   const appearance = settings.appearance;
   const language = appearance.language;
 
@@ -60,6 +64,41 @@ export function App() {
   const loadAsset = useCallback((appId: string, assetPath: string) => bridge.getCatalogAsset(appId, assetPath), [bridge]);
   const openLink = useCallback((url: string) => {
     void bridge.openExternal(url);
+  }, [bridge]);
+
+  // Installed apps as last detected, then every new detection (startup, focus, after a launch).
+  useEffect(() => {
+    let active = true;
+    void bridge.getInstalled().then((view) => active && setInstalled(view));
+    const unsubscribe = bridge.onInstalledChanged(setInstalled);
+    return () => {
+      active = false;
+      unsubscribe();
+    };
+  }, [bridge]);
+
+  const refreshInstalled = useCallback(() => {
+    void bridge.refreshInstalled().then(setInstalled, () => undefined);
+  }, [bridge]);
+
+  const launchApp = useCallback((appId: string) => {
+    const name = catalog.entries.find((entry) => entry.app.id === appId)?.app.name ?? appId;
+    void bridge.launchApp(appId).then(
+      (result) => {
+        if (result === 'launched') {
+          setLaunchError(null);
+          playSound('open');
+        } else if (result !== 'is-hub') {
+          setLaunchError(translate(language, result === 'failed' ? 'launch.failed' : `launch.${result}`, { name }));
+          playSound('error');
+        }
+      },
+      () => setLaunchError(translate(language, 'launch.failed', { name })),
+    );
+  }, [bridge, catalog.entries, language]);
+
+  const showFolder = useCallback((appId: string) => {
+    void bridge.showAppFolder(appId);
   }, [bridge]);
 
   useEffect(() => {
@@ -111,20 +150,21 @@ export function App() {
   }
 
   const screenProps = { status: 'empty' as const, onNavigate: setRoute };
-  const catalogProps = { catalog, onNavigate: setRoute, onRefresh: refreshCatalog };
+  const catalogProps = { catalog, installed, onNavigate: setRoute, onRefresh: refreshCatalog, onLaunch: launchApp, onShowFolder: showFolder };
 
   return (
     <LanguageContext.Provider value={language}>
       {background}
       <div className="titlebar-drag" aria-hidden="true" />
       <main className="app-shell">
-        <Sidebar active={sectionOf(route)} version={initial.appVersion} launcher={familyEntries(catalog)} onNavigate={setRoute} />
+        <Sidebar active={sectionOf(route)} version={initial.appVersion} launcher={familyEntries(catalog)} installed={installed} onNavigate={setRoute} onLaunch={launchApp} />
         <div className="workspace-column">
           {saveError ? <ErrorState message={t('error.saveSettings')} /> : null}
+          {launchError ? <ErrorState message={launchError} onRetry={() => setLaunchError(null)} /> : null}
           {route.screen === 'home' ? <HomeScreen {...catalogProps} version={initial.appVersion} /> : null}
           {route.screen === 'discover' ? <DiscoverScreen {...catalogProps} /> : null}
           {route.screen === 'app' ? <AppDetailScreen key={route.appId} {...catalogProps} appId={route.appId} loadAsset={loadAsset} onOpenLink={openLink} /> : null}
-          {route.screen === 'my-apps' ? <MyAppsScreen {...screenProps} /> : null}
+          {route.screen === 'my-apps' ? <MyAppsScreen {...catalogProps} onRefreshInstalled={refreshInstalled} /> : null}
           {route.screen === 'downloads' ? <DownloadsScreen {...screenProps} /> : null}
           {route.screen === 'integrations' ? <IntegrationsScreen {...screenProps} /> : null}
           {route.screen === 'settings' ? (

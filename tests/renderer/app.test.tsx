@@ -1,9 +1,9 @@
-import { act, render as rtlRender, screen } from '@testing-library/react';
+import { act, render as rtlRender, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { DEFAULT_SETTINGS, type HubSettings } from '../../src/shared/settings';
 import type { NebulaHubBridge } from '../../src/shared/bridge';
 import { App } from '../../src/renderer/App';
-import { catalogView } from './fixtures';
+import { catalogView, installedView } from './fixtures';
 
 /** Renders and lets the initial catalog request resolve inside act(). */
 async function render(node: JSX.Element) {
@@ -37,6 +37,11 @@ function installBridge(overrides: Partial<HubSettings> = {}, startedHidden = tru
     refreshCatalog: jest.fn(async () => catalogView()),
     getCatalogAsset: jest.fn(async () => null),
     onCatalogChanged: () => () => undefined,
+    getInstalled: jest.fn(async () => installedView()),
+    refreshInstalled: jest.fn(async () => installedView()),
+    onInstalledChanged: () => () => undefined,
+    launchApp: jest.fn(async () => 'launched' as const),
+    showAppFolder: jest.fn(async () => true),
   };
   window.nebulaHub = bridge;
   return { bridge, setVisible: (visible: boolean) => listeners.forEach((listener) => listener(visible)) };
@@ -100,6 +105,21 @@ describe('App', () => {
     await userEvent.click(screen.getByRole('button', { name: /Réinitialiser l’apparence/ }));
     expect(bridge.updateAppearance).toHaveBeenLastCalledWith(expect.objectContaining({ theme: 'nebula-dark', accentPreset: 'nebula', background: 'glow', motion: 'full' }));
     expect(document.documentElement.dataset.background).toBe('glow');
+  });
+
+  it('launches an installed app from the sidebar launcher', async () => {
+    const { bridge } = installBridge();
+    await render(<App />);
+    await userEvent.click(within(screen.getByRole('group', { name: 'Lancer une app' })).getByRole('button', { name: 'Ouvrir Nebula Clock' }));
+    expect(bridge.launchApp).toHaveBeenCalledWith('nebula.clock');
+  });
+
+  it('explains a failed launch', async () => {
+    const { bridge } = installBridge();
+    (bridge.launchApp as jest.Mock).mockResolvedValueOnce('missing-exe');
+    await render(<App />);
+    await userEvent.click(within(screen.getByRole('group', { name: 'Lancer une app' })).getByRole('button', { name: 'Ouvrir Nebula Clock' }));
+    expect(await screen.findByText('Nebula Clock semble mal installée : son exécutable est introuvable.')).toBeInTheDocument();
   });
 
   it('reacts to the window being hidden in the tray', async () => {

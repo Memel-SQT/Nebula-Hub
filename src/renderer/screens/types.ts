@@ -1,4 +1,5 @@
 import type { CatalogView } from '@shared/catalog-view';
+import type { InstalledView } from '@shared/installed-view';
 import type { LoadState } from '../components/ScreenState';
 import type { Route } from '../navigation';
 
@@ -11,9 +12,12 @@ export interface DataScreenProps {
   onRetry?: () => void;
 }
 
-/** Screens fed by the signed catalog (M2). */
+/** Screens fed by the signed catalog (M2) and the detection of installed apps (M3). */
 export interface CatalogScreenProps {
   catalog: CatalogView;
   onNavigate: (route: Route) => void;
   onRefresh: () => void;
+  installed?: InstalledView;
+  onLaunch?: (appId: string) => void;
+  onShowFolder?: (appId: string) => void;
 }

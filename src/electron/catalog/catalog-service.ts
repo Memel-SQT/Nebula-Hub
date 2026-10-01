@@ -127,6 +127,11 @@ export class CatalogService {
     return this.view;
   }
 
+  /** The apps of the catalog in use (detection and launch are driven by it). */
+  catalogApps(): CatalogApp[] {
+    return this.catalog?.catalog.apps ?? [];
+  }
+
   onChange(listener: (view: CatalogView) => void): () => void {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);

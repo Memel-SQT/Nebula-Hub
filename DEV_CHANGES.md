@@ -2,6 +2,14 @@
 
 Technical log, newest session first. Release notes live only in the GitHub release body.
 
+## [2026-10-01] - Nebula Hub Session #4 — M3: detection and launch
+
+- **Detection** (ADR-003, ADR-020): `reg.exe export` (UTF-16LE) of the Uninstall keys, HKCU then HKLM then HKLM WOW6432Node, parsed by the pure `src/shared/reg-file.ts` (escaped strings, dword, hex(2) expand strings) and matched by `src/shared/detection.ts` (`DisplayName` = productName or productName + space; location from `Software\<key>\InstallLocation`, else the UninstallString folder; version from `DisplayVersion`). Fixtures are anonymized real exports plus a synthetic HKLM 32-bit one.
+- **InstalledAppsService** (`src/electron/apps/`): Windows access behind a `SystemProbe` interface (reg export, tasklist, file exists, detached spawn), so the service is tested without Windows. Detections are serialized and debounced; triggers: startup, catalog change, window focus, 2.5 s after a launch, manual refresh. Launch path rebuilt in main from the detected location and the signed catalog's exeName, checked absolute, inside the location and existing; no arguments, no shell. Uninstall commands never leave the main process.
+- **UI**: My apps rewritten (version → available update, scope, location, broken install warning, Open / Show folder / See page, redetect, available apps); Home and sidebar act as a launcher (one click opens an installed app, running dot); app page shows the installed version and Open / Show folder; tray menu gets "Launch <app>" entries; failed launches explained in plain language.
+- **Live check** (dev build, throwaway data folder): Finterest 0.1.35, Clock 1.1.3 and News 0.1.0 detected with version, scope and location in about 0.8 s; Finterest launched through the Hub and seen running afterwards; unknown app and the Hub itself refused; no uninstall string reaches the renderer; no console error.
+- Validation: typecheck, lint, catalog:verify, 305 tests, build, dist:win (116 MB installer). CI green on GitHub.
+
 ## [2026-10-01] - Nebula Hub Session #3 — M2: signed catalog
 
 - **Catalog format** (`src/shared/catalog.ts`, schema 1, documented in `docs/CATALOG.md`): strict field-by-field validation; every remote string that can reach a path or a command line is checked (asset paths limited to `icons/`|`screenshots/` without traversal, bare `.exe` names, installer switches allow-listed and `--delete-app-data` refused, backup folder a single safe name). `minHubVersion` replaces `minStoreVersion`; `role: "hub"` marks the Hub entry; `windows.preOperationBackup` is structured (Finterest first).

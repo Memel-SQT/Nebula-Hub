@@ -3,13 +3,15 @@ import { app, ipcMain, nativeTheme, shell } from 'electron';
 import { CHANNELS, type InitialState } from '../shared/bridge';
 import type { HubSettings } from '../shared/settings';
 import { isSafeExternalUrl } from '../shared/url';
+import { InstalledAppsService } from './apps/installed-apps';
+import { windowsProbe } from './apps/system-probe';
 import { CatalogService } from './catalog/catalog-service';
 import { CATALOG_PUBLIC_KEY } from './catalog-key';
 import { HubDatabase } from './db';
 import { httpGet } from './net/http';
 import { hardenApp, hardenSession, isTrustedSender } from './security';
 import { SettingsStore } from './settings-store';
-import { createTray, destroyTray, updateTray } from './tray';
+import { createTray, destroyTray, updateTray, type TrayOptions } from './tray';
 import { applyWindowTheme, createMainWindow, getMainWindow, setQuitting, showMainWindow } from './window';
 
 // Pinned explicitly (ADR-007, ADR-013): a future product rename must never orphan the
@@ -23,6 +25,7 @@ const startedHidden = process.argv.includes('--hidden');
 const settingsStore = SettingsStore.inDirectory(app.getPath('userData'));
 const database = HubDatabase.inDirectory(app.getPath('userData'));
 let catalog: CatalogService | null = null;
+let installed: InstalledAppsService | null = null;
 
 /** The signed catalog shipped with the app (extraResources), last-resort source (ADR-019). */
 function bundledCatalogDir(): string {
@@ -50,8 +53,16 @@ if (!app.requestSingleInstanceLock()) {
     });
     catalog.onChange((view) => getMainWindow()?.webContents.send(CHANNELS.catalogChanged, view));
     await catalog.loadLocal();
+    installed = new InstalledAppsService({ probe: windowsProbe, apps: () => catalog?.catalogApps() ?? [], env: process.env });
+    installed.onChange((view) => {
+      getMainWindow()?.webContents.send(CHANNELS.installedChanged, view);
+      updateTray(trayOptions());
+    });
+    // A new catalog may list new apps: detect again.
+    catalog.onChange(() => installed?.requestDetect());
     registerIpcHandlers();
     await createMainWindow(windowOptions(startedHidden));
+    void installed.detect();
     createTray(trayOptions());
     // 'system' follows Windows: keep the native controls in step when the OS theme flips.
     nativeTheme.on('updated', () => applyWindowTheme(settingsStore.get()));
@@ -86,13 +97,28 @@ async function openWindow(): Promise<void> {
   showMainWindow();
 }
 
+/** Coming back to the Hub re-checks what is installed and running (debounced, brief 7.1). */
+app.on('browser-window-focus', () => installed?.requestDetect());
+
 function quit(): void {
   setQuitting(true);
   app.quit();
 }
 
-function trayOptions() {
-  return { language: settingsStore.get().appearance.language, onOpen: () => void openWindow(), onQuit: quit };
+function trayOptions(): TrayOptions {
+  const apps = catalog?.catalogApps() ?? [];
+  const launchable = (installed?.getView().apps ?? [])
+    .filter((record) => record.exeFound)
+    .map((record) => apps.find((candidate) => candidate.id === record.appId))
+    .filter((candidate): candidate is NonNullable<typeof candidate> => Boolean(candidate) && candidate?.role !== 'hub')
+    .map((candidate) => ({ id: candidate.id, name: candidate.name }));
+  return {
+    language: settingsStore.get().appearance.language,
+    apps: launchable,
+    onOpen: () => void openWindow(),
+    onLaunch: (appId) => void installed?.launch(appId),
+    onQuit: quit,
+  };
 }
 
 function broadcastSettings(settings: HubSettings): void {
@@ -156,6 +182,29 @@ function registerIpcHandlers(): void {
   ipcMain.handle(CHANNELS.catalogRefresh, async (event) => {
     if (!isTrustedSender(event) || !catalog) throw new Error('ERR_UNTRUSTED_SENDER');
     return catalog.refresh(true);
+  });
+
+  ipcMain.handle(CHANNELS.installedGet, (event) => {
+    if (!isTrustedSender(event) || !installed) throw new Error('ERR_UNTRUSTED_SENDER');
+    return installed.getView();
+  });
+
+  ipcMain.handle(CHANNELS.installedRefresh, async (event) => {
+    if (!isTrustedSender(event) || !installed) throw new Error('ERR_UNTRUSTED_SENDER');
+    return installed.detect();
+  });
+
+  ipcMain.handle(CHANNELS.appLaunch, async (event, appId: unknown) => {
+    if (!isTrustedSender(event) || !installed || typeof appId !== 'string') return 'not-installed';
+    return installed.launch(appId);
+  });
+
+  ipcMain.handle(CHANNELS.appShowFolder, (event, appId: unknown) => {
+    if (!isTrustedSender(event) || !installed || typeof appId !== 'string') return false;
+    const record = installed.record(appId);
+    if (!record?.exeFound) return false;
+    shell.showItemInFolder(record.exePath);
+    return true;
   });
 
   ipcMain.handle(CHANNELS.catalogAsset, async (event, appId: unknown, assetPath: unknown) => {

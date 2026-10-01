@@ -1,5 +1,5 @@
 import { Icon } from '@nebula/design/react';
-import { catalogLoadState, familyEntries } from '../catalog';
+import { catalogLoadState, familyEntries, installedOf, installedSummary } from '../catalog';
 import { AppTile, Panel, SnapshotRow, SummaryCard, TopbarControl } from '../components/Cards';
 import { CatalogNotices } from '../components/CatalogNotices';
 import { EmptyState, StateView } from '../components/ScreenState';
@@ -12,10 +12,12 @@ import type { CatalogScreenProps } from './types';
  * a summary panel, then the activity center. The Hub is first a launcher (ADR-013): installed
  * state and launch arrive with detection (M3), widgets and notifications with Link (M6–M7).
  */
-export function HomeScreen({ catalog, version = '', onNavigate, onRefresh }: CatalogScreenProps & { version?: string }) {
+export function HomeScreen({ catalog, installed, version = '', onNavigate, onRefresh, onLaunch }: CatalogScreenProps & { version?: string }) {
   const t = useT();
   const language = useLanguage();
   const apps = familyEntries(catalog);
+  const summary = installedSummary(catalog, installed);
+  const detected = installed?.state === 'ready';
 
   return (
     <ScreenFrame
@@ -41,15 +43,24 @@ export function HomeScreen({ catalog, version = '', onNavigate, onRefresh }: Cat
       >
         <div className="summary-grid">
           <SummaryCard label={t('home.card.family')} value={String(apps.length)} icon="sparkles" tone="accent" />
-          <SummaryCard label={t('home.card.installed')} value={t('home.card.unknown')} icon="grid" tone="positive" />
-          <SummaryCard label={t('home.card.updates')} value={t('home.card.unknown')} icon="update" tone="gold" />
+          <SummaryCard label={t('home.card.installed')} value={detected ? String(summary.installed) : t('home.card.unknown')} icon="grid" tone="positive" />
+          <SummaryCard label={t('home.card.updates')} value={detected ? String(summary.updates) : t('home.card.unknown')} icon="update" tone="gold" />
           <SummaryCard label={t('home.card.link')} value={t('home.card.linkOffline')} icon="link" tone="warning" />
         </div>
 
         <div className="insight-grid">
           <Panel eyebrow={t('home.launcher.eyebrow')} title={t('home.launcher.title')} badge={t('home.launcher.count', { count: String(apps.length) })} labelledBy="home-launcher">
             <div className="app-tile-grid">
-              {apps.map((entry) => <AppTile key={entry.app.id} entry={entry} onOpen={() => onNavigate({ screen: 'app', appId: entry.app.id })} />)}
+              {apps.map((entry) => (
+                <AppTile
+                  key={entry.app.id}
+                  entry={entry}
+                  installed={installedOf(installed, entry.app.id)}
+                  mode="launch"
+                  onOpen={() => onNavigate({ screen: 'app', appId: entry.app.id })}
+                  onLaunch={onLaunch ? () => onLaunch(entry.app.id) : undefined}
+                />
+              ))}
             </div>
           </Panel>
 

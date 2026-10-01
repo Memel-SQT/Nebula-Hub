@@ -388,3 +388,42 @@ Les constats qui fondent ces décisions sont détaillés dans [DISCOVERY.md](DIS
     que `sign-catalog.mjs` : ils réutilisent la validation et la vérification du Hub lui-même.
   - Clé de signature générée le 2026-10-01, privée hors dépôt (`%USERPROFILE%\.nebula-hub\`),
     empreinte publique dans `docs/CATALOG.md` et dans les réglages du Hub.
+
+## ADR-020 — Détection et lancement des apps installées (M3)
+
+- **Statut** : Accepté (M3). Amende ADR-003 sur trois points de mise en œuvre.
+- **Amendements à ADR-003** :
+  - Le parseur s'appelle `src/shared/reg-file.ts` (et non `registry.ts`, déjà proche de
+    `registry-dword.ts`) ; la règle de détection pure est dans `src/shared/detection.ts`.
+  - Le fichier `.reg` temporaire est écrit dans le dossier temporaire du système (`os.tmpdir()`,
+    soit `%LOCALAPPDATA%\Temp`), avec un nom unique par processus, puis supprimé aussitôt. Créer un
+    dossier `Nebula Store\tmp` n'apportait rien et aurait gardé l'ancien nom du produit.
+  - Une app dont la clé de désinstallation existe mais dont l'exécutable manque n'est **pas
+    masquée** : elle apparaît « Installation incomplète », sans bouton « Ouvrir ». La masquer
+    aurait caché un cas que la réparation (M5) doit justement proposer.
+- **Décisions** :
+  - **Ordre des clés** : HKCU, puis HKLM, puis la vue 32 bits de HKLM ; la première entrée
+    trouvée l'emporte (les apps de la famille s'installent par utilisateur). La portée
+    (« pour cet utilisateur » / « pour tous les utilisateurs ») est affichée.
+  - **Version installée** : `DisplayVersion` de l'entrée de désinstallation.
+  - **App ouverte** : `tasklist.exe /FO CSV /NH` (via execFile), comparé au nom de l'exécutable
+    du catalogue, sans distinction de casse. Information affichée seulement : le Hub ne ferme
+    jamais une app sans accord (R08).
+  - **Quand détecter** : au démarrage, à chaque catalogue reçu, quand la fenêtre du Hub reprend
+    le focus, 2,5 s après un lancement, et sur « Détecter à nouveau ». Les demandes sont
+    regroupées (anti-rebond) et une détection ne tourne jamais deux fois en parallèle : un appel
+    pendant une détection en programme exactement une autre. Mesuré : ≈ 0,5–0,8 s sur la machine
+    de développement, sans bloquer l'interface.
+  - **Lancement** : seul le processus principal décide du chemin, recalculé depuis la détection
+    (`<emplacement>\<exeName du catalogue signé>`), vérifié absolu, directement dans
+    l'emplacement et existant. `spawn(exe, [], { detached, cwd: emplacement })` puis `unref` :
+    aucun argument, aucun shell (R11), et l'app survit à la fermeture du Hub. Le renderer ne
+    transmet qu'un identifiant d'app ; le Hub refuse de se lancer lui-même.
+  - **Ce que voit le renderer** : identifiant, version, portée, emplacement, exécutable présent,
+    app ouverte. Les commandes de désinstallation restent dans le processus principal.
+  - **Lanceur** : sur l'accueil et dans la barre latérale, un clic sur une app installée l'ouvre ;
+    la fiche reste à un bouton (« Voir la fiche »). Les apps non installées ouvrent leur fiche.
+    Le menu de la zone de notification liste aussi « Lancer <app> ».
+- **Conséquence** : M4–M5 réutilisent `InstalledAppsService` pour relire la version après une
+  installation, une mise à jour ou une réparation (ADR-004), et pour attendre la disparition de
+  la clé après une désinstallation.
