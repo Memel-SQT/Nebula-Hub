@@ -42,7 +42,7 @@ export function HubMark({ variant = CURRENT_MARK, animated = false, size, title,
       </defs>
       <rect className={animated ? 'splash-mark-plate' : undefined} width="128" height="128" rx="30" fill={MARK_COLORS.plate} />
       <rect className={animated ? 'splash-mark-halo' : undefined} width="128" height="128" rx="30" fill={`url(#${ids.halo})`} />
-      {resolveShapes(variant, ids, animated).map((shape, index) => {
+      {resolveShapes(variant, ids, animated, !animated && size !== undefined && size <= 32).map((shape, index) => {
         const props: Record<string, unknown> = { key: index, className: shape.className };
         for (const [name, value] of Object.entries(shape.attrs)) {
           props[REACT_ATTRS[name] ?? name] = value;

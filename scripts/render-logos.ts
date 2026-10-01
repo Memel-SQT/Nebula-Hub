@@ -3,7 +3,9 @@
  * - docs/logo/: the three proposals as SVG, PNG previews at 16/32/256 px, and proposals.html
  *   (animated splash of each variant + small-size renders) for the logo choice;
  * - the app icons from the current mark: assets/app-icon.svg, assets/icon.png,
- *   assets/tray.png (+ @2x), build/icon.png (1024 px) and build/icon.ico (16 → 256 px).
+ *   assets/tray-dark.png / tray-light.png (+ @2x: monochrome glyphs for a dark / light Windows
+ *   taskbar), build/icon.png (1024 px) and build/icon.ico (16 → 256 px, the optical small
+ *   variant up to 32 px).
  *
  * Same method as Nebula Finterest (session #42): @resvg/resvg-js + png-to-ico, which are not
  * project dependencies. Install them in a throwaway folder and point ICONKIT_DIR at it:
@@ -13,7 +15,7 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { CURRENT_MARK, MARKS, markToSvg, type MarkVariant } from '../src/renderer/brand/marks';
+import { CURRENT_MARK, MARKS, markToSvg, monoMarkToSvg, type MarkVariant } from '../src/renderer/brand/marks';
 
 const kit = process.env.ICONKIT_DIR;
 if (!kit) {
@@ -57,11 +59,16 @@ async function main(): Promise<void> {
   const current = markToSvg(CURRENT_MARK, { title: 'Nebula Hub' });
   fs.writeFileSync(out('assets', 'app-icon.svg'), `${current}\n`);
   fs.writeFileSync(out('assets', 'icon.png'), png(current, 512));
-  fs.writeFileSync(out('assets', 'tray.png'), png(current, 16));
-  fs.writeFileSync(out('assets', 'tray@2x.png'), png(current, 32));
   fs.writeFileSync(out('build', 'icon.png'), png(current, 1024));
+  const currentSmall = markToSvg(CURRENT_MARK, { title: 'Nebula Hub', small: true });
   const icoSizes = [16, 24, 32, 48, 64, 128, 256];
-  fs.writeFileSync(out('build', 'icon.ico'), await pngToIco(icoSizes.map((size) => png(current, size))));
+  fs.writeFileSync(out('build', 'icon.ico'), await pngToIco(icoSizes.map((size) => png(size <= 32 ? currentSmall : current, size))));
+  for (const [file, color] of [['tray-dark', '#ffffff'], ['tray-light', '#1b1a2e']] as const) {
+    const glyph = monoMarkToSvg(CURRENT_MARK, color);
+    fs.writeFileSync(out('assets', `${file}.png`), png(glyph, 16));
+    fs.writeFileSync(out('assets', `${file}@2x.png`), png(glyph, 32));
+  }
+  fs.writeFileSync(out('docs', 'logo', 'png', `hub-mark-${CURRENT_MARK}-small-32.png`), png(currentSmall, 32));
   console.log(`Rendered proposals ${VARIANTS.join(', ')} and app icons from mark "${CURRENT_MARK}".`);
 }
 

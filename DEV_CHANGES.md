@@ -2,6 +2,13 @@
 
 Technical log, newest session first. Release notes live only in the GitHub release body.
 
+## [2026-10-01] - Nebula Hub Session #2 — logo choice (end of M1)
+
+- Mark **B — Orbit** chosen (ADR-018): `CURRENT_MARK = 'b'`, with an optical small variant (thicker outlined tiles and star, no orbit or dust) used up to 32 px, including the 16–32 px frames of `build/icon.ico`.
+- Tray: monochrome glyphs without plate, `assets/tray-dark.png` (white) / `tray-light.png` (dark) + @2x, picked from `SystemUsesLightTheme` (system mode, read with `reg.exe query` through execFile, pure parser `src/shared/registry-dword.ts` + tests) and refreshed on theme changes.
+- Observed on the development machine: Windows reports `prefers-reduced-motion: reduce` (laptop power saving or animation effects off). As the brief requires, the Hub then shortens the splash to 250 ms and freezes the backgrounds whatever the in-app level; the M1 checks emulated the preference where needed.
+- Validation: typecheck, lint, 149 tests, build, dist:win.
+
 ## [2026-10-01] - Nebula Hub Session #1 — M0 discovery, M1 skeleton and design
 
 - **M0 (read-only discovery)**: `docs/DISCOVERY.md` and ADR-001…011. Key findings: the

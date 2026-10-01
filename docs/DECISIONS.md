@@ -345,3 +345,18 @@ Les constats qui fondent ces décisions sont détaillés dans [DISCOVERY.md](DIS
     elle servira ensuite de repli au premier lancement hors ligne.
   - **Logos** : trois propositions avec halo d'étoile et poussière d'étoiles ; la proposition A
     sert provisoirement aux icônes jusqu'au choix (arrêt de M1).
+
+## ADR-018 — Logo « Orbite » et icônes
+
+- **Statut** : Accepté (2026-10-01, choix de l’utilisateur à l’arrêt de M1).
+- **Décision** : la proposition **B — Orbite** devient la marque de Nebula Hub (`CURRENT_MARK`).
+  - Comme elle est la moins lisible en petit, elle reçoit une **variante optique** (`MARKS.b.small`) :
+    trois tuiles en trait plus épais et l’étoile, sans orbite ni poussière. Elle sert pour 16 à
+    32 px (`build/icon.ico` jusqu’à 32 px, `HubMark` à 32 px ou moins) ; au-delà, la marque complète.
+  - **Tray** : glyphe monochrome sans plaque (brief 10.6), blanc sur barre des tâches sombre
+    (`assets/tray-dark.png`), foncé sur barre claire (`tray-light.png`), choisi d’après
+    `HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize`, valeur
+    `SystemUsesLightTheme` (le mode *système*, que `nativeTheme` ne
+    donne pas), relu à chaque changement de thème.
+- **Confirmé au même moment** : le réglage « Dossier des sauvegardes » (ADR-016) désigne le dossier
+  où le Hub range les exports, pas le dossier de données des apps.

@@ -27,6 +27,11 @@ export interface MarkDefinition {
   name: { fr: string; en: string };
   idea: { fr: string; en: string };
   shapes: MarkShape[];
+  /**
+   * Optical variant for 16–32 px (window icon, taskbar, tray): fewer, thicker elements so the
+   * mark stays readable when a pixel is a tenth of a tile.
+   */
+  small?: MarkShape[];
 }
 
 export const MARK_COLORS = {
@@ -88,6 +93,12 @@ export const MARKS: Record<MarkVariant, MarkDefinition> = {
       { role: 'tile', tag: 'rect', paint: 'stroke', origin: [83, 83], attrs: { x: 72, y: 72, width: 22, height: 22, rx: 7, 'stroke-width': 7 } },
       ...starWithGlow(83, 45, 18),
     ],
+    small: [
+      { role: 'tile', tag: 'rect', paint: 'stroke', attrs: { x: 31, y: 31, width: 25, height: 25, rx: 7, 'stroke-width': 11 } },
+      { role: 'tile', tag: 'rect', paint: 'stroke', attrs: { x: 31, y: 72, width: 25, height: 25, rx: 7, 'stroke-width': 11 } },
+      { role: 'tile', tag: 'rect', paint: 'stroke', attrs: { x: 72, y: 72, width: 25, height: 25, rx: 7, 'stroke-width': 11 } },
+      { role: 'star', tag: 'path', paint: 'fill', attrs: { d: star(84, 43, 23) } },
+    ],
   },
   c: {
     id: 'c',
@@ -107,8 +118,33 @@ export const MARKS: Record<MarkVariant, MarkDefinition> = {
   },
 };
 
-/** The mark used by the app until the final choice (STOP of M1). */
-export const CURRENT_MARK: MarkVariant = 'a';
+/** The Nebula Hub mark, chosen by the user at the end of M1 (ADR-018). */
+export const CURRENT_MARK: MarkVariant = 'b';
+
+/** The shapes for a target size: the optical small variant at 32 px and below, when it exists. */
+export function shapesFor(variant: MarkVariant, small: boolean): MarkShape[] {
+  return (small && MARKS[variant].small) || MARKS[variant].shapes;
+}
+
+/**
+ * Single-color glyph without plate, for the Windows tray (brief §10.6): `color` is white on a
+ * dark taskbar and near-black on a light one. Built from the small variant.
+ */
+export function monoMarkToSvg(variant: MarkVariant, color: string): string {
+  const shapes = shapesFor(variant, true).filter((shape) => shape.role === 'tile' || shape.role === 'star' || shape.role === 'draw');
+  const body = shapes.map((shape) => {
+    const attrs: Record<string, string | number> = { ...shape.attrs };
+    if (shape.paint === 'fill') {
+      attrs.fill = color;
+    } else {
+      attrs.fill = 'none';
+      attrs.stroke = color;
+    }
+    return `  <${shape.tag} ${Object.entries(attrs).map(([name, value]) => `${name}="${value}"`).join(' ')}/>`;
+  });
+  // The glyph fills the canvas: the tray already gives icons their own padding.
+  return ['<svg xmlns="http://www.w3.org/2000/svg" viewBox="14 14 100 100">', ...body, '</svg>'].join('\n');
+}
 
 export interface ResolvedShape {
   tag: MarkShape['tag'];
@@ -118,9 +154,9 @@ export interface ResolvedShape {
 }
 
 /** Paint and animation classes for every shape, shared by the SVG writer and the React mark. */
-export function resolveShapes(variant: MarkVariant, ids: { gradient: string; spark: string }, animated: boolean): ResolvedShape[] {
+export function resolveShapes(variant: MarkVariant, ids: { gradient: string; spark: string }, animated: boolean, small = false): ResolvedShape[] {
   let tileIndex = 0;
-  return MARKS[variant].shapes.map((shape) => {
+  return shapesFor(variant, small).map((shape) => {
     const attrs: Record<string, string | number> = { ...shape.attrs };
     if (shape.role === 'star') {
       attrs.fill = MARK_COLORS.star;
@@ -153,10 +189,10 @@ export function resolveShapes(variant: MarkVariant, ids: { gradient: string; spa
  * Standalone SVG string (for files, icons and previews). `animated` adds the splash classes;
  * `idPrefix` keeps gradient ids unique when several marks share a page.
  */
-export function markToSvg(variant: MarkVariant, options: { animated?: boolean; idPrefix?: string; title?: string } = {}): string {
+export function markToSvg(variant: MarkVariant, options: { animated?: boolean; idPrefix?: string; title?: string; small?: boolean } = {}): string {
   const prefix = options.idPrefix ?? `hub-${variant}`;
   const ids = { gradient: `${prefix}-gradient`, halo: `${prefix}-halo`, spark: `${prefix}-spark` };
-  const shapes = resolveShapes(variant, ids, Boolean(options.animated)).map(({ tag, attrs, className, origin }) => {
+  const shapes = resolveShapes(variant, ids, Boolean(options.animated), Boolean(options.small)).map(({ tag, attrs, className, origin }) => {
     const all: Record<string, string | number> = { ...attrs };
     if (className) all.class = className;
     if (origin) all.style = `transform-origin: ${origin[0]}px ${origin[1]}px`;
