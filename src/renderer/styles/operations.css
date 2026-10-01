@@ -55,10 +55,10 @@
   .history-row .status-chip, .history-date { grid-column: 2; justify-self: start; }
 }
 
-/* Same breakpoint as the compact sidebar (app.css): the badge sits on the icon. */
-@media (max-width: 720px) {
-  .nav-button:has(.nav-badge) { grid-template-columns: 20px auto; }
-  .nav-badge { position: absolute; top: 0.1rem; right: 0.1rem; min-width: 1rem; padding: 0 0.25rem; font-size: 0.6rem; }
+/* Compact sidebar (app.css, ≤ 1100 px): icons only, the badge sits on the icon. */
+@media (max-width: 1100px) {
+  .nav-button:has(.nav-badge) { grid-template-columns: 1fr; }
+  .nav-badge { position: absolute; top: 0.15rem; right: 0.1rem; min-width: 1rem; padding: 0 0.25rem; font-size: 0.6rem; }
 }
 
 /* M5: confirmation dialog (R04). Only opacity and transform are animated. */

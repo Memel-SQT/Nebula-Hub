@@ -43,8 +43,8 @@ html { scrollbar-color: var(--line-strong) transparent; scrollbar-width: thin; }
 .status-dot.warn { background: var(--warning); box-shadow: 0 0 0 3px var(--warning-soft); }
 
 .launcher-title { display: flex; align-items: center; gap: 0.4rem; }
-.launcher-apps { display: grid; gap: 0.2rem; }
-.launcher-app { display: grid; grid-template-columns: 30px minmax(0, 1fr); align-items: center; justify-content: start; gap: 0.6rem; width: 100%; min-height: auto; padding: 0.4rem 0.5rem; border-radius: var(--radius); background: transparent; color: var(--ink); font-size: 0.78rem; font-weight: 600; text-align: left; box-shadow: none; }
+.launcher-apps { display: grid; gap: 0.35rem; }
+.launcher-app { display: grid; grid-template-columns: 30px minmax(0, 1fr); align-items: center; justify-content: start; gap: 0.6rem; width: 100%; min-height: auto; padding: 0.45rem 0.55rem; border-radius: var(--radius); background: transparent; color: var(--ink); font-size: 0.8rem; font-weight: 600; text-align: left; box-shadow: none; }
 .launcher-app:hover { transform: translateX(2px); background: var(--surface-raised); box-shadow: none; }
 .launcher-app .app-icon { transition: transform var(--motion-base) var(--ease-spring); }
 .launcher-app:hover .app-icon { transform: scale(1.08); }
@@ -133,3 +133,9 @@ html { scrollbar-color: var(--line-strong) transparent; scrollbar-width: thin; }
 @media (max-width: 1200px) { .summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 1100px) { .insight-grid { grid-template-columns: 1fr; } }
 @media (max-width: 720px) { .summary-grid, .summary-grid-3 { grid-template-columns: 1fr; } .topbar-control, .search-field { width: 100%; } }
+
+/* Compact mode (app.css): shorter KPI cards on small or low windows. */
+@media (max-width: 1100px), (max-height: 760px) {
+  .summary-card { min-height: 112px; padding: 1rem 1.1rem; }
+  .summary-grid { gap: 0.8rem; }
+}

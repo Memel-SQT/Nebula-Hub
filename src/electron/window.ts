@@ -1,5 +1,5 @@
 import path from 'node:path';
-import { app, BrowserWindow, nativeTheme, shell } from 'electron';
+import { app, BrowserWindow, nativeTheme, screen, shell } from 'electron';
 import { resolveTheme, type ResolvedTheme } from '@nebula/design';
 import { CHANNELS } from '../shared/bridge';
 import type { HubSettings } from '../shared/settings';
@@ -70,11 +70,14 @@ function sendVisibility(window: BrowserWindow): void {
  * canvas backgrounds and sounds stop while hidden.
  */
 export async function createMainWindow(options: { settings: () => HubSettings; startHidden: boolean }): Promise<BrowserWindow> {
+  // Sized to the screen it opens on (laptops, 125–150 % scaling): never bigger than its work
+  // area. Small windows switch the layout to its compact mode (app.css).
+  const area = screen.getDisplayNearestPoint(screen.getCursorScreenPoint()).workArea;
   const window = new BrowserWindow({
-    width: 1280,
-    height: 860,
-    minWidth: 960,
-    minHeight: 640,
+    width: Math.min(1280, Math.round(area.width * 0.92)),
+    height: Math.min(860, Math.round(area.height * 0.9)),
+    minWidth: Math.min(720, area.width),
+    minHeight: Math.min(520, area.height),
     show: false,
     title: 'Nebula Hub',
     backgroundColor: chrome(options.settings()).page,
