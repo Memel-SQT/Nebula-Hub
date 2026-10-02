@@ -2,6 +2,23 @@
 
 Technical log, newest session first. Release notes live only in the GitHub release body.
 
+## [2026-10-02] - Nebula Hub Session #14 — The Hub updates itself; 0.2.1
+
+- **The user asked for a button to update Nebula Hub** (ADR-029, amends ADR-022, which kept the Hub out of every operation). Implementation:
+  - `src/shared/hub-update.ts` (pure, tested): view, blockers, arguments `--updated /S --force-run`;
+  - `src/electron/install/hub-updater.ts`: download from an allowed source, size + SHA-512 against latest.yml (R02), wait for any app operation to end, start the installer detached (`launchDetached`, no shell), then quit for real;
+  - the one-click NSIS installer starts the new Hub (`--force-run`); data are kept (ADR-004).
+- **Where**:
+  - a sidebar card above the Link card, only when a newer Hub exists (progress and cancel while it downloads, "Try again" after a failure, icon only in the rail);
+  - a "Nebula Hub update" section at the top of Settings (installed and latest version, check, update);
+  - the Hub's row in My apps and its app page.
+  The confirmation states that settings, Link permissions and history are kept, and that docked apps go back to their window.
+- **Refused** from a development build or a throwaway data folder (it would replace the real installed Hub). Cancellable until the installer starts. A mismatching file is deleted and never run.
+- **Rail**: denser below 1100 × 860 so the bottom cards stay in view (checked at 1050 × 700).
+- **Tests**: 18 new (shared module, updater: success, R02 mismatch, download failure, waiting, cancel, launch failure, dev build; App: card, confirmation, progress, cancel, Settings). 965 pass.
+- **Live check**: a dev Hub on a throwaway profile, with the update state pushed from the main process (inspector). Checked: the card, the dialog (opened only to cancel), progress in the card and in Settings, the failed state, and the rail at 1050 × 700. The real replace-and-restart can only be checked from 0.2.1 to the next version; 0.2.0 has no button, so it is updated by hand once.
+- Version 0.2.1 (sidebar redesign of session #13 + this).
+
 ## [2026-10-02] - Nebula Hub Session #13 — Sidebar redesign, navigation icons, family design prompt
 
 - **Bug: the sidebar entries were 20 px high.** The `button.plain` reset (installed.css, M4) outranked `.nav-button` and removed their padding, height and hover background. Sidebar styles now live in `styles/sidebar.css`, every selector scoped to `.sidebar`; the old rules were removed from app.css, dashboard.css, operations.css and installed.css.

@@ -19,9 +19,10 @@ import { LinkHub } from './link/link-hub';
 import { defaultSessionDir, userPipe } from './link/session';
 import { writeFileAtomic } from './fsutil';
 import { InstallHistory } from './install/history';
+import { HubUpdater } from './install/hub-updater';
 import { InstallManager } from './install/install-manager';
 import { saveInstaller } from './install/save-installer';
-import { spawnInstallerRunner } from './install/installer-runner';
+import { launchDetached, spawnInstallerRunner } from './install/installer-runner';
 import { downloadFile, verifyFile } from './net/download';
 import { httpGet } from './net/http';
 import { showWindowsNotification } from './notifier';
@@ -30,6 +31,7 @@ import { SettingsStore } from './settings-store';
 import { createTray, destroyTray, updateTray, type TrayOptions } from './tray';
 import { applyWindowTheme, contentBounds, createMainWindow, getMainWindow, isWindowFocused, onWindowGeometry, onWindowVisibilityChange, setQuitting, showMainWindow } from './window';
 import { isRect } from '../shared/dock';
+import { hubEntry } from '../shared/hub-update';
 
 // Pinned explicitly (ADR-007, ADR-013): a future product rename must never orphan the
 // consents and history. NEBULA_HUB_USER_DATA_DIR points manual tests at a throwaway folder; it
@@ -45,6 +47,7 @@ let catalog: CatalogService | null = null;
 let installed: InstalledAppsService | null = null;
 let installs: InstallManager | null = null;
 let link: LinkHub | null = null;
+let hubUpdater: HubUpdater | null = null;
 
 /**
  * Installers are downloaded to %LOCALAPPDATA%\Nebula Hub\downloads (brief §5.3): local, never
@@ -109,6 +112,20 @@ if (!app.requestSingleInstanceLock()) {
       backupCopyDirectory: () => settingsStore.get().backupCopyDirectory,
     });
     await installs.cleanup();
+    hubUpdater = new HubUpdater({
+      entry: () => hubEntry(catalog?.getView().entries ?? []),
+      currentVersion: app.getVersion(),
+      // Never from a development build or a throwaway data folder: it would replace the real Hub.
+      packaged: app.isPackaged && !process.env.NEBULA_HUB_USER_DATA_DIR,
+      busy: () => installs?.isBusy() ?? false,
+      download: downloadFile,
+      verify: verifyFile,
+      workDir: path.join(downloadsDir(), 'hub'),
+      launch: launchDetached,
+      quit,
+    });
+    hubUpdater.onChange((view) => getMainWindow()?.webContents.send(CHANNELS.hubUpdateChanged, view));
+    catalog.onChange(() => hubUpdater?.refresh());
     let lastHistoryId = Math.max(0, ...installs.getView().history.map((entry) => entry.id));
     installs.onChange((view) => {
       getMainWindow()?.webContents.send(CHANNELS.downloadsChanged, view);
@@ -585,6 +602,21 @@ function registerIpcHandlers(): void {
     if (!isTrustedSender(event) || !link || typeof appId !== 'string') return false;
     link.dock.release(appId);
     return true;
+  });
+
+  ipcMain.handle(CHANNELS.hubUpdateGet, (event) => {
+    if (!isTrustedSender(event) || !hubUpdater) throw new Error('ERR_UNTRUSTED_SENDER');
+    return hubUpdater.view();
+  });
+
+  ipcMain.handle(CHANNELS.hubUpdateStart, (event, confirmed: unknown) => {
+    if (!isTrustedSender(event) || !hubUpdater) return 'no-update';
+    return hubUpdater.start(confirmed === true);
+  });
+
+  ipcMain.handle(CHANNELS.hubUpdateCancel, (event) => {
+    if (!isTrustedSender(event) || !hubUpdater) return false;
+    return hubUpdater.cancel();
   });
 
   ipcMain.handle(CHANNELS.catalogAsset, async (event, appId: unknown, assetPath: unknown) => {

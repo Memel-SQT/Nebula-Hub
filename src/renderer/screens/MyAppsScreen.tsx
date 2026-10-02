@@ -23,7 +23,7 @@ function loadState(installed: InstalledView | undefined, count: number): LoadSta
  * folder, see its page), update, repair or uninstall it (M5, confirmed when it touches the data),
  * and whether it updates itself automatically. Migration arrives in M7.
  */
-export function MyAppsScreen({ catalog, installed, downloads, onNavigate, onLaunch, onShowFolder, onRefreshInstalled, onOperation, onCancelOperation, onDismissOperation, onRequestClose, onContinueWithoutBackup, onUpdateAll, autoUpdate, onToggleAutoUpdate }: CatalogScreenProps & { onRefreshInstalled?: () => void }) {
+export function MyAppsScreen({ catalog, installed, downloads, onNavigate, onLaunch, onShowFolder, onRefreshInstalled, onOperation, onCancelOperation, onDismissOperation, onRequestClose, onContinueWithoutBackup, onUpdateAll, autoUpdate, onToggleAutoUpdate, hubUpdate, onHubUpdate }: CatalogScreenProps & { onRefreshInstalled?: () => void }) {
   const t = useT();
   const language = useLanguage();
   const rows = catalog.entries
@@ -110,6 +110,11 @@ export function MyAppsScreen({ catalog, installed, downloads, onNavigate, onLaun
                     {app.exeFound && onShowFolder ? (
                       <button type="button" className="ghost small" onClick={() => onShowFolder(entry.app.id)}>
                         <Icon name="external" size={15} />{t('app.action.folder')}
+                      </button>
+                    ) : null}
+                    {isHub && onHubUpdate && hubUpdate?.available && hubUpdate.blocked === null ? (
+                      <button type="button" className="small" data-sound="none" aria-label={t('hubUpdate.updateNamed', { version: hubUpdate.available })} onClick={onHubUpdate}>
+                        <Icon name="update" size={15} />{t('app.action.update')}
                       </button>
                     ) : null}
                     {!isHub && onOperation && !busy && updateAvailable(entry, app) && entry.release?.installer ? (

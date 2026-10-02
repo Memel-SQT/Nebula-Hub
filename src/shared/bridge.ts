@@ -10,6 +10,7 @@ import type { Route } from './route';
 import type { HubSettings, SettingsPatch } from './settings';
 import type { WidgetView } from './widgets';
 import type { DockView, Rect } from './dock';
+import type { HubUpdateStartResult, HubUpdateView } from './hub-update';
 
 /** IPC channel names: the only routes between the renderer and the main process. */
 export const CHANNELS = {
@@ -62,6 +63,10 @@ export const CHANNELS = {
   dockShow: 'dock:show',
   dockArea: 'dock:area',
   dockRelease: 'dock:release',
+  hubUpdateGet: 'hub-update:get',
+  hubUpdateChanged: 'hub-update:changed',
+  hubUpdateStart: 'hub-update:start',
+  hubUpdateCancel: 'hub-update:cancel',
 } as const;
 
 /** Screens the main process may ask the renderer to show (tray menu, Nebula Link). */
@@ -171,4 +176,11 @@ export interface NebulaHubBridge {
   setDockArea(area: Rect | null): void;
   /** Sends the app back to its own window. */
   releaseDocked(appId: string): Promise<boolean>;
+  /** The Hub's own update (ADR-029): available version, progress, why it cannot start. */
+  getHubUpdate(): Promise<HubUpdateView>;
+  onHubUpdateChanged(callback: (view: HubUpdateView) => void): () => void;
+  /** Downloads and verifies the new Hub, then restarts into it; `confirmed` is the user's yes. */
+  startHubUpdate(confirmed: boolean): Promise<HubUpdateStartResult>;
+  /** Stops the download (not once the installer runs). */
+  cancelHubUpdate(): Promise<boolean>;
 }

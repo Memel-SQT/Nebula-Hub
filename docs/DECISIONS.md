@@ -734,3 +734,38 @@ Les constats qui fondent ces décisions sont détaillés dans [DISCOVERY.md](DIS
   DA. Le Hub y est la référence vivante : même coquille, même barre latérale, mêmes icônes et
   même modèle d'apparence (celui diffusé par Nebula Link), avec la migration des réglages
   existants.
+
+## ADR-029 — Nebula Hub se met à jour lui-même
+
+- **Statut** : Accepté (demande de l'utilisateur du 2026-10-02 : un bouton pour mettre à jour
+  Nebula Hub). Amende ADR-022, qui réservait les mises à jour aux apps (`is-hub`).
+- **Décision** : le Hub suit le chemin de toutes les mises à jour (ADR-021/022), appliqué à
+  lui-même :
+  1. il prend l'installeur de la release du Hub dans le catalogue signé (R03) ;
+  2. il le télécharge depuis une source autorisée (R05) et le vérifie en taille et en SHA-512
+     contre `latest.yml` (R02) ;
+  3. après le « oui » de l'utilisateur, et une fois terminée toute opération d'app en cours, il
+     lance cet installeur détaché avec `--updated /S --force-run`, puis se ferme ;
+  4. l'installeur NSIS remplace le Hub et le relance.
+- **Arguments** : ceux d'`electron-updater` (ADR-004). Les données sont conservées
+  (`%APPDATA%\Nebula Hub`, `deleteAppDataOnUninstall: false`). Jamais `/D`, jamais
+  `--delete-app-data`.
+- **Où** :
+  - dans la barre latérale, une carte au-dessus de la carte Nebula Link, seulement quand une
+    version plus récente existe ;
+  - dans Réglages, une section toujours présente : version installée, dernière version,
+    « Rechercher une mise à jour », « Mettre à jour » ;
+  - sur la ligne et la fiche de Nebula Hub dans « Mes apps ».
+  Dans tous les cas, une confirmation dit ce qui va se passer.
+- **Garde-fous** :
+  - refus depuis une version de développement ou un dossier de données jetable (cela
+    remplacerait le vrai Hub installé) ;
+  - annulation possible tant que l'installeur n'est pas lancé ;
+  - un fichier qui ne correspond pas est supprimé et rien n'est lancé ;
+  - un échec laisse le Hub dans sa version actuelle.
+- **Code** : `src/shared/hub-update.ts` (état, blocages, arguments, purs et testés),
+  `src/electron/install/hub-updater.ts`, `launchDetached` (`installer-runner.ts`), canaux
+  `hub-update:*`, composants `HubUpdateCard` / `HubUpdatePanel`.
+- **Limite** : la première mise à jour vers 0.2.1 se fait encore à la main, car la 0.2.0 n'a
+  pas ce bouton. Le chemin réel complet (installeur qui remplace le Hub en cours puis le
+  relance) sera vérifié au passage 0.2.1 → version suivante.

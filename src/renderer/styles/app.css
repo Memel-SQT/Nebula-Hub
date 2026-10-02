@@ -63,6 +63,8 @@
 .path-note.settings-hint { display: flex; align-items: center; gap: 0.4rem; }
 .path-note { display: block; margin-top: 0.6rem; color: var(--muted); font-size: 0.68rem; word-break: break-word; }
 .sound-row { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; }
+/* Nebula Hub update (ADR-029). */
+.hub-update-panel .progress-track { max-width: 440px; margin: 0.2rem 0 0.4rem; }
 
 /* Compact mode: windows narrower than 1100 px (small screens, 125–150 % scaling, half-screen).
    The sidebar becomes an icon rail (sidebar.css); the top padding always clears the 36 px

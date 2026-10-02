@@ -16,7 +16,8 @@ Windows, sans compte et sans télémétrie.
   de notification.
 - **Un store** : le catalogue des apps Nebula, leurs versions et notes de version, avec
   installation, mise à jour, réparation et désinstallation vérifiées (SHA-512 contre la release
-  officielle).
+  officielle). Le Hub se met aussi à jour lui-même : un bouton dans la barre latérale quand une
+  version est disponible, et à tout moment dans Réglages.
 - **Nebula Link** : les apps se partagent l'apparence, des liens profonds, des widgets et des
   notifications — uniquement ce que vous autorisez, et rien ne quitte votre ordinateur.
 - **Vos apps restent autonomes** : chacune s'installe, fonctionne et se met à jour seule. Le Hub

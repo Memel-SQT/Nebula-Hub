@@ -13,6 +13,21 @@ export interface InstallerRunner {
   run(installer: string, args: readonly string[], timeoutMs: number): Promise<InstallerResult>;
 }
 
+/**
+ * Starts the Hub's own verified installer (ADR-029) so that it outlives the Hub, which quits right
+ * after: detached, no shell, no window. Resolves once the process is running.
+ */
+export function launchDetached(installer: string, args: readonly string[]): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const child = spawn(installer, [...args], { shell: false, detached: true, windowsHide: true, stdio: 'ignore' });
+    child.once('error', reject);
+    child.once('spawn', () => {
+      child.unref();
+      resolve();
+    });
+  });
+}
+
 export const spawnInstallerRunner: InstallerRunner = {
   run(installer, args, timeoutMs) {
     return new Promise((resolve, reject) => {

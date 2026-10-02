@@ -8,6 +8,7 @@ import { EMPTY_LINK_VIEW } from '../../src/shared/link-view';
 import type { ActivityItem } from '../../src/shared/activity';
 import type { WidgetView } from '../../src/shared/widgets';
 import { EMPTY_DOCK_VIEW, type DockView } from '../../src/shared/dock';
+import { EMPTY_HUB_UPDATE_VIEW, type HubUpdateView } from '../../src/shared/hub-update';
 import { App } from '../../src/renderer/App';
 import { catalogView, downloadsView, installedView, operation } from './fixtures';
 
@@ -24,10 +25,13 @@ async function render(node: JSX.Element) {
 let widgets: WidgetView[] = [];
 let activity: ActivityItem[] = [];
 let dockView: DockView = EMPTY_DOCK_VIEW;
+const UP_TO_DATE: HubUpdateView = { ...EMPTY_HUB_UPDATE_VIEW, current: '0.1.0' };
+let hubUpdateView: HubUpdateView = UP_TO_DATE;
 afterEach(() => {
   widgets = [];
   activity = [];
   dockView = EMPTY_DOCK_VIEW;
+  hubUpdateView = UP_TO_DATE;
 });
 
 function widget(overrides: Partial<WidgetView> = {}): WidgetView {
@@ -42,6 +46,7 @@ function installBridge(overrides: Partial<HubSettings> = {}, startedHidden = tru
   let settings: HubSettings = { ...DEFAULT_SETTINGS, ...overrides };
   const listeners: Array<(value: boolean) => void> = [];
   const downloadListeners: Array<(view: DownloadsView) => void> = [];
+  const hubUpdateListeners: Array<(view: HubUpdateView) => void> = [];
   const bridge: NebulaHubBridge = {
     getInitialState: () => ({ settings, appVersion: '0.1.0', startedHidden }),
     updateAppearance: jest.fn(async (patch) => {
@@ -104,12 +109,20 @@ function installBridge(overrides: Partial<HubSettings> = {}, startedHidden = tru
     showDocked: jest.fn(async () => true),
     setDockArea: jest.fn(),
     releaseDocked: jest.fn(async () => true),
+    getHubUpdate: jest.fn(async () => hubUpdateView),
+    onHubUpdateChanged: (callback) => {
+      hubUpdateListeners.push(callback);
+      return () => undefined;
+    },
+    startHubUpdate: jest.fn(async () => 'started' as const),
+    cancelHubUpdate: jest.fn(async () => true),
   };
   window.nebulaHub = bridge;
   return {
     bridge,
     setVisible: (visible: boolean) => listeners.forEach((listener) => listener(visible)),
     pushDownloads: (view: DownloadsView) => act(() => downloadListeners.forEach((listener) => listener(view))),
+    pushHubUpdate: (view: HubUpdateView) => act(() => hubUpdateListeners.forEach((listener) => listener(view))),
   };
 }
 
@@ -515,5 +528,59 @@ describe('App: apps inside the Hub (ADR-027)', () => {
     await userEvent.click(within(screen.getByRole('group', { name: 'Lancer une app' })).getByRole('button', { name: 'Ouvrir Nebula Clock' }));
     expect(bridge.launchApp).toHaveBeenCalledWith('nebula.clock');
     expect(bridge.showDocked).not.toHaveBeenCalled();
+  });
+});
+
+/** The Hub's sidebar (the activity center is another `aside`). */
+function sidebar(): HTMLElement {
+  return document.querySelector<HTMLElement>('.sidebar')!;
+}
+
+describe('App: Nebula Hub update (ADR-029)', () => {
+  it('offers a newer Hub in the sidebar and restarts into it only after the confirmation', async () => {
+    hubUpdateView = { ...UP_TO_DATE, available: '0.2.1', size: 94_371_840, blocked: null };
+    const { bridge, pushHubUpdate } = installBridge();
+    await render(<App />);
+    await userEvent.click(within(sidebar()).getByRole('button', { name: 'Mettre à jour Nebula Hub vers la version 0.2.1' }));
+    const dialog = screen.getByRole('alertdialog', { name: 'Mettre à jour Nebula Hub ?' });
+    expect(within(dialog).getByText(/télécharger la version 0.2.1/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/réglages, vos autorisations Nebula Link et votre historique sont conservés/)).toBeInTheDocument();
+    expect(bridge.startHubUpdate).not.toHaveBeenCalled();
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Mettre à jour et redémarrer' }));
+    expect(bridge.startHubUpdate).toHaveBeenCalledWith(true);
+
+    await pushHubUpdate({ ...hubUpdateView, phase: 'downloading', received: 47_185_920, total: 94_371_840, blocked: 'in-progress' });
+    expect(screen.getByRole('progressbar', { name: 'Téléchargement de Nebula Hub' })).toHaveAttribute('aria-valuenow', '50');
+    await userEvent.click(within(sidebar()).getByRole('button', { name: 'Annuler' }));
+    expect(bridge.cancelHubUpdate).toHaveBeenCalled();
+  });
+
+  it('cancelling the confirmation leaves the Hub as it is', async () => {
+    hubUpdateView = { ...UP_TO_DATE, available: '0.2.1', size: 1000, blocked: null };
+    const { bridge } = installBridge();
+    await render(<App />);
+    await userEvent.click(within(sidebar()).getByRole('button', { name: 'Mettre à jour Nebula Hub vers la version 0.2.1' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Annuler' }));
+    expect(bridge.startHubUpdate).not.toHaveBeenCalled();
+  });
+
+  it('shows no update card when the Hub is up to date, and Settings can check for one', async () => {
+    const { bridge } = installBridge();
+    await render(<App />);
+    expect(screen.queryByRole('button', { name: /Mettre à jour Nebula Hub/ })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Réglages' }));
+    expect(screen.getByText('Nebula Hub est à jour.')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Rechercher une mise à jour' }));
+    expect(bridge.refreshCatalog).toHaveBeenCalled();
+  });
+
+  it('says why a development build cannot update itself', async () => {
+    hubUpdateView = { ...UP_TO_DATE, available: '0.2.1', size: 1000, blocked: 'not-packaged' };
+    installBridge();
+    await render(<App />);
+    expect(screen.queryByRole('button', { name: /Mettre à jour Nebula Hub/ })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Réglages' }));
+    expect(screen.getByText('Nebula Hub 0.2.1 est disponible.')).toBeInTheDocument();
+    expect(screen.getByText(/Version de développement/)).toBeInTheDocument();
   });
 });

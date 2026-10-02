@@ -4,6 +4,7 @@ import type { InstalledView } from '@shared/installed-view';
 import type { Route } from '../navigation';
 import type { DataActions, InstallerSaves } from '../components/AppData';
 import type { DockView } from '@shared/dock';
+import type { HubUpdateView } from '@shared/hub-update';
 
 /** Screens fed by the signed catalog (M2) and the detection of installed apps (M3). */
 export interface CatalogScreenProps {
@@ -35,4 +36,7 @@ export interface CatalogScreenProps {
   openInHub?: string[];
   onToggleOpenInHub?: (appId: string, enabled: boolean) => void;
   onOpenDocked?: (appId: string) => void;
+  /** The Hub's own update (ADR-029), offered on its row and its page. */
+  hubUpdate?: HubUpdateView;
+  onHubUpdate?: () => void;
 }

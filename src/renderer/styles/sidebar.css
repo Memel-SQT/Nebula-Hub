@@ -99,6 +99,23 @@
 .link-card-chevron { color: var(--muted); transition: transform var(--motion-fast) var(--ease); }
 .sidebar .link-card:hover .link-card-chevron { transform: translateX(2px); }
 
+/* Hub update card (ADR-029): only when a newer Hub exists, above the Link card. */
+.sidebar .hub-update-card { display: flex; flex: 0 0 auto; align-items: center; justify-content: flex-start; gap: 0.7rem; width: 100%; margin-top: 0.7rem; padding: 0.6rem 0.65rem 0.6rem 0.6rem; border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent); border-radius: var(--radius); background: var(--accent-soft); color: var(--ink); text-align: left; animation: rise-in var(--motion-slow) var(--ease-out) both; transition: background var(--motion-fast) var(--ease), border-color var(--motion-fast) var(--ease); }
+.sidebar button.hub-update-card:hover { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 22%, transparent); }
+.sidebar .hub-update-card.is-failed { border-color: color-mix(in srgb, var(--warning) 50%, transparent); background: var(--warning-soft); }
+.hub-update-icon { position: relative; display: grid; flex: 0 0 auto; place-items: center; width: 2.1rem; height: 2.1rem; border-radius: calc(var(--radius) - 3px); background: var(--surface); color: var(--accent-hover); }
+.hub-update-card.is-failed .hub-update-icon { color: var(--warning); }
+.hub-update-dot { position: absolute; top: -2px; right: -2px; width: 9px; height: 9px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 2px var(--surface); }
+.hub-update-text { display: grid; flex: 1 1 auto; gap: 0.15rem; min-width: 0; }
+.hub-update-text strong { overflow: hidden; font-size: 0.78rem; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.hub-update-card.is-running .hub-update-text strong { white-space: normal; }
+.hub-update-text small { overflow: hidden; color: var(--muted); font-size: 0.7rem; text-overflow: ellipsis; white-space: nowrap; }
+.hub-update-text .progress-track { margin-top: 0.3rem; }
+.hub-update-chevron { color: var(--accent-hover); transition: transform var(--motion-fast) var(--ease); }
+.sidebar button.hub-update-card:hover .hub-update-chevron { transform: translateX(2px); }
+.sidebar .hub-update-cancel { display: grid; flex: 0 0 auto; place-items: center; width: 1.6rem; height: 1.6rem; border-radius: 999px; color: var(--muted); }
+.sidebar .hub-update-cancel:hover { background: var(--surface-raised); color: var(--ink); }
+
 /* Footer */
 .sidebar-foot { display: flex; align-items: center; gap: 0.4rem; margin: 0.75rem 0 0; padding: 0 0.6rem; color: var(--muted); font-size: 0.68rem; }
 .sidebar-foot .icon { color: var(--positive); }
@@ -136,7 +153,19 @@
   .sidebar .nav-badge { position: absolute; top: 0.1rem; right: 0.05rem; min-width: 1rem; padding: 0 0.25rem; font-size: 0.6rem; }
   .sidebar .launcher-app .status-dot { position: absolute; top: 0.3rem; right: 0.3rem; margin: 0; }
   .sidebar .link-card { justify-content: center; width: 2.9rem; padding: 0.4rem 0; border-color: transparent; background: transparent; }
+  .sidebar .hub-update-card { justify-content: center; width: 2.9rem; padding: 0.4rem 0; }
+  .hub-update-text, .hub-update-chevron, .sidebar .hub-update-cancel { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   .launcher-empty, .sidebar-foot { display: none; }
+}
+
+/* Compact and low (e.g. 1050 x 700 at 150 % scaling): a denser rail so the bottom cards stay in view. */
+@media (max-width: 1100px) and (max-height: 860px) {
+  .brand-lockup { margin-bottom: 0.4rem; padding-bottom: 0.6rem; }
+  .sidebar-nav { gap: 0.45rem; }
+  .nav-group { gap: 0.1rem; }
+  .sidebar .nav-item { width: 2.6rem; min-height: 2.5rem; }
+  .sidebar .nav-icon { width: 1.95rem; height: 1.95rem; }
+  .sidebar .link-card, .sidebar .hub-update-card { margin-top: 0.4rem; }
 }
 
 /* Very narrow windows: the navigation becomes a bar at the top. */
@@ -148,5 +177,5 @@
   .sidebar-nav { flex: 1 1 auto; flex-direction: row; gap: 0.2rem; overflow-x: auto; }
   .nav-group { display: contents; }
   .nav-group-title, .sidebar .launcher-rail { display: none; }
-  .sidebar .link-card { margin: 0; }
+  .sidebar .link-card, .sidebar .hub-update-card { margin: 0; }
 }

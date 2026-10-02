@@ -20,7 +20,7 @@ import type { CatalogScreenProps } from './types';
  * Install (M4) runs from here with its live progress; update, repair and uninstall arrive in M5;
  * integrations (manifest) in M6.
  */
-export function AppDetailScreen({ appId, catalog, installed, downloads, onNavigate, onRefresh, onLaunch, onShowFolder, onInstall, onCancelOperation, onDismissOperation, onOperation, onRequestClose, onContinueWithoutBackup, loadAsset, onOpenLink, dataActions, installerSaves, dock, openInHub = [], onToggleOpenInHub, onOpenDocked }: CatalogScreenProps & {
+export function AppDetailScreen({ appId, catalog, installed, downloads, onNavigate, onRefresh, onLaunch, onShowFolder, onInstall, onCancelOperation, onDismissOperation, onOperation, onRequestClose, onContinueWithoutBackup, loadAsset, onOpenLink, dataActions, installerSaves, dock, openInHub = [], onToggleOpenInHub, onOpenDocked, hubUpdate, onHubUpdate }: CatalogScreenProps & {
   appId: string;
   loadAsset: (appId: string, path: string) => Promise<string | null>;
   onOpenLink: (url: string) => void;
@@ -91,6 +91,11 @@ export function AppDetailScreen({ appId, catalog, installed, downloads, onNaviga
                     {local.exeFound && onShowFolder ? (
                       <button type="button" className="ghost" onClick={() => onShowFolder(entry.app.id)}>
                         <Icon name="external" size={16} />{t('app.action.folder')}
+                      </button>
+                    ) : null}
+                    {isHub && onHubUpdate && hubUpdate?.available && hubUpdate.blocked === null ? (
+                      <button type="button" data-sound="none" aria-label={t('hubUpdate.updateNamed', { version: hubUpdate.available })} onClick={onHubUpdate}>
+                        <Icon name="update" size={16} />{t('hubUpdate.update')}
                       </button>
                     ) : null}
                     {!isHub && onOperation && !busy ? (

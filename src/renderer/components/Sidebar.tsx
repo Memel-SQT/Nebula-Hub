@@ -2,12 +2,14 @@ import { Icon } from '@nebula/design/react';
 import type { CatalogEntry } from '@shared/catalog-view';
 import type { InstalledView } from '@shared/installed-view';
 import { isActive, type DownloadsView } from '@shared/install-state';
+import type { HubUpdateView } from '@shared/hub-update';
 import type { LinkView } from '@shared/link-view';
 import { installedOf } from '../catalog';
 import { HubMark } from '../brand/HubMark';
 import { useT, type TranslationKey } from '../i18n';
 import { SECTIONS, type Route, type Section, type SectionGroup } from '../navigation';
 import { AppIcon } from './Cards';
+import { HubUpdateCard } from './HubUpdate';
 
 const GROUP_TITLES: Record<Exclude<SectionGroup, 'system'>, TranslationKey> = {
   space: 'nav.group.space',
@@ -16,19 +18,23 @@ const GROUP_TITLES: Record<Exclude<SectionGroup, 'system'>, TranslationKey> = {
 
 /**
  * Sidebar: a floating panel with the brand lockup, the sections in titled groups, the launcher
- * ("waffle") with the family apps, then Settings, the Nebula Link status card and the
+ * ("waffle") with the family apps, then Settings, the Hub update card (when one is available,
+ * ADR-029), the Nebula Link status card and the
  * local-only footer pinned at the bottom. Below 1100 px it becomes an icon rail (labels stay
  * as tooltips and for screen readers), below 720 px a bar at the top (app.css).
  */
-export function Sidebar({ active, version, launcher, installed, downloads, link, onNavigate, onLaunch }: {
+export function Sidebar({ active, version, launcher, installed, downloads, link, hubUpdate, onNavigate, onLaunch, onHubUpdate, onCancelHubUpdate }: {
   active: Section;
   version: string;
   launcher: CatalogEntry[];
   installed?: InstalledView;
   downloads?: DownloadsView;
   link?: LinkView;
+  hubUpdate?: HubUpdateView;
   onNavigate: (route: Route) => void;
   onLaunch?: (appId: string) => void;
+  onHubUpdate?: () => void;
+  onCancelHubUpdate?: () => void;
 }) {
   const t = useT();
   const running = downloads?.operations.filter((operation) => isActive(operation.phase)).length ?? 0;
@@ -107,6 +113,8 @@ export function Sidebar({ active, version, launcher, installed, downloads, link,
           {SECTIONS.filter((section) => section.group === 'system').map(navItem)}
         </div>
       </nav>
+
+      {hubUpdate && onHubUpdate && onCancelHubUpdate ? <HubUpdateCard view={hubUpdate} onUpdate={onHubUpdate} onCancel={onCancelHubUpdate} /> : null}
 
       <button
         type="button"

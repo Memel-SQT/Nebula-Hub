@@ -21,6 +21,8 @@ import type { ActivityItem } from '@shared/activity';
 import { HUB_ID } from '@shared/consent';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { familyEntries } from '../catalog';
+import { HubUpdatePanel } from '../components/HubUpdate';
+import type { HubUpdateView } from '@shared/hub-update';
 import type { HubSettings, SettingsPatch } from '@shared/settings';
 
 const BACKGROUND_ICONS: Record<BackgroundEffect, IconName> = {
@@ -43,7 +45,7 @@ const LANGUAGE_LABELS: Record<Language, string> = { fr: 'Français', en: 'Englis
  * fingerprint) arrives with M2; start with Windows, notifications and the Advanced section
  * (erase the activity history, ADR-023; show the welcome screens again) with M7.
  */
-export function SettingsScreen({ settings, resolvedTheme, version, catalog, activity = [], onAppearanceChange, onSettingsChange, onRefreshCatalog, onPickInstallDirectory, onPickBackupCopyDirectory, onClearActivity, onReplayOnboarding }: {
+export function SettingsScreen({ settings, resolvedTheme, version, catalog, activity = [], onAppearanceChange, onSettingsChange, onRefreshCatalog, onPickInstallDirectory, onPickBackupCopyDirectory, onClearActivity, onReplayOnboarding, hubUpdate, onHubUpdate, onCancelHubUpdate }: {
   settings: HubSettings;
   resolvedTheme: ResolvedTheme;
   version: string;
@@ -56,6 +58,10 @@ export function SettingsScreen({ settings, resolvedTheme, version, catalog, acti
   onPickBackupCopyDirectory?: () => void;
   onClearActivity?: (appId: string | null) => void;
   onReplayOnboarding?: () => void;
+  /** The Hub's own update (ADR-029): first section, so the button is always at hand. */
+  hubUpdate?: HubUpdateView;
+  onHubUpdate?: () => void;
+  onCancelHubUpdate?: () => void;
 }) {
   const t = useT();
   const language = useLanguage();
@@ -70,6 +76,9 @@ export function SettingsScreen({ settings, resolvedTheme, version, catalog, acti
   return (
     <ScreenFrame eyebrow={t('settings.eyebrow')} title={t('settings.title')} intro={t('settings.intro')} labelledBy="settings-title">
       <div className="settings-panel nebula-surface">
+        {hubUpdate && onHubUpdate && onCancelHubUpdate ? (
+          <HubUpdatePanel view={hubUpdate} refreshing={catalog.refreshing} onCheck={onRefreshCatalog} onUpdate={onHubUpdate} onCancel={onCancelHubUpdate} />
+        ) : null}
         <div className="settings-section">
           <h2><Icon name="palette" size={15} />{t('settings.appearance')}</h2>
 

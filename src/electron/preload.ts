@@ -9,6 +9,7 @@ import type { LinkView } from '../shared/link-view';
 import type { HubSettings } from '../shared/settings';
 import type { WidgetView } from '../shared/widgets';
 import type { DockView } from '../shared/dock';
+import type { HubUpdateView } from '../shared/hub-update';
 
 function subscribe<T>(channel: string, callback: (payload: T) => void): () => void {
   const listener = (_event: unknown, payload: T) => callback(payload);
@@ -70,6 +71,10 @@ const bridge: NebulaHubBridge = {
   showDocked: (appId) => ipcRenderer.invoke(CHANNELS.dockShow, appId),
   setDockArea: (area) => ipcRenderer.send(CHANNELS.dockArea, area),
   releaseDocked: (appId) => ipcRenderer.invoke(CHANNELS.dockRelease, appId),
+  getHubUpdate: () => ipcRenderer.invoke(CHANNELS.hubUpdateGet),
+  onHubUpdateChanged: (callback) => subscribe<HubUpdateView>(CHANNELS.hubUpdateChanged, callback),
+  startHubUpdate: (confirmed) => ipcRenderer.invoke(CHANNELS.hubUpdateStart, confirmed === true),
+  cancelHubUpdate: () => ipcRenderer.invoke(CHANNELS.hubUpdateCancel),
 };
 
 contextBridge.exposeInMainWorld('nebulaHub', bridge);

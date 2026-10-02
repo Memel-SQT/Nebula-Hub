@@ -20,9 +20,10 @@ import { Onboarding } from './components/Onboarding';
 import type { DataActions, InstallerSaves } from './components/AppData';
 import type { InstallerSaveProgress, SaveInstallerResult } from '@shared/backup';
 import { ConfirmDialog, OperationConfirmation } from './components/ConfirmDialog';
+import { EMPTY_HUB_UPDATE_VIEW, type HubUpdateView } from '@shared/hub-update';
 import { ErrorState } from './components/ScreenState';
 import { Sidebar } from './components/Sidebar';
-import { LanguageContext, translate } from './i18n';
+import { formatBytes, LanguageContext, translate } from './i18n';
 import { sectionOf, type Route } from './navigation';
 import { AppDetailScreen } from './screens/AppDetailScreen';
 import { DiscoverScreen } from './screens/DiscoverScreen';
@@ -55,6 +56,7 @@ export function App() {
   const [activity, setActivity] = useState<ActivityItem[]>([]);
   const [saveProgress, setSaveProgress] = useState<Record<string, InstallerSaveProgress | undefined>>({});
   const [saveResults, setSaveResults] = useState<Record<string, SaveInstallerResult | undefined>>({});
+  const [hubUpdate, setHubUpdate] = useState<HubUpdateView>({ ...EMPTY_HUB_UPDATE_VIEW, current: initial.appVersion });
   // Shown once after the splash, until finished or skipped (brief §9.9); "Show again" in Settings.
   const [onboarding, setOnboarding] = useState(!initial.settings.onboardingCompleted && !initial.startedHidden);
   const appearance = settings.appearance;
@@ -235,6 +237,42 @@ export function App() {
   }, [bridge]);
 
   const installerSaves = useMemo<InstallerSaves>(() => ({ progress: saveProgress, results: saveResults, save: saveInstaller }), [saveProgress, saveResults, saveInstaller]);
+
+  // The Hub's own update (ADR-029), then every change pushed by the main process.
+  useEffect(() => {
+    let active = true;
+    void bridge.getHubUpdate().then((view) => active && setHubUpdate(view), () => undefined);
+    const unsubscribe = bridge.onHubUpdateChanged(setHubUpdate);
+    return () => {
+      active = false;
+      unsubscribe();
+    };
+  }, [bridge]);
+
+  /** Asks first: the Hub closes, installs and reopens (its docked apps go back to their window). */
+  const requestHubUpdate = useCallback(() => {
+    if (hubUpdate.blocked) {
+      setLaunchError(translate(language, `hubUpdate.blocked.${hubUpdate.blocked}`));
+      playSound('error');
+      return;
+    }
+    setDialog({ type: 'hub-update' });
+  }, [hubUpdate.blocked, language]);
+
+  const startHubUpdate = useCallback(() => {
+    void bridge.startHubUpdate(true).then((result) => {
+      if (result === 'started') {
+        setLaunchError(null);
+      } else {
+        setLaunchError(translate(language, `hubUpdate.blocked.${result}`));
+        playSound('error');
+      }
+    }, () => setLaunchError(translate(language, 'install.failure.internal')));
+  }, [bridge, language]);
+
+  const cancelHubUpdate = useCallback(() => {
+    void bridge.cancelHubUpdate();
+  }, [bridge]);
 
   const openDeepLink = useCallback((url: string) => {
     void bridge.openDeepLink(url);
@@ -435,6 +473,8 @@ export function App() {
     openInHub: settings.openInHub,
     onToggleOpenInHub: toggleOpenInHub,
     onOpenDocked: showDocked,
+    hubUpdate,
+    onHubUpdate: requestHubUpdate,
   };
   const closeDialog = () => setDialog(null);
   const dialogEntry = (appId: string) => catalog.entries.find((entry) => entry.app.id === appId);
@@ -444,7 +484,7 @@ export function App() {
       {background}
       <div className="titlebar-drag" aria-hidden="true" />
       <main className="app-shell">
-        <Sidebar active={sectionOf(route)} version={initial.appVersion} launcher={familyEntries(catalog)} installed={installed} downloads={downloads} link={link} onNavigate={setRoute} onLaunch={launchApp} />
+        <Sidebar active={sectionOf(route)} version={initial.appVersion} launcher={familyEntries(catalog)} installed={installed} downloads={downloads} link={link} hubUpdate={hubUpdate} onNavigate={setRoute} onLaunch={launchApp} onHubUpdate={requestHubUpdate} onCancelHubUpdate={cancelHubUpdate} />
         <div className="workspace-column">
           {saveError ? <ErrorState message={t('error.saveSettings')} /> : null}
           {launchError ? <ErrorState message={launchError} onRetry={() => setLaunchError(null)} /> : null}
@@ -485,6 +525,9 @@ export function App() {
               onPickBackupCopyDirectory={pickBackupCopyDirectory}
               onClearActivity={clearActivity}
               onReplayOnboarding={replayOnboarding}
+              hubUpdate={hubUpdate}
+              onHubUpdate={requestHubUpdate}
+              onCancelHubUpdate={cancelHubUpdate}
             />
           ) : null}
         </div>
@@ -539,6 +582,23 @@ export function App() {
           <p>{t('confirm.autoUpdate.backup', { name: appName(dialog.appId), folder: dialogEntry(dialog.appId)?.app.windows.preOperationBackup?.documentsFolder ?? '' })}</p>
         </ConfirmDialog>
       ) : null}
+      {dialog?.type === 'hub-update' && hubUpdate.available ? (
+        <ConfirmDialog
+          title={t('hubUpdate.confirm.title')}
+          icon="update"
+          tone="accent"
+          confirmLabel={t('hubUpdate.confirm.confirm')}
+          onCancel={closeDialog}
+          onConfirm={() => {
+            closeDialog();
+            startHubUpdate();
+          }}
+        >
+          <p>{t('hubUpdate.confirm.body', { version: hubUpdate.available, size: hubUpdate.size ? formatBytes(language, hubUpdate.size) : '—' })}</p>
+          <p>{t('hubUpdate.confirm.data')}</p>
+          <p className="dialog-note">{t('hubUpdate.confirm.wait')}</p>
+        </ConfirmDialog>
+      ) : null}
       {dialog?.type === 'no-backup' ? (
         <ConfirmDialog
           title={t('confirm.noBackup.title')}
@@ -562,4 +622,5 @@ type Dialog =
   | { type: 'operation'; plan: OperationPlan }
   | { type: 'update-all'; plans: OperationPlan[] }
   | { type: 'auto-update'; appId: string; apply: () => void }
+  | { type: 'hub-update' }
   | { type: 'no-backup'; operation: OperationView };
