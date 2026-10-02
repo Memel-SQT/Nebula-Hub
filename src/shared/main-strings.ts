@@ -23,6 +23,8 @@ const STRINGS = {
     opUninstallBody: 'Vous pouvez la réinstaller depuis Découvrir.',
     opFailed: 'Échec de l’opération sur {name}',
     opFailedBody: 'Le détail est dans Téléchargements.',
+    folderRefused: 'Ce dossier ne peut pas être utilisé.',
+    folderRefusedDetail: 'Choisissez un dossier sur un lecteur (C:\\, D:\\, une clé USB ou un lecteur réseau monté avec une lettre), avec un chemin de moins de 180 caractères. Les chemins réseau de la forme \\\\serveur\\partage ne sont pas acceptés.',
   },
   en: {
     trayOpen: 'Open Nebula Hub',
@@ -44,6 +46,8 @@ const STRINGS = {
     opUninstallBody: 'You can install it again from Discover.',
     opFailed: 'Operation on {name} failed',
     opFailedBody: 'The details are in Downloads.',
+    folderRefused: 'This folder cannot be used.',
+    folderRefusedDetail: 'Choose a folder on a drive (C:\\, D:\\, a USB drive or a network drive mapped to a letter), with a path under 180 characters. Network paths such as \\\\server\\share are not accepted.',
   },
 } satisfies Record<Language, Record<string, string>>;
 

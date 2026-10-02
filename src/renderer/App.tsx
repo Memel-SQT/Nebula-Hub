@@ -215,12 +215,18 @@ export function App() {
     };
   }, [bridge]);
 
-  useEffect(() => bridge.onInstallerSaveProgress((progress) => setSaveProgress((current) => ({ ...current, [progress.appId]: progress }))), [bridge]);
+  // Late progress events (after the result) are ignored: only downloads in flight show progress.
+  const savesInFlight = useRef(new Set<string>());
+  useEffect(() => bridge.onInstallerSaveProgress((progress) => {
+    if (savesInFlight.current.has(progress.appId)) setSaveProgress((current) => ({ ...current, [progress.appId]: progress }));
+  }), [bridge]);
 
   const saveInstaller = useCallback((appId: string) => {
     setSaveResults((current) => ({ ...current, [appId]: undefined }));
     setSaveProgress((current) => ({ ...current, [appId]: { appId, received: 0, total: 1 } }));
+    savesInFlight.current.add(appId);
     const done = (result: SaveInstallerResult) => {
+      savesInFlight.current.delete(appId);
       setSaveProgress((current) => ({ ...current, [appId]: undefined }));
       setSaveResults((current) => ({ ...current, [appId]: result }));
       if (!result.ok) playSound('error');

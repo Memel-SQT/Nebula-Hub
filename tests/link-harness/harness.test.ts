@@ -432,6 +432,7 @@ describe('Hub mode (ADR-027)', () => {
     await link.connect();
     await eventually(() => hub.server.subscribersOf('nebula.hub.dock').includes('nebula.beta'));
     hub.deny('nebula.beta', 'nebula.hub.dock');
+    expect(hub.server.subscribersOf('nebula.hub.dock')).toEqual([]);
     expect(hub.server.sendTo('nebula.beta', 'nebula.hub.dock', { state: 'released' })).toBe(false);
     await new Promise((resolve) => setTimeout(resolve, 50));
     expect(events.some((entry) => entry.event === 'nebula.hub.dock')).toBe(false);

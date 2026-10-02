@@ -5,7 +5,7 @@ import { shouldRelay, toastContent, unreadCount, type ActivityItem } from '../sh
 import { CHANNELS, type InitialState, type NavigateRequest } from '../shared/bridge';
 import { HUB_ID, type ConsentState } from '../shared/consent';
 import type { OperationKind } from '../shared/install-state';
-import { updateAvailable } from '../shared/installed-view';
+import { updateAvailable, type LaunchResult } from '../shared/installed-view';
 import { mainString, operationEntry } from '../shared/main-strings';
 import type { HubSettings } from '../shared/settings';
 import { isSafeExternalUrl } from '../shared/url';
@@ -129,7 +129,7 @@ if (!app.requestSingleInstanceLock()) {
       catalogApps: () => catalog?.catalogApps() ?? [],
       installedView: () => installed?.getView() ?? { state: 'loading', apps: [], detectedAt: null },
       record: (appId) => installed?.record(appId),
-      launch: async (appId, args) => (await installed?.launch(appId, args)) === 'launched',
+      launch: async (appId, args) => (await launchApp(appId, args)) === 'launched',
       appearance: () => settingsStore.get().appearance,
       navigate: (route) => void openWindowOn(route),
       onChange: (view) => getMainWindow()?.webContents.send(CHANNELS.linkChanged, view),
@@ -209,6 +209,13 @@ async function openWindowOn(screen: NavigateRequest): Promise<void> {
 /** Coming back to the Hub re-checks what is installed and running (debounced, brief 7.1). */
 app.on('browser-window-focus', () => installed?.requestDetect());
 
+/** Every launch (window, tray, Link intents, Hub mode) goes through here: never during an operation. */
+async function launchApp(appId: string, args: string[] = []): Promise<LaunchResult> {
+  if (!installed) return 'not-installed';
+  if (installs?.isBusy(appId)) return 'busy';
+  return installed.launch(appId, args);
+}
+
 function appName(appId: string): string {
   return catalog?.catalogApps().find((candidate) => candidate.id === appId)?.name ?? appId;
 }
@@ -221,8 +228,9 @@ function activityAdded(item: ActivityItem): void {
   if (!shouldRelay(item, settings, isWindowFocused())) return;
   const content = toastContent(item, appName(item.appId), mainString(settings.appearance.language, 'toastPrivate'));
   showWindowsNotification(content, () => {
-    if (item.deepLink) void link?.routeDeepLink(item.deepLink).then(() => openWindow());
-    else void openWindowOn({ screen: 'home' });
+    const fallback = () => void openWindowOn({ screen: 'home' });
+    if (!item.deepLink || !link) fallback();
+    else void link.routeDeepLink(item.deepLink).then((outcome) => outcome === 'invalid' && fallback(), fallback);
   });
 }
 
@@ -263,7 +271,7 @@ function trayOptions(): TrayOptions {
     onShowActivity: () => void openWindowOn({ screen: 'home' }),
     onCheckUpdates: () => void catalog?.refresh(true).then(() => installed?.detect()),
     onShowUpdates: () => void openWindowOn({ screen: 'my-apps' }),
-    onLaunch: (appId) => void installed?.launch(appId),
+    onLaunch: (appId) => void launchApp(appId),
     onQuit: quit,
   };
 }
@@ -347,7 +355,7 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle(CHANNELS.appLaunch, async (event, appId: unknown) => {
     if (!isTrustedSender(event) || !installed || typeof appId !== 'string') return 'not-installed';
-    return installed.launch(appId);
+    return launchApp(appId);
   });
 
   ipcMain.handle(CHANNELS.appShowFolder, (event, appId: unknown) => {
@@ -388,6 +396,7 @@ function registerIpcHandlers(): void {
     const spec = catalog?.catalogApps().find((candidate) => candidate.id === appId)?.windows.preOperationBackup;
     if (!spec) return { mode: 'unsupported' };
     if (!installed.record(appId)?.exeFound) return { mode: 'not-installed' };
+    if (installs?.isBusy(appId)) return { mode: 'busy' };
     // The root folder first: that is where every backup lands (ADR-026).
     const window = getMainWindow();
     const options = {
@@ -408,11 +417,11 @@ function registerIpcHandlers(): void {
     if (!check.ok) return { mode: 'invalid', reason: check.reason };
     writtenFiles.add(file);
     if (spec.importArgument) {
-      const launched = await installed.launch(appId, [backupArgument({ ...spec, argument: spec.importArgument }, file)]);
+      const launched = await launchApp(appId, [backupArgument({ ...spec, argument: spec.importArgument }, file)]);
       return launched === 'launched' ? { mode: 'launched', file, accounts: check.accounts } : { mode: 'failed' };
     }
     shell.showItemInFolder(file);
-    void installed.launch(appId);
+    void launchApp(appId);
     return { mode: 'manual', file, accounts: check.accounts };
   });
 
@@ -450,6 +459,7 @@ function registerIpcHandlers(): void {
     const choice = window ? await dialog.showOpenDialog(window, options) : await dialog.showOpenDialog(options);
     if (choice.canceled || !choice.filePaths[0]) return null;
     const settings = await settingsStore.update({ backupCopyDirectory: choice.filePaths[0] });
+    if (settings.backupCopyDirectory !== choice.filePaths[0]) await refuseFolder(choice.filePaths[0]);
     broadcastSettings(settings);
     return settings;
   });
@@ -506,8 +516,9 @@ function registerIpcHandlers(): void {
     const options = { properties: ['openDirectory' as const, 'createDirectory' as const], ...(current ? { defaultPath: current } : {}) };
     const choice = window ? await dialog.showOpenDialog(window, options) : await dialog.showOpenDialog(options);
     if (choice.canceled || !choice.filePaths[0]) return null;
-    // Validated again by the settings parser (isSafeInstallDirectory): an odd path is ignored.
+    // Validated again by the settings parser (isSafeInstallDirectory): an odd path is refused, and said.
     const settings = await settingsStore.update({ installDirectory: choice.filePaths[0] });
+    if (settings.installDirectory !== choice.filePaths[0]) await refuseFolder(choice.filePaths[0]);
     broadcastSettings(settings);
     return settings;
   });
@@ -580,6 +591,14 @@ function registerIpcHandlers(): void {
     if (!isTrustedSender(event) || !catalog || typeof appId !== 'string' || typeof assetPath !== 'string') return null;
     return catalog.getAsset(appId, assetPath);
   });
+}
+
+/** Explains why a picked folder was not kept (network path, too long, reserved characters). */
+async function refuseFolder(folder: string): Promise<void> {
+  const language = settingsStore.get().appearance.language;
+  const options = { type: 'warning' as const, title: 'Nebula Hub', message: mainString(language, 'folderRefused'), detail: `${folder}\n\n${mainString(language, 'folderRefusedDetail')}` };
+  const window = getMainWindow();
+  await (window ? dialog.showMessageBox(window, options) : dialog.showMessageBox(options));
 }
 
 /** Files the Hub wrote or checked in this session: the only ones the renderer may ask to show. */

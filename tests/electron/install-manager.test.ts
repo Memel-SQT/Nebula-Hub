@@ -836,3 +836,24 @@ describe('InstallManager: backup choices, copy and export (ADR-026)', () => {
     expect(await h.manager.exportData('nebula.finterest')).toEqual({ ok: false, reason: 'invalid' });
   });
 });
+
+describe('InstallManager: audit fixes (beta 2)', () => {
+  it('says an app is busy while its operation is queued or running, not after', async () => {
+    const h = harness();
+    h.installed.push(installedApp('nebula.clock', '1.1.3'));
+    h.uninstallAfterChecks = 1;
+    h.manager.enqueue('nebula.clock', 'uninstall', { confirmed: true });
+    expect(h.manager.isBusy('nebula.clock')).toBe(true);
+    expect(h.manager.isBusy('nebula.finterest')).toBe(false);
+    expect(h.manager.isBusy()).toBe(true);
+    await h.manager.idle();
+    expect(h.manager.isBusy('nebula.clock')).toBe(false);
+  });
+
+  it('makes no copy when the copy folder is Documents itself (the file is already there)', async () => {
+    const h = harness(undefined, { backupCopyDirectory: () => path.join(root, 'Documents') });
+    h.installed.push(installedApp('nebula.finterest', '0.1.36'));
+    const result = await h.manager.exportData('nebula.finterest');
+    expect(result).toMatchObject({ ok: true, copyPath: null, copyState: null });
+  });
+});

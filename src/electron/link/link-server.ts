@@ -201,9 +201,14 @@ export class LinkServer {
     return true;
   }
 
-  /** Apps connected and subscribed to a Hub event (`nebula.hub.dock`: ready for the Hub mode). */
+  /** Apps connected, subscribed and allowed for a Hub event (`nebula.hub.dock`: ready for the Hub mode). */
   subscribersOf(event: string): string[] {
-    return [...this.connections].filter((connection) => connection.authenticated && connection.appId && connection.subscriptions.has(event)).map((connection) => connection.appId!);
+    const capability = capabilityOf(HUB_MANIFEST, event);
+    if (!capability) return [];
+    // A pair the user turned off is not reachable: the app is not counted (no prompt, it is public).
+    return [...this.connections]
+      .filter((connection) => connection.authenticated && connection.appId && connection.subscriptions.has(event) && decide(capability.sensitivity, this.deps.consent(connection.appId, event)) === 'allow')
+      .map((connection) => connection.appId!);
   }
 
   /** The Hub reads a capability (widgets), under the same consent rules as an app. */

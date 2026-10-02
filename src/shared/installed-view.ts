@@ -33,4 +33,5 @@ export function updateAvailable(entry: CatalogEntry | undefined, installed: Inst
   return isNewerVersion(release, installed.version);
 }
 
-export type LaunchResult = 'launched' | 'not-installed' | 'missing-exe' | 'is-hub' | 'failed';
+/** `busy`: an install, update, repair or uninstall of this app is running (launching now could break it). */
+export type LaunchResult = 'launched' | 'not-installed' | 'missing-exe' | 'is-hub' | 'busy' | 'failed';

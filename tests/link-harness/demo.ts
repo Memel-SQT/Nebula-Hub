@@ -1,4 +1,3 @@
-/* eslint-disable no-console -- a narrated demonstration */
 import { HUB_ID } from '../../src/shared/consent';
 import { alpha, beta, eventually } from './fake-apps';
 import { startTestHub } from './test-hub';

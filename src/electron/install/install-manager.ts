@@ -127,9 +127,12 @@ export class InstallManager {
     return () => this.listeners.delete(listener);
   }
 
-  /** True while an operation is queued or running (the Hub must not update itself then). */
-  isBusy(): boolean {
-    return this.operations.some((operation) => isActive(operation.view.phase));
+  /**
+   * True while an operation is queued or running: for one app (nothing should launch it meanwhile),
+   * or for any (the Hub must not update itself then).
+   */
+  isBusy(appId?: string): boolean {
+    return this.operations.some((operation) => (!appId || operation.view.appId === appId) && isActive(operation.view.phase));
   }
 
   /** Empties the downloads folder (startup): leftovers of a previous session are not trusted. */
@@ -547,7 +550,8 @@ export class InstallManager {
    */
   private async copyBackup(entry: CatalogEntry, file: string): Promise<{ path: string | null; state: 'ok' | 'failed' | null }> {
     const target = this.copyPathOf(entry.app.windows.preOperationBackup!, file);
-    if (!target) return { path: null, state: null };
+    // The copy folder chosen is Documents itself: the file is already there.
+    if (!target || path.resolve(target).toLowerCase() === path.resolve(file).toLowerCase()) return { path: null, state: null };
     try {
       await fs.mkdir(path.dirname(target), { recursive: true });
       await fs.copyFile(file, target);

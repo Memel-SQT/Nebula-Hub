@@ -2,6 +2,21 @@
 
 Technical log, newest session first. Release notes live only in the GitHub release body.
 
+## [2026-10-02] - Nebula Hub Session #11 — Audit, SDK 1.0.0 and 0.2.0-beta.2
+
+- **Audit** of everything since 0.2.0-beta.1 (M7, ADR-026, ADR-027). Fixed:
+  - every launch (window, tray, Link intents, Hub mode, import) goes through one path that refuses while an install, update, repair or uninstall of that app runs (`LaunchResult` `busy`, `InstallManager.isBusy(appId)`); import refused then too;
+  - clicking a Windows notification with an app link opened the Hub as well: an app link now opens only the app, a Hub link its screen, Home otherwise;
+  - a backup copy folder equal to Documents made a failed "copy onto itself": no copy then;
+  - a folder refused by the settings (network `\\server\share` path, too long) was silently ignored by both folder pickers: the Hub now says why;
+  - the Hub mode counted an app whose `nebula.hub.dock` pair the user turned off as reachable (`subscribersOf` now applies the consent);
+  - the docked area could be measured during the page animation (8 px off) and was not re-measured when a banner appeared above it: no animation on that screen, body observed too;
+  - a late "installer download" progress event could leave the button in its busy state: progress only for downloads in flight;
+  - the unused ESLint directive of the Link demo (the only lint warning).
+- `npm audit`: no vulnerability in runtime dependencies; one low advisory on esbuild's own development server (`esbuild --serve`, unused here: Vite serves the renderer), whose fix needs esbuild 0.28, outside Vite 7's range: not forced.
+- Checks: typecheck, lint (0 warning), 934 tests, build, `dist:win`, packaged build started on a throwaway profile, SDK archive installed in a bare project (CJS and ESM, DockV1).
+- Version 0.2.0-beta.2; SDK `@nebula/link` 1.0.0 published (`link-v1.0.0`).
+
 ## [2026-10-02] - Nebula Hub Session #10 — Apps inside the Hub (docked windows)
 
 - **Decision** (ADR-027, validated by the user): an app opened "inside the Hub" keeps its process, window and data; its frameless window lies over the Hub's content area and follows it. Spec amended (`docs/NEBULA_LINK.md` § 17, schema `DockV1`).

@@ -43,6 +43,7 @@ export function DockedScreen({ appId, catalog, dock, onShow, onRelease, onNaviga
     report();
     const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(report);
     observer?.observe(element);
+    observer?.observe(document.body);
     window.addEventListener('resize', report);
     return () => {
       observer?.disconnect();

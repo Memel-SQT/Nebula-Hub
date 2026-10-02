@@ -30,6 +30,7 @@ export const install = {
   'app.action.folder': 'Afficher le dossier',
   'app.installedVersion': 'Version installée',
   'launch.failed': 'Impossible de lancer {name}.',
+  'launch.busy': 'Une opération est en cours sur {name} (installation, mise à jour ou désinstallation) : attendez qu’elle soit finie pour l’ouvrir.',
   'launch.missing-exe': '{name} semble mal installée : son exécutable est introuvable.',
   'launch.not-installed': '{name} n’est pas installée.',
   'downloads.eyebrow': 'Opérations',

@@ -53,7 +53,7 @@ export type ImportDataResult =
   | { mode: 'launched' | 'manual'; file: string; accounts: number }
   | { mode: 'cancelled' }
   | { mode: 'invalid'; reason: BackupProblem }
-  | { mode: 'unsupported' | 'not-installed' | 'failed' };
+  | { mode: 'unsupported' | 'not-installed' | 'busy' | 'failed' };
 
 /** Outcome of "Download the installer". */
 export type SaveInstallerResult = { ok: true; path: string } | { ok: false; reason: 'no-installer' | 'busy' | 'failed' };

@@ -31,6 +31,7 @@ export const install: Record<keyof typeof fr, string> = {
   'app.action.detailsNamed': 'See {name} details',
   'app.action.folder': 'Show folder',
   'app.installedVersion': 'Installed version',
+  'launch.busy': 'An operation is running on {name} (install, update or uninstall): wait until it is over to open it.',
   'launch.failed': 'Unable to launch {name}.',
   'launch.missing-exe': '{name} seems badly installed: its executable is missing.',
   'launch.not-installed': '{name} is not installed.',
