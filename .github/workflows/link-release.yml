@@ -54,7 +54,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           $tag = "${{ github.ref_name }}"
-          $version = $tag.Substring(5)
+          $version = $tag.Substring("link-v".Length)
           git fetch --force origin "refs/tags/${tag}:refs/tags/${tag}"
           $notes = git tag -l --format='%(contents)' $tag | Out-String
           if (-not $notes.Trim()) { $notes = "@nebula/link $version" }
