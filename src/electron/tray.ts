@@ -14,7 +14,11 @@ export interface TrayOptions {
   apps: Array<{ id: string; name: string }>;
   /** Installed apps with a newer release (tooltip and menu, brief §9.8). */
   updates: number;
+  /** Unread entries of the activity center (brief §10: the tray count updates without a jump). */
+  unread: number;
   onOpen: () => void;
+  /** Opens the Hub on Home, where the activity center is. */
+  onShowActivity: () => void;
   onCheckUpdates: () => void;
   /** Opens the Hub on My apps, where the updates are. */
   onShowUpdates: () => void;
@@ -48,7 +52,8 @@ async function refreshIcon(): Promise<void> {
 
 /**
  * The Hub lives in the tray so it can launch the Nebula apps and host Nebula Link: open, one
- * entry per installed app, the update count and a manual check, quit. Link pause arrives in M7.
+ * entry per installed app, the unread activity, the update count and a manual check, quit. There
+ * is no Link pause (ADR-023: integrations are cut pair by pair in Integrations).
  */
 export function createTray(options: TrayOptions): void {
   tray = new Tray(nativeImage.createFromPath(path.join(__dirname, '../../assets/tray-dark.png')));
@@ -74,6 +79,7 @@ export function updateTray(options: TrayOptions): void {
       { label: mainString(options.language, 'trayOpen'), click: options.onOpen },
       ...(launchers.length ? [{ type: 'separator' as const }, ...launchers] : []),
       { type: 'separator' },
+      ...(options.unread > 0 ? [{ label: mainString(options.language, 'trayActivity', { count: String(options.unread) }), click: options.onShowActivity }] : []),
       ...(options.updates > 0 ? [{ label: mainString(options.language, 'trayUpdates').replace('{count}', count), click: options.onShowUpdates }] : []),
       { label: mainString(options.language, 'trayCheckUpdates'), click: options.onCheckUpdates },
       { type: 'separator' },

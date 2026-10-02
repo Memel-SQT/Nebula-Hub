@@ -122,10 +122,12 @@ export class LinkStore {
     return result;
   }
 
-  async addNotification(appId: string, notification: Omit<StoredNotification, 'id' | 'appId' | 'receivedAt'>, at: string): Promise<void> {
+  /** Stores a notification and returns it as stored (with its id). */
+  async addNotification(appId: string, notification: Omit<StoredNotification, 'id' | 'appId' | 'receivedAt'>, at: string): Promise<StoredNotification> {
     await this.db.transaction((run) => {
       run('INSERT INTO notifications (app_id, received_at, notification_id, title, body, sensitivity, deep_link, category) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', [appId, at, notification.notificationId, notification.title, notification.body, notification.sensitivity, notification.deepLink, notification.category]);
     });
+    return this.listNotifications(1)[0];
   }
 
   listNotifications(limit = 200): StoredNotification[] {

@@ -350,6 +350,35 @@ const glyphs = {
       <path d="M12 8v4.3l2.8 1.8" />
     </>
   ),
+  eye: (
+    <>
+      <path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z" {...duo} />
+      <circle cx="12" cy="12" r="2.8" />
+    </>
+  ),
+  eyeOff: (
+    <>
+      <path d="M6.6 7.4C4 9.2 2.5 12 2.5 12S6 18.5 12 18.5c1.9 0 3.5-.6 4.9-1.5M10 5.7c.6-.1 1.3-.2 2-.2 6 0 9.5 6.5 9.5 6.5a17 17 0 0 1-2.4 3.2" {...duo} />
+      <path d="M4 4l16 16" />
+    </>
+  ),
+  grip: (
+    <>
+      <circle cx="9" cy="6.5" r="1.4" {...dot} />
+      <circle cx="15" cy="6.5" r="1.4" {...dot} />
+      <circle cx="9" cy="12" r="1.4" {...dot} />
+      <circle cx="15" cy="12" r="1.4" {...dot} />
+      <circle cx="9" cy="17.5" r="1.4" {...dot} />
+      <circle cx="15" cy="17.5" r="1.4" {...dot} />
+    </>
+  ),
+  rocket: (
+    <>
+      <path d="M14.5 4.5c3-1 5-1 5-1s0 2-1 5l-5.5 5.5-3-3z" {...duo} />
+      <path d="M10 10.5 6.5 10l-2 2 4 1.5M13.5 14l.5 3.5-2 2-1.5-4" />
+      <path d="M6 18c-1 .4-1.5 1-1.5 1.5.5 0 1.1-.5 1.5-1.5z" />
+    </>
+  ),
 } satisfies Record<string, ReactNode>;
 
 export type IconName = keyof typeof glyphs;

@@ -1,5 +1,6 @@
 import { createContext, useContext } from 'react';
 import type { Language } from '@nebula/design';
+import { activity as frActivity } from './fr/activity';
 import { catalog as frCatalog } from './fr/catalog';
 import { common as frCommon } from './fr/common';
 import { errors as frErrors } from './fr/errors';
@@ -7,6 +8,7 @@ import { hub as frHub } from './fr/hub';
 import { install as frInstall } from './fr/install';
 import { link as frLink } from './fr/link';
 import { settings as frSettings } from './fr/settings';
+import { activity as enActivity } from './en/activity';
 import { catalog as enCatalog } from './en/catalog';
 import { common as enCommon } from './en/common';
 import { errors as enErrors } from './en/errors';
@@ -20,9 +22,9 @@ import { settings as enSettings } from './en/settings';
  * fallback), with the dictionaries split by domain. Each English file is typed against its
  * French twin, so a missing key fails `tsc`; `i18n.test.ts` checks the parity as well.
  */
-export const fr = { ...frCommon, ...frHub, ...frCatalog, ...frInstall, ...frLink, ...frSettings, ...frErrors };
+export const fr = { ...frCommon, ...frHub, ...frCatalog, ...frInstall, ...frLink, ...frActivity, ...frSettings, ...frErrors };
 export type TranslationKey = keyof typeof fr;
-export const en: Record<TranslationKey, string> = { ...enCommon, ...enHub, ...enCatalog, ...enInstall, ...enLink, ...enSettings, ...enErrors };
+export const en: Record<TranslationKey, string> = { ...enCommon, ...enHub, ...enCatalog, ...enInstall, ...enLink, ...enActivity, ...enSettings, ...enErrors };
 
 const dictionaries: Record<Language, Record<TranslationKey, string>> = { fr, en };
 
@@ -40,6 +42,11 @@ export function locale(language: Language): string {
 
 export function formatDateTime(language: Language, value: Date | string | number): string {
   return new Intl.DateTimeFormat(locale(language), { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
+}
+
+/** Hour and minute only (a widget refreshed today). */
+export function formatTime(language: Language, value: Date | string | number): string {
+  return new Intl.DateTimeFormat(locale(language), { timeStyle: 'short' }).format(new Date(value));
 }
 
 export function formatBytes(language: Language, bytes: number): string {

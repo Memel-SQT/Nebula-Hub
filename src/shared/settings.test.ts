@@ -65,3 +65,19 @@ describe('automatic updates setting', () => {
     expect(mergeSettings(DEFAULT_SETTINGS, { autoUpdate: { 'nebula.finterest': true } }).autoUpdate).toEqual({ 'nebula.finterest': true });
   });
 });
+
+describe('Home and notification settings (M7)', () => {
+  it('keeps valid widget ids in order, without duplicates', () => {
+    expect(parseSettings({ widgetOrder: ['clock.focus.today', 'clock.focus.today', 'Bad Id', 42, 'news.headlines.today'] }).widgetOrder).toEqual(['clock.focus.today', 'news.headlines.today']);
+    expect(parseSettings({ widgetOrder: 'nope' }).widgetOrder).toEqual([]);
+  });
+
+  it('parses the Windows relay, the muted apps and the last visit of the activity center', () => {
+    const parsed = parseSettings({ windowsNotifications: false, mutedApps: ['nebula.news', '../x'], activitySeenAt: '2026-10-02T09:00:00.000Z' });
+    expect(parsed.windowsNotifications).toBe(false);
+    expect(parsed.mutedApps).toEqual(['nebula.news']);
+    expect(parsed.activitySeenAt).toBe('2026-10-02T09:00:00.000Z');
+    expect(parseSettings({ activitySeenAt: 'yesterday' }).activitySeenAt).toBeNull();
+    expect(mergeSettings({ ...DEFAULT_SETTINGS, activitySeenAt: '2026-10-02T09:00:00.000Z' }, { activitySeenAt: 'x' }).activitySeenAt).toBe('2026-10-02T09:00:00.000Z');
+  });
+});

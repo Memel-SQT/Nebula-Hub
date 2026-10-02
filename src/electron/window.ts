@@ -57,10 +57,26 @@ export function applyWindowTheme(settings: HubSettings): void {
   }
 }
 
+const visibilityListeners = new Set<(visible: boolean) => void>();
+
+/** Main-process side of the visibility (widgets drop private values when the Hub is hidden). */
+export function onWindowVisibilityChange(listener: (visible: boolean) => void): () => void {
+  visibilityListeners.add(listener);
+  return () => visibilityListeners.delete(listener);
+}
+
+/** Whether the user is looking at the Hub right now (Windows notifications are not needed then). */
+export function isWindowFocused(): boolean {
+  const window = getMainWindow();
+  return Boolean(window && window.isVisible() && !window.isMinimized() && window.isFocused());
+}
+
 function sendVisibility(window: BrowserWindow): void {
+  const visible = !window.isDestroyed() && window.isVisible() && !window.isMinimized();
   if (!window.isDestroyed()) {
-    window.webContents.send(CHANNELS.windowVisibility, window.isVisible() && !window.isMinimized());
+    window.webContents.send(CHANNELS.windowVisibility, visible);
   }
+  for (const listener of visibilityListeners) listener(visible);
 }
 
 /**
@@ -127,6 +143,7 @@ export async function createMainWindow(options: { settings: () => HubSettings; s
   });
   window.on('closed', () => {
     mainWindow = null;
+    for (const listener of visibilityListeners) listener(false);
   });
 
   if (DEV_SERVER_URL) {

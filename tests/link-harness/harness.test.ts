@@ -4,9 +4,11 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { NebulaLink, newToken, PROTOCOL } from '@nebula/link';
+import { NebulaLink, newToken, parseManifestBytes, PROTOCOL } from '@nebula/link';
 import { HUB_ID } from '../../src/shared/consent';
 import { writeSession } from '../../src/electron/link/session';
+import { WidgetBoard } from '../../src/electron/link/widgets';
+import type { WidgetView } from '../../src/shared/widgets';
 import { alpha, beta, eventually } from './fake-apps';
 import { rawAuth, rawConnect } from './raw-client';
 import { APPEARANCE, manifestOf, startTestHub, type TestHub } from './test-hub';
@@ -322,5 +324,64 @@ describe('invalid messages', () => {
     await rawAuth(client, hub.token, 'nebula.beta', manifestOf('beta'));
     for (let index = 0; index < 150; index += 1) client.send({ jsonrpc: '2.0', id: `p${index}`, method: 'link.ping', params: {} });
     await client.waitFor((message) => (message.error as { code?: number } | undefined)?.code === -32009);
+  });
+});
+
+describe('Home widgets (M7)', () => {
+  const alphaManifest = () => {
+    const parsed = parseManifestBytes(fs.readFileSync(manifestOf('alpha')));
+    if (!parsed.ok) throw new Error('alpha manifest');
+    return parsed.manifest;
+  };
+
+  it('reads a private widget only after the user says yes, and forgets its value when hidden', async () => {
+    const seen: WidgetView[][] = [];
+    const board = new WidgetBoard({
+      manifests: () => [alphaManifest()],
+      connected: () => hub.server.connectedApps().map((app) => app.appId),
+      query: (capability) => hub.server.queryAs(HUB_ID, capability),
+      onChange: (widgets) => seen.push(widgets),
+    });
+    board.sync();
+    expect(board.views()).toMatchObject([{ id: 'alpha.status', state: 'offline', sensitivity: 'private' }]);
+
+    const { link } = track(alpha(hub.sessionFile));
+    await link.connect();
+    await eventually(() => hub.server.connectedApps().some((app) => app.appId === 'nebula.alpha'));
+    board.connectionsChanged();
+    await eventually(() => board.views()[0].state === 'consent-required');
+    expect(hub.consentRequests).toContainEqual({ consumer: HUB_ID, capability: 'alpha.status' });
+
+    hub.grant(HUB_ID, 'alpha.status');
+    board.consentChanged('alpha.status');
+    await eventually(() => board.views()[0].state === 'ready');
+    expect(board.views()[0].data).toMatchObject({ title: 'État', value: 'OK' });
+
+    board.setVisible(false);
+    expect(board.views()[0]).toMatchObject({ state: 'loading', data: null });
+    board.setVisible(true);
+    await eventually(() => board.views()[0].state === 'ready');
+    expect(seen.length).toBeGreaterThan(3);
+  });
+
+  it('marks the widget offline when its app leaves', async () => {
+    const board = new WidgetBoard({
+      manifests: () => [alphaManifest()],
+      connected: () => hub.server.connectedApps().map((app) => app.appId),
+      query: (capability) => hub.server.queryAs(HUB_ID, capability),
+      onChange: () => undefined,
+    });
+    hub.grant(HUB_ID, 'alpha.status');
+    const { link } = track(alpha(hub.sessionFile));
+    await link.connect();
+    await eventually(() => hub.server.connectedApps().length === 1);
+    // Connected is not ready yet: wait until Alpha has declared its widgets (link.ready).
+    for (let tries = 0; tries < 100 && 'error' in (await hub.server.queryAs(HUB_ID, 'alpha.status')); tries += 1) await new Promise((resolve) => setTimeout(resolve, 10));
+    board.sync();
+    await eventually(() => board.views()[0].state === 'ready');
+    link.dispose();
+    await eventually(() => hub.server.connectedApps().length === 0);
+    board.connectionsChanged();
+    expect(board.views()[0]).toMatchObject({ state: 'offline', data: null });
   });
 });

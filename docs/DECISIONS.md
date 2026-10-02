@@ -601,3 +601,37 @@ Les constats qui fondent ces décisions sont détaillés dans [DISCOVERY.md](DIS
 - **Banc d'essai** (`tests/link-harness/`) : Hub en mode test, deux fausses apps sur le vrai SDK,
   un client brut pour les messages invalides. Il est joué par Jest et par `npm run link:demo`,
   sur de vrais named pipes.
+
+## ADR-025 — Le Hub : accueil, widgets, centre d'activité, premier lancement (M7)
+
+- **Statut** : Accepté (M7). Complète ADR-023 et ADR-024.
+- **Widgets (I3)** : le Hub lit chaque capacité `widget` des apps installées et admises, en tant que
+  consommateur `nebula.hub`, sous les règles de consentement habituelles (`WidgetBoard`,
+  `src/electron/link/widgets.ts`). Lecture à l'arrivée de l'app, puis à l'intervalle déclaré (30 s
+  au minimum, 5 min par défaut). Une carte privée indécise ou refusée n'est plus relue tant que
+  l'utilisateur ne change pas d'avis : le journal ne se remplit pas de refus. Les valeurs restent
+  **en mémoire** ; seul l'ordre des cartes est enregistré (`widgetOrder`, identifiants de
+  capacités). Fenêtre cachée dans la zone de notification : plus aucune lecture, et les valeurs
+  privées sont oubliées. À l'écran, une valeur privée est **masquée par défaut** et se masque à
+  nouveau dès qu'elle change.
+- **Réorganisation** : glisser-déposer, et deux boutons « vers le début / vers la fin » par carte
+  pour le clavier et les lecteurs d'écran, avec une annonce de la nouvelle position.
+- **Centre d'activité (I5)** : panneau latéral de l'accueil, 30 jours d'historique (notifications des
+  apps et fin des opérations du Hub, enregistrées sous l'identifiant `nebula.hub`). L'état « lu »
+  est une date (`activitySeenAt`) dans les réglages, pas une colonne : pas de migration. Le texte
+  d'une notification privée est masqué jusqu'au clic.
+- **Notifications Windows** : relais du centre d'activité quand le Hub **n'est pas au premier
+  plan**, désactivable globalement et app par app (`windowsNotifications`, `mutedApps`).
+  **[CRITIQUE]** Une notification privée n'envoie à Windows que le nom de l'app et une phrase
+  neutre : Windows peut l'afficher sur l'écran de verrouillage et la garder dans son historique,
+  que le Hub ne contrôle pas. Une demande de consentement reçue pendant que le Hub est caché est
+  aussi signalée à Windows.
+- **Premier lancement** : trois écrans (le Hub ; les apps détectées ; démarrage avec Windows et
+  notifications Windows en oui/non expliqués), passables à tout moment (bouton ou Échap), rejouables
+  dans Réglages → Avancé. **Écart au brief** : le troisième écran ne propose pas « Link oui/non »,
+  car il n'y a plus de pause globale de Link (ADR-023) ; il explique le consentement par paire.
+- **Réglages** : « Démarrer avec Windows » (seule la version installée s'inscrit), notifications
+  (global, par app), Avancé (effacer tout l'historique ou celui d'une app, après confirmation ;
+  revoir l'accueil).
+- **Zone de notification** : entrée « Centre d'activité (n non lues) » qui ouvre l'accueil.
+- **Reporté à M8** : I4 (pause lecture Clock → News), qui dépend des capacités réelles des apps.

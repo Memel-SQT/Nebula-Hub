@@ -2,10 +2,12 @@ import type { NebulaAppearance } from '@nebula/design';
 import type { CatalogView } from './catalog-view';
 import type { DownloadsView, EnqueueResult, OperationKind, OperationPlan } from './install-state';
 import type { InstalledView, LaunchResult } from './installed-view';
+import type { ActivityItem } from './activity';
 import type { ConsentState } from './consent';
 import type { LinkView } from './link-view';
 import type { Route } from './route';
 import type { HubSettings, SettingsPatch } from './settings';
+import type { WidgetView } from './widgets';
 
 /** IPC channel names: the only routes between the renderer and the main process. */
 export const CHANNELS = {
@@ -40,6 +42,13 @@ export const CHANNELS = {
   linkChanged: 'link:changed',
   linkSetConsent: 'link:set-consent',
   linkDenyApp: 'link:deny-app',
+  linkOpen: 'link:open',
+  widgetsGet: 'widgets:get',
+  widgetsChanged: 'widgets:changed',
+  widgetRefresh: 'widgets:refresh',
+  activityGet: 'activity:get',
+  activityChanged: 'activity:changed',
+  activityClear: 'activity:clear',
 } as const;
 
 /** Screens the main process may ask the renderer to show (tray menu, Nebula Link). */
@@ -114,4 +123,16 @@ export interface NebulaHubBridge {
   setLinkConsent(consumer: string, capability: string, state: ConsentState | null): Promise<LinkView>;
   /** Refuses every pair of an app (as consumer or provider). */
   denyLinkApp(appId: string): Promise<LinkView>;
+  /** Opens a `nebula://` link (widget, notification) through the Link router. */
+  openDeepLink(url: string): Promise<boolean>;
+  /** Home widgets (I3): states and values, in memory only. */
+  getWidgets(): Promise<WidgetView[]>;
+  onWidgetsChanged(callback: (widgets: WidgetView[]) => void): () => void;
+  /** Reads one widget now. */
+  refreshWidget(capabilityId: string): Promise<boolean>;
+  /** Activity center (I5): the last 30 days, newest first. */
+  getActivity(): Promise<ActivityItem[]>;
+  onActivityChanged(callback: (items: ActivityItem[]) => void): () => void;
+  /** Erases the history (null: everything, else one app's). */
+  clearActivity(appId: string | null): Promise<ActivityItem[]>;
 }

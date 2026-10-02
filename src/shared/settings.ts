@@ -20,6 +20,13 @@ export interface HubSettings {
    * app that backs up its data first, turning it on is confirmed once (R04).
    */
   autoUpdate: Record<string, boolean>;
+  /** Order of the Home widgets (capability ids), set by drag and drop or the move buttons (brief §9.1). */
+  widgetOrder: string[];
+  /** Relay the activity center to Windows notifications (brief I5), and the apps muted there. */
+  windowsNotifications: boolean;
+  mutedApps: string[];
+  /** Last time the user opened the activity center: anything newer is unread. */
+  activitySeenAt: string | null;
 }
 
 export const DEFAULT_SETTINGS: HubSettings = {
@@ -30,6 +37,10 @@ export const DEFAULT_SETTINGS: HubSettings = {
   onboardingCompleted: false,
   installDirectory: null,
   autoUpdate: {},
+  widgetOrder: [],
+  windowsNotifications: true,
+  mutedApps: [],
+  activitySeenAt: null,
 };
 
 export type SettingsPatch = Partial<Omit<HubSettings, 'appearance'>>;
@@ -56,10 +67,24 @@ export function parseSettings(value: unknown, fallback: HubSettings = DEFAULT_SE
     onboardingCompleted: bool(record.onboardingCompleted, fallback.onboardingCompleted),
     installDirectory: record.installDirectory === null || isSafeInstallDirectory(record.installDirectory) ? (record.installDirectory as string | null) : fallback.installDirectory,
     autoUpdate: record.autoUpdate === undefined ? fallback.autoUpdate : parseAutoUpdate(record.autoUpdate),
+    widgetOrder: record.widgetOrder === undefined ? fallback.widgetOrder : parseIds(record.widgetOrder),
+    windowsNotifications: bool(record.windowsNotifications, fallback.windowsNotifications),
+    mutedApps: record.mutedApps === undefined ? fallback.mutedApps : parseIds(record.mutedApps),
+    activitySeenAt: record.activitySeenAt === null || isIsoTime(record.activitySeenAt) ? (record.activitySeenAt as string | null) : fallback.activitySeenAt,
   };
 }
 
 const APP_ID = /^[a-z0-9]+(\.[a-z0-9-]+){1,5}$/;
+
+/** Distinct app or capability ids (`finterest.budget.remaining` has the shape of an app id), at most 50. */
+function parseIds(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return [...new Set(value.filter((id): id is string => typeof id === 'string' && APP_ID.test(id)))].slice(0, 50);
+}
+
+function isIsoTime(value: unknown): value is string {
+  return typeof value === 'string' && value.length <= 40 && /^\d{4}-\d{2}-\d{2}T/.test(value) && !Number.isNaN(Date.parse(value));
+}
 
 /** Only catalog-like app ids with a true value are kept (at most 50). */
 function parseAutoUpdate(value: unknown): Record<string, boolean> {

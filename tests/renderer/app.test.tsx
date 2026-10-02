@@ -5,6 +5,8 @@ import type { NebulaHubBridge } from '../../src/shared/bridge';
 import type { Route } from '../../src/shared/route';
 import type { DownloadsView } from '../../src/shared/install-state';
 import { EMPTY_LINK_VIEW } from '../../src/shared/link-view';
+import type { ActivityItem } from '../../src/shared/activity';
+import type { WidgetView } from '../../src/shared/widgets';
 import { App } from '../../src/renderer/App';
 import { catalogView, downloadsView, installedView, operation } from './fixtures';
 
@@ -15,6 +17,22 @@ async function render(node: JSX.Element) {
     await Promise.resolve();
   });
   return result;
+}
+
+/** Widgets and activity the next installBridge() serves (reset after each test). */
+let widgets: WidgetView[] = [];
+let activity: ActivityItem[] = [];
+afterEach(() => {
+  widgets = [];
+  activity = [];
+});
+
+function widget(overrides: Partial<WidgetView> = {}): WidgetView {
+  return { id: 'clock.focus.today', provider: 'nebula.clock', title: { fr: 'Focus du jour', en: 'Today’s focus' }, sensitivity: 'public', state: 'ready', data: { title: 'Pomodoros', value: '3/8', updatedAt: '2026-10-02T09:00:00.000Z' }, refreshedAt: '2026-10-02T09:00:00.000Z', ...overrides };
+}
+
+function entry(overrides: Partial<ActivityItem> = {}): ActivityItem {
+  return { id: 1, appId: 'nebula.clock', receivedAt: '2026-10-02T09:00:00.000Z', title: 'Session terminée', body: '4 pomodoros aujourd’hui', sensitivity: 'public', deepLink: null, category: null, ...overrides };
 }
 
 function installBridge(overrides: Partial<HubSettings> = {}, startedHidden = true, installed = installedView()) {
@@ -65,6 +83,13 @@ function installBridge(overrides: Partial<HubSettings> = {}, startedHidden = tru
     onLinkChanged: () => () => undefined,
     setLinkConsent: jest.fn(async () => EMPTY_LINK_VIEW),
     denyLinkApp: jest.fn(async () => EMPTY_LINK_VIEW),
+    openDeepLink: jest.fn(async () => true),
+    getWidgets: jest.fn(async () => widgets),
+    onWidgetsChanged: () => () => undefined,
+    refreshWidget: jest.fn(async () => true),
+    getActivity: jest.fn(async () => activity),
+    onActivityChanged: () => () => undefined,
+    clearActivity: jest.fn(async () => []),
   };
   window.nebulaHub = bridge;
   return {
@@ -249,5 +274,124 @@ describe('App: confirmations (R04)', () => {
     await render(<App />);
     await act(async () => navigate({ screen: 'downloads' }));
     expect(screen.getByRole('heading', { level: 1, name: 'Téléchargements' })).toBeInTheDocument();
+  });
+});
+
+describe('App: Home widgets and activity center (M7)', () => {
+  it('shows the widgets in the saved order and moves one with the keyboard, announcing it', async () => {
+    widgets = [widget(), widget({ id: 'news.headlines.today', provider: 'nebula.news', title: { fr: 'À la une' }, data: { title: 'Briefing', items: [{ label: 'Climat', value: 'Le Monde' }], updatedAt: '2026-10-02T09:00:00.000Z' } })];
+    const { bridge } = installBridge({ widgetOrder: ['news.headlines.today', 'clock.focus.today'] });
+    await render(<App />);
+    const cards = within(screen.getByRole('list', { name: 'En un coup d’œil' })).getAllByRole('article');
+    expect(cards.map((card) => within(card).getByRole('heading', { level: 3 }).textContent)).toEqual(['À la une', 'Focus du jour']);
+    expect(screen.getByRole('button', { name: 'Déplacer À la une vers le début' })).toBeDisabled();
+    await userEvent.click(screen.getByRole('button', { name: 'Déplacer Focus du jour vers le début' }));
+    expect(bridge.updateSettings).toHaveBeenCalledWith({ widgetOrder: ['clock.focus.today', 'news.headlines.today'] });
+    expect(screen.getByRole('status')).toHaveTextContent('Focus du jour est maintenant en position 1 sur 2.');
+  });
+
+  it('masks a private value until asked, and asks for consent on an undecided private widget', async () => {
+    widgets = [
+      widget({ id: 'finterest.budget.remaining', provider: 'nebula.finterest', title: { fr: 'Reste à vivre' }, sensitivity: 'private', data: { title: 'Ce mois-ci', value: '412', unit: '€', updatedAt: '2026-10-02T09:00:00.000Z' } }),
+      widget({ id: 'finterest.other', provider: 'nebula.finterest', title: { fr: 'Prélèvements' }, sensitivity: 'private', state: 'consent-required', data: null }),
+    ];
+    const { bridge } = installBridge();
+    await render(<App />);
+    expect(screen.queryByText('412')).not.toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'Valeur masquée' })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Afficher la valeur de Reste à vivre' }));
+    expect(screen.getByText('412')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Masquer la valeur de Reste à vivre' })).toHaveAttribute('aria-pressed', 'true');
+
+    expect(screen.getByText('Cette carte affiche une donnée privée de Nebula Finterest. L’autoriser sur l’accueil ?')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Autoriser' }));
+    expect(bridge.setLinkConsent).toHaveBeenCalledWith('nebula.hub', 'finterest.other', 'granted');
+  });
+
+  it('offers to open an app whose widget is offline', async () => {
+    widgets = [widget({ state: 'offline', data: null })];
+    const { bridge } = installBridge();
+    await render(<App />);
+    await userEvent.click(screen.getByRole('button', { name: 'Lancer Nebula Clock' }));
+    expect(bridge.launchApp).toHaveBeenCalledWith('nebula.clock');
+  });
+
+  it('lists the activity, hides private text until asked, opens a deep link and marks everything read', async () => {
+    activity = [
+      entry({ id: 3, appId: 'nebula.hub', title: 'Nebula Clock est à jour', body: 'Version 1.2.0.', deepLink: 'nebula://hub/downloads', receivedAt: '2026-09-30T10:00:00.000Z' }),
+      entry({ id: 2, appId: 'nebula.finterest', title: 'Prélèvement demain', body: 'Loyer', sensitivity: 'private', receivedAt: '2026-09-30T09:30:00.000Z' }),
+      entry({ id: 1, receivedAt: '2026-09-28T09:00:00.000Z' }),
+    ];
+    const { bridge } = installBridge({ activitySeenAt: '2026-09-29T12:00:00.000Z' });
+    await render(<App />);
+    const panel = screen.getByRole('region', { name: 'Activité récente' });
+    expect(within(panel).getByText('2 non lue(s)')).toBeInTheDocument();
+    expect(within(panel).queryByText('Prélèvement demain')).not.toBeInTheDocument();
+    await userEvent.click(within(panel).getByRole('button', { name: /Afficher/ }));
+    expect(within(panel).getByText('Prélèvement demain')).toBeInTheDocument();
+    await userEvent.click(within(panel).getByRole('button', { name: /Ouvrir/ }));
+    expect(bridge.openDeepLink).toHaveBeenCalledWith('nebula://hub/downloads');
+    await userEvent.click(within(panel).getByRole('button', { name: /Tout marquer comme lu/ }));
+    expect(bridge.updateSettings).toHaveBeenCalledWith({ activitySeenAt: expect.stringMatching(/^\d{4}-/) });
+    expect(within(panel).getByText('Tout est lu')).toBeInTheDocument();
+  });
+
+  it('erases the history from Settings → Advanced after a confirmation', async () => {
+    activity = [entry()];
+    const { bridge } = installBridge();
+    await render(<App />);
+    await userEvent.click(screen.getByRole('button', { name: 'Réglages' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Effacer Nebula Clock' }));
+    const dialog = screen.getByRole('alertdialog', { name: 'Effacer l’historique ?' });
+    expect(within(dialog).getByRole('button', { name: 'Annuler' })).toHaveFocus();
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Effacer' }));
+    expect(bridge.clearActivity).toHaveBeenCalledWith('nebula.clock');
+  });
+
+  it('mutes one app in Windows notifications and turns start with Windows on', async () => {
+    const { bridge } = installBridge();
+    await render(<App />);
+    await userEvent.click(screen.getByRole('button', { name: 'Réglages' }));
+    await userEvent.click(within(screen.getByRole('group', { name: 'Par app' })).getByRole('switch', { name: 'Nebula Clock' }));
+    expect(bridge.updateSettings).toHaveBeenCalledWith({ mutedApps: ['nebula.clock'] });
+    await userEvent.click(screen.getByRole('switch', { name: /Démarrer avec Windows/ }));
+    expect(bridge.updateSettings).toHaveBeenCalledWith({ launchAtLogin: true });
+  });
+});
+
+describe('App: first launch (M7)', () => {
+  it('walks through the three screens with the keyboard, applies the choices and finishes', async () => {
+    const { bridge } = installBridge();
+    await render(<App />);
+    await userEvent.click(screen.getByRole('button', { name: 'Réglages' }));
+    await userEvent.click(screen.getByRole('button', { name: /Revoir l’accueil/ }));
+    const dialog = screen.getByRole('dialog', { name: 'Bienvenue dans Nebula Hub' });
+    expect(within(dialog).getByRole('heading', { level: 2 })).toHaveFocus();
+    expect(within(dialog).getByText('Étape 1 sur 3')).toBeInTheDocument();
+
+    await userEvent.keyboard('{Tab}{Enter}');
+    const apps = screen.getByRole('dialog', { name: 'Vos apps déjà installées' });
+    expect(within(apps).getByText('Nebula Finterest')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: /Suivant/ }));
+    const login = screen.getByRole('radiogroup', { name: 'Démarrer avec Windows' });
+    await userEvent.click(within(login).getByRole('radio', { name: 'Oui' }));
+    expect(bridge.updateSettings).toHaveBeenCalledWith({ launchAtLogin: true });
+    await userEvent.click(within(screen.getByRole('radiogroup', { name: 'Notifications Windows' })).getByRole('radio', { name: 'Non' }));
+    expect(bridge.updateSettings).toHaveBeenCalledWith({ windowsNotifications: false });
+
+    await userEvent.click(screen.getByRole('button', { name: 'C’est parti' }));
+    expect(bridge.updateSettings).toHaveBeenCalledWith({ onboardingCompleted: true });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('can be skipped with Escape', async () => {
+    const { bridge } = installBridge();
+    await render(<App />);
+    await userEvent.click(screen.getByRole('button', { name: 'Réglages' }));
+    await userEvent.click(screen.getByRole('button', { name: /Revoir l’accueil/ }));
+    await userEvent.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(bridge.updateSettings).toHaveBeenCalledWith({ onboardingCompleted: true });
   });
 });

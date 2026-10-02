@@ -5,13 +5,16 @@ import { EMPTY_CATALOG_VIEW, type CatalogView } from '@shared/catalog-view';
 import { EMPTY_INSTALLED_VIEW, type InstalledView } from '@shared/installed-view';
 import { needsConfirmation, type DownloadsView, type OperationKind, type OperationPlan, type OperationView } from '@shared/install-state';
 import { updateAvailable } from '@shared/installed-view';
-import type { ConsentState } from '@shared/consent';
+import { HUB_ID, type ConsentState } from '@shared/consent';
+import type { ActivityItem } from '@shared/activity';
+import type { WidgetView } from '@shared/widgets';
 import type { LinkView } from '@shared/link-view';
 import { playSound } from '@nebula/design';
 import type { HubSettings, SettingsPatch } from '@shared/settings';
 import { localize } from '@shared/catalog';
 import { familyEntries } from './catalog';
 import { HubMark } from './brand/HubMark';
+import { Onboarding } from './components/Onboarding';
 import { ConfirmDialog, OperationConfirmation } from './components/ConfirmDialog';
 import { ErrorState } from './components/ScreenState';
 import { Sidebar } from './components/Sidebar';
@@ -43,6 +46,10 @@ export function App() {
   const [downloads, setDownloads] = useState<DownloadsView | undefined>(undefined);
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const [link, setLink] = useState<LinkView | undefined>(undefined);
+  const [widgets, setWidgets] = useState<WidgetView[]>([]);
+  const [activity, setActivity] = useState<ActivityItem[]>([]);
+  // Shown once after the splash, until finished or skipped (brief §9.9); "Show again" in Settings.
+  const [onboarding, setOnboarding] = useState(!initial.settings.onboardingCompleted && !initial.startedHidden);
   const appearance = settings.appearance;
   const language = appearance.language;
 
@@ -149,6 +156,32 @@ export function App() {
 
   const denyLinkApp = useCallback((appId: string) => {
     void bridge.denyLinkApp(appId).then(setLink, () => undefined);
+  }, [bridge]);
+
+  // Home widgets (I3) and the activity center (I5), then every change from the main process.
+  useEffect(() => {
+    let active = true;
+    void bridge.getWidgets().then((view) => active && setWidgets(view), () => undefined);
+    void bridge.getActivity().then((items) => active && setActivity(items), () => undefined);
+    const offWidgets = bridge.onWidgetsChanged(setWidgets);
+    const offActivity = bridge.onActivityChanged(setActivity);
+    return () => {
+      active = false;
+      offWidgets();
+      offActivity();
+    };
+  }, [bridge]);
+
+  const openDeepLink = useCallback((url: string) => {
+    void bridge.openDeepLink(url);
+  }, [bridge]);
+
+  const refreshWidget = useCallback((capability: string) => {
+    void bridge.refreshWidget(capability);
+  }, [bridge]);
+
+  const clearActivity = useCallback((appId: string | null) => {
+    void bridge.clearActivity(appId).then(setActivity, () => undefined);
   }, [bridge]);
 
   const appName = useCallback((appId: string) => catalog.entries.find((entry) => entry.app.id === appId)?.app.name ?? appId, [catalog.entries]);
@@ -261,6 +294,18 @@ export function App() {
     else apply();
   }, [catalog.entries, settings.autoUpdate, updateSettings]);
 
+  const reorderWidgets = useCallback((order: string[]) => updateSettings({ widgetOrder: order }), [updateSettings]);
+  const widgetConsent = useCallback((capability: string, state: ConsentState) => setLinkConsent(HUB_ID, capability, state), [setLinkConsent]);
+  const markActivityRead = useCallback(() => updateSettings({ activitySeenAt: new Date().toISOString() }), [updateSettings]);
+  const openActivity = useCallback((item: ActivityItem) => {
+    if (item.deepLink) openDeepLink(item.deepLink);
+  }, [openDeepLink]);
+  const finishOnboarding = useCallback(() => {
+    setOnboarding(false);
+    updateSettings({ onboardingCompleted: true });
+  }, [updateSettings]);
+  const replayOnboarding = useCallback(() => setOnboarding(true), []);
+
   // The tray can ask for a screen (e.g. "Updates available").
   useEffect(() => bridge.onNavigateRequest(setRoute), [bridge]);
 
@@ -318,17 +363,46 @@ export function App() {
         <div className="workspace-column">
           {saveError ? <ErrorState message={t('error.saveSettings')} /> : null}
           {launchError ? <ErrorState message={launchError} onRetry={() => setLaunchError(null)} /> : null}
-          {route.screen === 'home' ? <HomeScreen {...catalogProps} link={link} version={initial.appVersion} /> : null}
+          {route.screen === 'home' ? (
+            <HomeScreen
+              {...catalogProps}
+              link={link}
+              version={initial.appVersion}
+              widgets={widgets}
+              widgetOrder={settings.widgetOrder}
+              activity={activity}
+              activitySeenAt={settings.activitySeenAt}
+              onReorderWidgets={reorderWidgets}
+              onWidgetConsent={widgetConsent}
+              onRefreshWidget={refreshWidget}
+              onOpenLink={openDeepLink}
+              onMarkActivityRead={markActivityRead}
+              onOpenActivity={openActivity}
+            />
+          ) : null}
           {route.screen === 'discover' ? <DiscoverScreen {...catalogProps} /> : null}
           {route.screen === 'app' ? <AppDetailScreen key={route.appId} {...catalogProps} appId={route.appId} loadAsset={loadAsset} onOpenLink={openLink} /> : null}
           {route.screen === 'my-apps' ? <MyAppsScreen {...catalogProps} onRefreshInstalled={refreshInstalled} /> : null}
           {route.screen === 'downloads' ? <DownloadsScreen {...catalogProps} onExportHistory={exportHistory} /> : null}
           {route.screen === 'integrations' ? <IntegrationsScreen link={link} catalog={catalog} onNavigate={setRoute} onSetConsent={setLinkConsent} onDenyApp={denyLinkApp} /> : null}
           {route.screen === 'settings' ? (
-            <SettingsScreen settings={settings} resolvedTheme={resolvedTheme} version={initial.appVersion} catalog={catalog} onAppearanceChange={updateAppearance} onSettingsChange={updateSettings} onRefreshCatalog={refreshCatalog} onPickInstallDirectory={pickInstallDirectory} />
+            <SettingsScreen
+              settings={settings}
+              resolvedTheme={resolvedTheme}
+              version={initial.appVersion}
+              catalog={catalog}
+              activity={activity}
+              onAppearanceChange={updateAppearance}
+              onSettingsChange={updateSettings}
+              onRefreshCatalog={refreshCatalog}
+              onPickInstallDirectory={pickInstallDirectory}
+              onClearActivity={clearActivity}
+              onReplayOnboarding={replayOnboarding}
+            />
           ) : null}
         </div>
       </main>
+      {onboarding ? <Onboarding catalog={catalog} installed={installed} settings={settings} onSettingsChange={updateSettings} onFinish={finishOnboarding} /> : null}
       {dialog?.type === 'operation' && dialogEntry(dialog.plan.appId) ? (
         <OperationConfirmation
           plan={dialog.plan}

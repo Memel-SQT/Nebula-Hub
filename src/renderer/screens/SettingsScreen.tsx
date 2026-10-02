@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react';
+import { useState, type CSSProperties } from 'react';
 import {
   ACCENT_PRESETS,
   BACKGROUNDS,
@@ -17,6 +17,10 @@ import { ScreenFrame } from '../components/ScreenFrame';
 import { formatDateTime, useLanguage, useT } from '../i18n';
 import { SnapshotRow } from '../components/Cards';
 import type { CatalogView } from '@shared/catalog-view';
+import type { ActivityItem } from '@shared/activity';
+import { HUB_ID } from '@shared/consent';
+import { ConfirmDialog } from '../components/ConfirmDialog';
+import { familyEntries } from '../catalog';
 import type { HubSettings, SettingsPatch } from '@shared/settings';
 
 const BACKGROUND_ICONS: Record<BackgroundEffect, IconName> = {
@@ -36,22 +40,31 @@ const LANGUAGE_LABELS: Record<Language, string> = { fr: 'Français', en: 'Englis
  * plus two color pickers in custom mode, background preview tiles, 3-step motion control,
  * sound switch, volume and test, and "reset appearance". Every change applies immediately,
  * with no Save button. The catalog section (read-only sources, channel, last sync, key
- * fingerprint) arrives with M2; notifications, backups (ADR-016) and the Hub's own updates
- * with later milestones.
+ * fingerprint) arrives with M2; start with Windows, notifications and the Advanced section
+ * (erase the activity history, ADR-023; show the welcome screens again) with M7.
  */
-export function SettingsScreen({ settings, resolvedTheme, version, catalog, onAppearanceChange, onSettingsChange, onRefreshCatalog, onPickInstallDirectory }: {
+export function SettingsScreen({ settings, resolvedTheme, version, catalog, activity = [], onAppearanceChange, onSettingsChange, onRefreshCatalog, onPickInstallDirectory, onClearActivity, onReplayOnboarding }: {
   settings: HubSettings;
   resolvedTheme: ResolvedTheme;
   version: string;
   catalog: CatalogView;
+  activity?: ActivityItem[];
   onAppearanceChange: (patch: Partial<NebulaAppearance>) => void;
   onSettingsChange: (patch: SettingsPatch) => void;
   onRefreshCatalog: () => void;
   onPickInstallDirectory?: () => void;
+  onClearActivity?: (appId: string | null) => void;
+  onReplayOnboarding?: () => void;
 }) {
   const t = useT();
   const language = useLanguage();
   const appearance = settings.appearance;
+  // Erasing the history is confirmed (R04 spirit): undefined = no dialog, null = everything.
+  const [clearing, setClearing] = useState<string | null | undefined>(undefined);
+  const nameOf = (appId: string) => (appId === HUB_ID ? t('app.name') : catalog.entries.find((entry) => entry.app.id === appId)?.app.name ?? appId);
+  const notifyingApps = [HUB_ID, ...familyEntries(catalog).filter((entry) => entry.app.role !== 'hub').map((entry) => entry.app.id)];
+  const historyApps = [...new Set(activity.map((item) => item.appId))];
+  const toggleMuted = (appId: string) => onSettingsChange({ mutedApps: settings.mutedApps.includes(appId) ? settings.mutedApps.filter((id) => id !== appId) : [...settings.mutedApps, appId] });
 
   return (
     <ScreenFrame eyebrow={t('settings.eyebrow')} title={t('settings.title')} intro={t('settings.intro')} labelledBy="settings-title">
@@ -213,6 +226,19 @@ export function SettingsScreen({ settings, resolvedTheme, version, catalog, onAp
             <i aria-hidden="true" />
             <span>{t('settings.closeToTray')}</span>
           </button>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={settings.launchAtLogin}
+            aria-describedby="settings-login-hint"
+            className={`switch ${settings.launchAtLogin ? 'on' : ''}`}
+            data-sound="toggle"
+            onClick={() => onSettingsChange({ launchAtLogin: !settings.launchAtLogin })}
+          >
+            <i aria-hidden="true" />
+            <span>{t('settings.launchAtLogin')}</span>
+          </button>
+          <small className="path-note" id="settings-login-hint">{t('settings.launchAtLoginHint')}</small>
 
           <p className="settings-label" id="settings-install-dir-label">{t('settings.installDir')}</p>
           <div className="install-dir" aria-labelledby="settings-install-dir-label" role="group">
@@ -269,10 +295,86 @@ export function SettingsScreen({ settings, resolvedTheme, version, catalog, onAp
         </div>
 
         <div className="settings-section">
+          <h2><Icon name="bell" size={15} />{t('settings.notifications')}</h2>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={settings.windowsNotifications}
+            aria-describedby="settings-notify-hint"
+            className={`switch ${settings.windowsNotifications ? 'on' : ''}`}
+            data-sound="toggle"
+            onClick={() => onSettingsChange({ windowsNotifications: !settings.windowsNotifications })}
+          >
+            <i aria-hidden="true" />
+            <span>{t('settings.windowsNotifications')}</span>
+          </button>
+          <small className="path-note" id="settings-notify-hint">{t('settings.notificationsHint')}</small>
+          <p className="settings-label" id="settings-notify-apps">{t('settings.notifyPerApp')}</p>
+          <div className="switch-list" role="group" aria-labelledby="settings-notify-apps">
+            {notifyingApps.map((appId) => (
+              <button
+                key={appId}
+                type="button"
+                role="switch"
+                aria-checked={!settings.mutedApps.includes(appId)}
+                disabled={!settings.windowsNotifications}
+                className={`switch ${settings.mutedApps.includes(appId) ? '' : 'on'}`}
+                data-sound="toggle"
+                onClick={() => toggleMuted(appId)}
+              >
+                <i aria-hidden="true" />
+                <span>{nameOf(appId)}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="settings-section">
+          <h2><Icon name="sliders" size={15} />{t('settings.advanced')}</h2>
+          <p className="settings-label">{t('settings.activityHistory')}</p>
+          <p className="settings-copy">{t('settings.activityCount', { count: String(activity.length) })}</p>
+          {onClearActivity && activity.length ? (
+            <div className="settings-actions settings-reset">
+              <button type="button" className="ghost small danger-text" onClick={() => setClearing(null)}>
+                <Icon name="trash" size={15} />{t('settings.clearAll')}
+              </button>
+              {historyApps.map((appId) => (
+                <button key={appId} type="button" className="ghost small" onClick={() => setClearing(appId)}>
+                  <Icon name="trash" size={15} />{t('settings.clearApp', { name: nameOf(appId) })}
+                </button>
+              ))}
+            </div>
+          ) : null}
+          {onReplayOnboarding ? (
+            <>
+              <p className="settings-label">{t('settings.onboarding')}</p>
+              <button type="button" className="ghost small" onClick={onReplayOnboarding}>
+                <Icon name="sparkles" size={15} />{t('settings.onboardingReplay')}
+              </button>
+            </>
+          ) : null}
+        </div>
+
+        <div className="settings-section">
           <h2><Icon name="info" size={15} />{t('settings.about')}</h2>
           <p className="settings-copy tabular">{t('settings.aboutBody', { version })}</p>
         </div>
       </div>
+      {clearing !== undefined && onClearActivity ? (
+        <ConfirmDialog
+          title={t('settings.clear.title')}
+          icon="trash"
+          tone="danger"
+          confirmLabel={t('settings.clear.confirm')}
+          onCancel={() => setClearing(undefined)}
+          onConfirm={() => {
+            onClearActivity(clearing);
+            setClearing(undefined);
+          }}
+        >
+          <p>{clearing === null ? t('settings.clear.bodyAll') : t('settings.clear.bodyApp', { name: nameOf(clearing) })}</p>
+        </ConfirmDialog>
+      ) : null}
     </ScreenFrame>
   );
 }

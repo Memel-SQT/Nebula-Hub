@@ -1,10 +1,12 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import { CHANNELS, type InitialState, type NavigateRequest, type NebulaHubBridge } from '../shared/bridge';
+import type { ActivityItem } from '../shared/activity';
 import type { CatalogView } from '../shared/catalog-view';
 import type { DownloadsView } from '../shared/install-state';
 import type { InstalledView } from '../shared/installed-view';
 import type { LinkView } from '../shared/link-view';
 import type { HubSettings } from '../shared/settings';
+import type { WidgetView } from '../shared/widgets';
 
 function subscribe<T>(channel: string, callback: (payload: T) => void): () => void {
   const listener = (_event: unknown, payload: T) => callback(payload);
@@ -48,6 +50,13 @@ const bridge: NebulaHubBridge = {
   onLinkChanged: (callback) => subscribe<LinkView>(CHANNELS.linkChanged, callback),
   setLinkConsent: (consumer, capability, state) => ipcRenderer.invoke(CHANNELS.linkSetConsent, consumer, capability, state),
   denyLinkApp: (appId) => ipcRenderer.invoke(CHANNELS.linkDenyApp, appId),
+  openDeepLink: (url) => ipcRenderer.invoke(CHANNELS.linkOpen, url),
+  getWidgets: () => ipcRenderer.invoke(CHANNELS.widgetsGet),
+  onWidgetsChanged: (callback) => subscribe<WidgetView[]>(CHANNELS.widgetsChanged, callback),
+  refreshWidget: (capabilityId) => ipcRenderer.invoke(CHANNELS.widgetRefresh, capabilityId),
+  getActivity: () => ipcRenderer.invoke(CHANNELS.activityGet),
+  onActivityChanged: (callback) => subscribe<ActivityItem[]>(CHANNELS.activityChanged, callback),
+  clearActivity: (appId) => ipcRenderer.invoke(CHANNELS.activityClear, appId),
 };
 
 contextBridge.exposeInMainWorld('nebulaHub', bridge);

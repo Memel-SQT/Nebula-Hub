@@ -9,6 +9,7 @@ import './styles/catalog.css';
 import './styles/installed.css';
 import './styles/operations.css';
 import './styles/link.css';
+import './styles/home.css';
 
 // Read-only diagnostic used by the packaged-app checks (M1): proves the canvas background
 // stops painting while the window is hidden in the tray. Exposes no data and no action.

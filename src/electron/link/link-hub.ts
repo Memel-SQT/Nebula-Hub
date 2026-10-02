@@ -1,13 +1,16 @@
 import { encodeIntentArg, shortName, type Capability, type Manifest } from '@nebula/link';
+import type { ActivityItem } from '../../shared/activity';
 import type { CatalogApp } from '../../shared/catalog';
 import { decide, HUB_ID, hubConsumes, notifyCapability, pairKey, type ConsentState } from '../../shared/consent';
 import type { InstalledView } from '../../shared/installed-view';
 import type { LinkCapabilityView, LinkPairView, LinkView } from '../../shared/link-view';
 import type { Route } from '../../shared/route';
+import type { WidgetView } from '../../shared/widgets';
 import type { HubDatabase } from '../db';
 import { HUB_MANIFEST, LinkServer, type AdmittedApp } from './link-server';
 import { LinkStore } from './link-store';
 import { readInstalledManifest, removeSession, writeSession } from './session';
+import { WidgetBoard } from './widgets';
 
 /**
  * Nebula Link inside the Hub (docs/NEBULA_LINK.md): session file, pipe server, consents and
@@ -26,6 +29,12 @@ export interface LinkHubDeps {
   appearance(): unknown;
   navigate(route: Route): void;
   onChange(view: LinkView): void;
+  /** The Home widgets changed (values in memory only). */
+  onWidgets?(widgets: WidgetView[]): void;
+  /** A new entry reached the activity center (the main process may relay it to Windows). */
+  onActivity?(item: ActivityItem): void;
+  /** A private pair now waits for the user (shown in Windows if the Hub is hidden). */
+  onConsentRequest?(consumer: string, capability: string): void;
   now?(): Date;
 }
 
@@ -44,6 +53,7 @@ function notifyCapabilityView(appId: string): LinkCapabilityView {
 export class LinkHub {
   readonly store: LinkStore;
   server: LinkServer | null = null;
+  readonly widgets: WidgetBoard;
   private token = '';
   private readonly manifests = new Map<string, Manifest>();
   private readonly pending = new Map<string, { consumer: string; capability: string; at: string }>();
@@ -51,6 +61,13 @@ export class LinkHub {
 
   constructor(private readonly deps: LinkHubDeps) {
     this.store = new LinkStore(deps.db);
+    this.widgets = new WidgetBoard({
+      manifests: () => [...this.manifests.values()],
+      connected: () => this.server?.connectedApps().map((entry) => entry.appId) ?? [],
+      query: (capability) => (this.server ? this.server.queryAs(HUB_ID, capability) : Promise.resolve({ error: 'provider-offline' })),
+      onChange: (widgets) => this.deps.onWidgets?.(widgets),
+      now: deps.now ? () => deps.now!().getTime() : undefined,
+    });
   }
 
   private now(): Date {
@@ -74,20 +91,21 @@ export class LinkHub {
         const key = pairKey(consumer, capability);
         if (this.pending.has(key)) return;
         this.pending.set(key, { consumer, capability, at: this.now().toISOString() });
+        this.deps.onConsentRequest?.(consumer, capability);
         this.changed();
       },
       audit: (entry) => this.store.audit(entry),
       appearance: () => this.deps.appearance(),
       managesUpdates: () => true,
       notification: (appId, notification) => {
-        void this.store.addNotification(appId, {
+        void this.addActivity(appId, {
           notificationId: typeof notification.id === 'string' ? notification.id : null,
           title: String(notification.title),
           body: String(notification.body),
           sensitivity: notification.sensitivity === 'private' ? 'private' : 'public',
           deepLink: typeof notification.deepLink === 'string' ? notification.deepLink : null,
           category: typeof notification.category === 'string' ? notification.category : null,
-        }, this.now().toISOString()).catch(() => undefined);
+        });
       },
       launchWithIntent: (appId, intent) => this.deps.launch(appId, [encodeIntentArg(intent)]),
       openAppPage: (appId) => this.deps.navigate({ screen: 'app', appId }),
@@ -96,7 +114,10 @@ export class LinkHub {
         if (route) this.deps.navigate(route);
         return Boolean(route);
       },
-      onChange: () => this.changed(),
+      onChange: () => {
+        this.widgets.connectionsChanged();
+        this.changed();
+      },
       now: this.deps.now,
     });
     try {
@@ -104,10 +125,12 @@ export class LinkHub {
     } catch {
       // Pipe taken (another Hub of this user, or squatted): Link is shown as unavailable.
     }
+    this.widgets.start();
     this.changed();
   }
 
   async stop(): Promise<void> {
+    this.widgets.stop();
     await this.server?.stop();
     await removeSession(this.deps.sessionDir, this.token);
     await this.store.flush().catch(() => undefined);
@@ -135,6 +158,7 @@ export class LinkHub {
     this.installedIds = ids;
     for (const appId of [...this.manifests.keys()]) if (!ids.has(appId)) this.manifests.delete(appId);
     for (const appId of ids) await this.admit(appId);
+    this.widgets.sync();
     this.changed();
   }
 
@@ -150,6 +174,7 @@ export class LinkHub {
     await this.store.setConsent(consumer, capability, state, this.now().toISOString());
     this.pending.delete(pairKey(consumer, capability));
     this.server?.consentChanged(consumer, capability, state);
+    if (consumer === HUB_ID) this.widgets.consentChanged(capability);
     this.changed();
     return this.view();
   }
@@ -161,10 +186,35 @@ export class LinkHub {
         await this.store.setConsent(pair.consumer, pair.capability, 'denied', this.now().toISOString());
         this.pending.delete(pairKey(pair.consumer, pair.capability));
         this.server?.consentChanged(pair.consumer, pair.capability, 'denied');
+        if (pair.consumer === HUB_ID) this.widgets.consentChanged(pair.capability);
       }
     }
     this.changed();
     return this.view();
+  }
+
+  // ---- Activity center (I5).
+
+  /** Stores an entry (an app's notification, or the Hub's own) and tells the main process. */
+  async addActivity(appId: string, entry: { notificationId: string | null; title: string; body: string; sensitivity: 'public' | 'private'; deepLink: string | null; category: string | null }): Promise<ActivityItem | null> {
+    try {
+      const stored = await this.store.addNotification(appId, entry, this.now().toISOString());
+      const item: ActivityItem = { ...stored };
+      this.deps.onActivity?.(item);
+      return item;
+    } catch {
+      return null;
+    }
+  }
+
+  activity(): ActivityItem[] {
+    return this.store.listNotifications().map((stored) => ({ ...stored }));
+  }
+
+  /** Settings → Advanced (ADR-023): the whole history, or one app's. */
+  async clearActivity(appId?: string): Promise<ActivityItem[]> {
+    await this.store.deleteNotifications(appId);
+    return this.activity();
   }
 
   view(): LinkView {

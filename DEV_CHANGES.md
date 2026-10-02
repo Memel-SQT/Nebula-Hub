@@ -2,6 +2,17 @@
 
 Technical log, newest session first. Release notes live only in the GitHub release body.
 
+## [2026-10-02] - Nebula Hub Session #8 — M7: the Hub
+
+- **Widgets (I3)**: `WidgetBoard` (`src/electron/link/widgets.ts`) reads every `widget` capability of the admitted apps as `nebula.hub` through the Link server, at connection then at the declared interval (min 30 s, 5 min default, 30 s retry while a connected app is not ready); undecided or refused private widgets are not polled again until their consent changes; nothing is read while the window is hidden, and private values are dropped then. Values only in memory; the order is a setting (`widgetOrder`). Pure rules in `shared/widgets.ts`.
+- **Activity center (I5)**: `LinkHub.addActivity` stores app notifications and the Hub's own finished operations (from the install history, under `nebula.hub`, deep link to Downloads); unread = newer than `activitySeenAt`; erasable all / per app. `shared/activity.ts`: unread count, relay rule, toast content.
+- **Windows notifications** (`notifier.ts`): relayed when the Hub is not focused, global switch and per-app mute; private notifications show only the app name and a neutral sentence; consent requests while hidden are announced; a click routes the deep link or opens Home / Integrations. Main-process strings take parameters.
+- **Main**: window visibility listeners (widgets pause and forget private values when hidden), IPC for widgets, activity and deep links, tray entry for unread activity.
+- **UI**: Home rebuilt (KPI row with connected apps, updates, launcher and widgets in the main column, activity center as a sticky side panel, stacked under 1100 px); widget cards (WidgetV1 templates, masked private values with blur reveal, consent buttons, offline → launch the app, refresh, deep link, drag and drop, keyboard move buttons with a live announcement); activity panel; first-launch dialog (3 steps, skippable, Escape, focus on each title, yes/no radio groups); Settings: start with Windows, notifications (global, per app), Advanced (erase history with confirmation, show the welcome again). Icons eye, eyeOff, grip, rocket.
+- **Tests**: shared rules (widgets, activity, settings, main strings), two bench scenarios over real pipes (private widget: consent asked, granted, read, forgotten when hidden; widget offline when its app leaves), App tests for keyboard and screen-reader paths (widget move with announcement, masked value, consent, offline launch, activity, erase with confirmation, mute, start with Windows, first launch by keyboard and Escape).
+- **Live check** (dev Hub, throwaway folder): first launch with the real detected apps; injected widgets and activity rendered at 1280, 1050 and 1900 px without horizontal overflow.
+- Validation: typecheck, lint, tests, build.
+
 ## [2026-10-01] - Nebula Hub Session #7 — M6: Nebula Link
 
 - **Specification** `docs/NEBULA_LINK.md` written, validated with the user's decisions (ADR-023: renames to `clock.*` / `nebula.hub.present`, non-blocking consent, private notifications kept 30 days and erasable, no global pause, sandbox recipes set aside), then completed with implementation notes (§ 16, ADR-024).

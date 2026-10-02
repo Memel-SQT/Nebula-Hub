@@ -1,9 +1,11 @@
 import path from 'node:path';
 import { app, dialog, ipcMain, nativeTheme, shell } from 'electron';
+import { shouldRelay, toastContent, unreadCount, type ActivityItem } from '../shared/activity';
 import { CHANNELS, type InitialState, type NavigateRequest } from '../shared/bridge';
-import type { ConsentState } from '../shared/consent';
+import { HUB_ID, type ConsentState } from '../shared/consent';
 import type { OperationKind } from '../shared/install-state';
 import { updateAvailable } from '../shared/installed-view';
+import { mainString, operationEntry } from '../shared/main-strings';
 import type { HubSettings } from '../shared/settings';
 import { isSafeExternalUrl } from '../shared/url';
 import { InstalledAppsService } from './apps/installed-apps';
@@ -19,10 +21,11 @@ import { InstallManager } from './install/install-manager';
 import { spawnInstallerRunner } from './install/installer-runner';
 import { downloadFile, verifyFile } from './net/download';
 import { httpGet } from './net/http';
+import { showWindowsNotification } from './notifier';
 import { hardenApp, hardenSession, isTrustedSender } from './security';
 import { SettingsStore } from './settings-store';
 import { createTray, destroyTray, updateTray, type TrayOptions } from './tray';
-import { applyWindowTheme, createMainWindow, getMainWindow, setQuitting, showMainWindow } from './window';
+import { applyWindowTheme, createMainWindow, getMainWindow, isWindowFocused, onWindowVisibilityChange, setQuitting, showMainWindow } from './window';
 
 // Pinned explicitly (ADR-007, ADR-013): a future product rename must never orphan the
 // consents and history. NEBULA_HUB_USER_DATA_DIR points manual tests at a throwaway folder; it
@@ -101,7 +104,17 @@ if (!app.requestSingleInstanceLock()) {
       installDirectory: () => settingsStore.get().installDirectory,
     });
     await installs.cleanup();
-    installs.onChange((view) => getMainWindow()?.webContents.send(CHANNELS.downloadsChanged, view));
+    let lastHistoryId = Math.max(0, ...installs.getView().history.map((entry) => entry.id));
+    installs.onChange((view) => {
+      getMainWindow()?.webContents.send(CHANNELS.downloadsChanged, view);
+      // Finished operations also reach the activity center (and Windows, if the Hub is hidden).
+      for (const entry of [...view.history].reverse()) {
+        if (entry.id <= lastHistoryId) continue;
+        lastHistoryId = entry.id;
+        const content = operationEntry(settingsStore.get().appearance.language, entry, appName(entry.appId));
+        if (content) void link?.addActivity(HUB_ID, { notificationId: null, ...content, sensitivity: 'public', deepLink: 'nebula://hub/downloads', category: 'operation' });
+      }
+    });
     link = new LinkHub({
       db: database,
       hubVersion: app.getVersion(),
@@ -115,8 +128,13 @@ if (!app.requestSingleInstanceLock()) {
       appearance: () => settingsStore.get().appearance,
       navigate: (route) => void openWindowOn(route),
       onChange: (view) => getMainWindow()?.webContents.send(CHANNELS.linkChanged, view),
+      onWidgets: (widgets) => getMainWindow()?.webContents.send(CHANNELS.widgetsChanged, widgets),
+      onActivity: (item) => activityAdded(item),
+      onConsentRequest: (consumer, capability) => consentRequested(consumer, capability),
     });
     await link.start();
+    onWindowVisibilityChange((visible) => link?.widgets.setVisible(visible));
+    if (startedHidden) link.widgets.setVisible(false);
     installed.onChange((view) => void link?.onInstalledChanged(view));
     if (app.isPackaged) app.setAsDefaultProtocolClient('nebula');
     // A new catalog may list new apps: detect again.
@@ -183,6 +201,33 @@ async function openWindowOn(screen: NavigateRequest): Promise<void> {
 /** Coming back to the Hub re-checks what is installed and running (debounced, brief 7.1). */
 app.on('browser-window-focus', () => installed?.requestDetect());
 
+function appName(appId: string): string {
+  return catalog?.catalogApps().find((candidate) => candidate.id === appId)?.name ?? appId;
+}
+
+/** A new activity entry: pushed to the window, counted in the tray, relayed to Windows if needed. */
+function activityAdded(item: ActivityItem): void {
+  getMainWindow()?.webContents.send(CHANNELS.activityChanged, link?.activity() ?? []);
+  updateTray(trayOptions());
+  const settings = settingsStore.get();
+  if (!shouldRelay(item, settings, isWindowFocused())) return;
+  const content = toastContent(item, appName(item.appId), mainString(settings.appearance.language, 'toastPrivate'));
+  showWindowsNotification(content, () => {
+    if (item.deepLink) void link?.routeDeepLink(item.deepLink).then(() => openWindow());
+    else void openWindowOn({ screen: 'home' });
+  });
+}
+
+/** A private pair waits for the user: if the Hub is not in front, Windows says so (spec § 6). */
+function consentRequested(consumer: string, capability: string): void {
+  const settings = settingsStore.get();
+  if (!settings.windowsNotifications || isWindowFocused()) return;
+  const title = link?.view().capabilities.find((candidate) => candidate.id === capability)?.title;
+  const language = settings.appearance.language;
+  const body = mainString(language, 'consentBody', { name: consumer === HUB_ID ? 'Nebula Hub' : appName(consumer), capability: (language === 'en' ? title?.en : undefined) ?? title?.fr ?? capability });
+  showWindowsNotification({ title: mainString(language, 'consentTitle'), body }, () => void openWindowOn({ screen: 'integrations' }));
+}
+
 function quit(): void {
   setQuitting(true);
   app.quit();
@@ -200,11 +245,14 @@ function trayOptions(): TrayOptions {
     const entry = entries.find((candidate) => candidate.app.id === record.appId);
     return entry?.app.role !== 'hub' && updateAvailable(entry, record);
   }).length;
+  const settings = settingsStore.get();
   return {
-    language: settingsStore.get().appearance.language,
+    language: settings.appearance.language,
     apps: launchable,
     updates,
+    unread: link ? unreadCount(link.activity(), settings.activitySeenAt) : 0,
     onOpen: () => void openWindow(),
+    onShowActivity: () => void openWindowOn({ screen: 'home' }),
     onCheckUpdates: () => void catalog?.refresh(true).then(() => installed?.detect()),
     onShowUpdates: () => void openWindowOn({ screen: 'my-apps' }),
     onLaunch: (appId) => void installed?.launch(appId),
@@ -388,6 +436,34 @@ function registerIpcHandlers(): void {
   ipcMain.handle(CHANNELS.linkDenyApp, async (event, appId: unknown) => {
     if (!isTrustedSender(event) || !link || typeof appId !== 'string') throw new Error('ERR_BAD_REQUEST');
     return link.denyApp(appId);
+  });
+
+  ipcMain.handle(CHANNELS.linkOpen, async (event, url: unknown) => {
+    if (!isTrustedSender(event) || !link || typeof url !== 'string' || !url.startsWith('nebula://')) return false;
+    return (await link.routeDeepLink(url)) !== 'invalid';
+  });
+
+  ipcMain.handle(CHANNELS.widgetsGet, (event) => {
+    if (!isTrustedSender(event) || !link) throw new Error('ERR_UNTRUSTED_SENDER');
+    return link.widgets.views();
+  });
+
+  ipcMain.handle(CHANNELS.widgetRefresh, async (event, capabilityId: unknown) => {
+    if (!isTrustedSender(event) || !link || typeof capabilityId !== 'string') return false;
+    await link.widgets.refresh(capabilityId);
+    return true;
+  });
+
+  ipcMain.handle(CHANNELS.activityGet, (event) => {
+    if (!isTrustedSender(event) || !link) throw new Error('ERR_UNTRUSTED_SENDER');
+    return link.activity();
+  });
+
+  ipcMain.handle(CHANNELS.activityClear, async (event, appId: unknown) => {
+    if (!isTrustedSender(event) || !link || !(appId === null || typeof appId === 'string')) throw new Error('ERR_BAD_REQUEST');
+    const items = await link.clearActivity(appId ?? undefined);
+    updateTray(trayOptions());
+    return items;
   });
 
   ipcMain.handle(CHANNELS.catalogAsset, async (event, appId: unknown, assetPath: unknown) => {
