@@ -6,6 +6,7 @@ import { isActive, type OperationView } from '@shared/install-state';
 import { updateAvailable, type InstalledApp } from '@shared/installed-view';
 import { progressRatio } from '@shared/progress';
 import { formatPercent, useLanguage, useT } from '../i18n';
+import { installable } from '../catalog';
 
 export type Tone = 'accent' | 'positive' | 'gold' | 'warning' | 'danger';
 
@@ -103,13 +104,15 @@ function waveTile(tile: HTMLElement | null): void {
  * Launcher / catalog tile. In `launch` mode an installed app starts in one click (the Hub is a
  * launcher, ADR-013) and its page stays one button away; otherwise the tile opens the page.
  */
-export function AppTile({ entry, installed, operation, mode = 'browse', onOpen, onLaunch }: {
+export function AppTile({ entry, installed, operation, mode = 'browse', onOpen, onLaunch, onInstall }: {
   entry: CatalogEntry;
   installed?: InstalledApp;
   operation?: OperationView;
   mode?: 'launch' | 'browse';
   onOpen: () => void;
   onLaunch?: () => void;
+  /** Install in one click from the tile (user request): only for an app not installed yet. */
+  onInstall?: () => void;
 }) {
   const t = useT();
   const language = useLanguage();
@@ -117,6 +120,7 @@ export function AppTile({ entry, installed, operation, mode = 'browse', onOpen, 
   const { app, release } = entry;
   const canLaunch = mode === 'launch' && Boolean(onLaunch) && Boolean(installed?.exeFound) && app.role !== 'hub';
   const version = installed?.version ?? release?.version ?? null;
+  const canInstall = Boolean(onInstall) && !installed && !(operation && isActive(operation.phase)) && installable(entry);
   return (
     <article ref={tile} className={`app-tile nebula-surface ${installed ? 'is-installed' : ''}`}>
       <button
@@ -144,7 +148,11 @@ export function AppTile({ entry, installed, operation, mode = 'browse', onOpen, 
       <span className="app-tile-foot">
         <span className="category-chip">{t(`category.${app.category}`)}</span>
         {version ? <span className="version-chip tabular">v{version}</span> : null}
-        {canLaunch ? (
+        {canInstall ? (
+          <button type="button" className="small app-tile-install" data-sound="none" aria-label={t('install.action.installNamed', { name: app.name })} onClick={onInstall}>
+            <Icon name="download" size={14} />{t('install.action.install')}
+          </button>
+        ) : canLaunch ? (
           <button type="button" className="app-tile-more plain" data-sound="nav" aria-label={t('app.action.detailsNamed', { name: app.name })} onClick={onOpen}>
             {t('app.action.details')}<Icon name="chevronRight" size={14} />
           </button>

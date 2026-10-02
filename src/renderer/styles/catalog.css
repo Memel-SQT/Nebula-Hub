@@ -28,7 +28,7 @@
 .repository-link { margin-top: 1rem; }
 
 /* Screenshot carousel: scroll-snap strip, controls below. */
-.screenshots { max-width: 1480px; margin-bottom: 1rem; }
+.screenshots { margin-bottom: 1rem; }
 .screenshot-strip { display: grid; grid-auto-flow: column; grid-auto-columns: min(78%, 860px); gap: 1rem; overflow-x: auto; padding: 0.2rem 0.2rem 0.8rem; scroll-snap-type: x mandatory; scrollbar-width: thin; }
 .screenshot-strip:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 4px; border-radius: var(--radius); }
 .screenshot { margin: 0; overflow: hidden; aspect-ratio: 16 / 10; border-radius: var(--radius); scroll-snap-align: start; animation: card-fade-in var(--motion-slow) var(--ease-out) both; }

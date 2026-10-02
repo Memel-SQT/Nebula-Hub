@@ -3,6 +3,7 @@ import type { CatalogView } from './catalog-view';
 import type { DownloadsView, EnqueueResult, OperationKind, OperationPlan } from './install-state';
 import type { InstalledView, LaunchResult } from './installed-view';
 import type { ActivityItem } from './activity';
+import type { ExportDataResult, ImportDataResult, InstallerSaveProgress, SaveInstallerResult } from './backup';
 import type { ConsentState } from './consent';
 import type { LinkView } from './link-view';
 import type { Route } from './route';
@@ -49,6 +50,12 @@ export const CHANNELS = {
   activityGet: 'activity:get',
   activityChanged: 'activity:changed',
   activityClear: 'activity:clear',
+  dataExport: 'apps:export-data',
+  dataImport: 'apps:import-data',
+  installerSave: 'apps:save-installer',
+  installerSaveProgress: 'apps:save-installer-progress',
+  revealFile: 'shell:reveal-file',
+  pickBackupCopyDirectory: 'settings:pick-backup-copy-directory',
 } as const;
 
 /** Screens the main process may ask the renderer to show (tray menu, Nebula Link). */
@@ -109,8 +116,11 @@ export interface NebulaHubBridge {
   pickInstallDirectory(): Promise<HubSettings | null>;
   /** What an update, repair or uninstall will do (confirmation screen, R04). */
   planOperation(appId: string, kind: OperationKind): Promise<OperationPlan>;
-  /** Starts any operation; `confirmed` is the user's explicit yes on the confirmation screen. */
-  startOperation(appId: string, kind: OperationKind, confirmed: boolean): Promise<EnqueueResult>;
+  /**
+   * Starts any operation; `confirmed` is the user's explicit yes on the confirmation screen, and
+   * `skipBackup` their choice not to back up first (ADR-026, only with that yes).
+   */
+  startOperation(appId: string, kind: OperationKind, confirmed: boolean, options?: { skipBackup?: boolean }): Promise<EnqueueResult>;
   /** R08: the user asks the Hub to close the app an operation waits for (one polite request). */
   requestAppClose(operationId: string): Promise<boolean>;
   /** R04: second confirmation after a failed backup. */
@@ -135,4 +145,15 @@ export interface NebulaHubBridge {
   onActivityChanged(callback: (items: ActivityItem[]) => void): () => void;
   /** Erases the history (null: everything, else one app's). */
   clearActivity(appId: string | null): Promise<ActivityItem[]>;
+  /** The app writes a backup now (root folder, checked, copied if set) — ADR-026. */
+  exportAppData(appId: string): Promise<ExportDataResult>;
+  /** The user picks a backup; the app opens on it, or the Hub shows the steps — ADR-026. */
+  importAppData(appId: string): Promise<ImportDataResult>;
+  /** Downloads and verifies the installer, then copies it to the Downloads folder. */
+  saveInstaller(appId: string): Promise<SaveInstallerResult>;
+  onInstallerSaveProgress(callback: (progress: InstallerSaveProgress) => void): () => void;
+  /** Shows in File Explorer a file the Hub itself wrote in this session (backup, installer). */
+  revealFile(filePath: string): Promise<boolean>;
+  /** Picks the folder for the backup copies; resolves with the saved settings, or null if cancelled. */
+  pickBackupCopyDirectory(): Promise<HubSettings | null>;
 }

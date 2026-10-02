@@ -2,6 +2,7 @@ import type { CatalogView } from '@shared/catalog-view';
 import type { DownloadsView, OperationKind, OperationView } from '@shared/install-state';
 import type { InstalledView } from '@shared/installed-view';
 import type { Route } from '../navigation';
+import type { DataActions, InstallerSaves } from '../components/AppData';
 
 /** Screens fed by the signed catalog (M2) and the detection of installed apps (M3). */
 export interface CatalogScreenProps {
@@ -24,4 +25,8 @@ export interface CatalogScreenProps {
   /** Apps updated automatically (settings), and the switch. */
   autoUpdate?: Record<string, boolean>;
   onToggleAutoUpdate?: (appId: string, enabled: boolean) => void;
+  /** Export / import of the app's data, backup copy folder (ADR-026). */
+  dataActions?: DataActions;
+  /** "Download the installer" (ADR-026). */
+  installerSaves?: InstallerSaves;
 }

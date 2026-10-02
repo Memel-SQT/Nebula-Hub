@@ -43,7 +43,7 @@ const LANGUAGE_LABELS: Record<Language, string> = { fr: 'Français', en: 'Englis
  * fingerprint) arrives with M2; start with Windows, notifications and the Advanced section
  * (erase the activity history, ADR-023; show the welcome screens again) with M7.
  */
-export function SettingsScreen({ settings, resolvedTheme, version, catalog, activity = [], onAppearanceChange, onSettingsChange, onRefreshCatalog, onPickInstallDirectory, onClearActivity, onReplayOnboarding }: {
+export function SettingsScreen({ settings, resolvedTheme, version, catalog, activity = [], onAppearanceChange, onSettingsChange, onRefreshCatalog, onPickInstallDirectory, onPickBackupCopyDirectory, onClearActivity, onReplayOnboarding }: {
   settings: HubSettings;
   resolvedTheme: ResolvedTheme;
   version: string;
@@ -53,6 +53,7 @@ export function SettingsScreen({ settings, resolvedTheme, version, catalog, acti
   onSettingsChange: (patch: SettingsPatch) => void;
   onRefreshCatalog: () => void;
   onPickInstallDirectory?: () => void;
+  onPickBackupCopyDirectory?: () => void;
   onClearActivity?: (appId: string | null) => void;
   onReplayOnboarding?: () => void;
 }) {
@@ -257,6 +258,27 @@ export function SettingsScreen({ settings, resolvedTheme, version, catalog, acti
             </div>
           </div>
           <small className="path-note">{t('settings.installDir.hint')}</small>
+        </div>
+
+        <div className="settings-section">
+          <h2><Icon name="folderSync" size={15} />{t('settings.backups')}</h2>
+          <p className="settings-label" id="settings-backup-copy-label">{t('settings.backupCopy')}</p>
+          <div className="install-dir" aria-labelledby="settings-backup-copy-label" role="group">
+            {settings.backupCopyDirectory ? <code className="install-dir-path">{settings.backupCopyDirectory}</code> : <span className="install-dir-default">{t('settings.backupCopy.none')}</span>}
+            <div className="settings-actions">
+              {onPickBackupCopyDirectory ? (
+                <button type="button" className="ghost small" onClick={onPickBackupCopyDirectory}>
+                  <Icon name="folderSync" size={15} />{t('settings.backupCopy.choose')}
+                </button>
+              ) : null}
+              {settings.backupCopyDirectory ? (
+                <button type="button" className="ghost small" onClick={() => onSettingsChange({ backupCopyDirectory: null })}>
+                  <Icon name="close" size={15} />{t('settings.backupCopy.reset')}
+                </button>
+              ) : null}
+            </div>
+          </div>
+          <small className="path-note">{t('settings.backupCopy.hint')}</small>
         </div>
 
         <div className="settings-section">

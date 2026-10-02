@@ -573,12 +573,12 @@ describe('Operation status (M5)', () => {
   });
 
   it('shows where the backup goes, then that it was checked', () => {
-    renderStatus({ phase: 'backing-up', backup: { path: BACKUP, state: 'running', accounts: null, problem: null } });
+    renderStatus({ phase: 'backing-up', backup: { path: BACKUP, state: 'running', accounts: null, problem: null, copyPath: null, copyState: null } });
     expect(screen.getByText(BACKUP)).toBeInTheDocument();
   });
 
   it('blocks on a failed backup with two choices: cancel, or continue after a second confirmation', async () => {
-    const { props, view } = renderStatus({ phase: 'backup-failed', backup: { path: BACKUP, state: 'failed', accounts: null, problem: 'missing' } });
+    const { props, view } = renderStatus({ phase: 'backup-failed', backup: { path: BACKUP, state: 'failed', accounts: null, problem: 'missing', copyPath: null, copyState: null } });
     expect(screen.getByRole('alert')).toHaveTextContent('La sauvegarde n’a pas pu être faite : l’app n’a écrit aucun fichier. Rien n’a été modifié.');
     await userEvent.click(screen.getByRole('button', { name: 'Continuer sans sauvegarde' }));
     expect(props.onContinueWithoutBackup).toHaveBeenCalledWith(view);
@@ -587,7 +587,7 @@ describe('Operation status (M5)', () => {
   });
 
   it('confirms the end of each kind of operation', () => {
-    renderStatus({ phase: 'installed', backup: { path: BACKUP, state: 'ok', accounts: 2, problem: null } });
+    renderStatus({ phase: 'installed', backup: { path: BACKUP, state: 'ok', accounts: 2, problem: null, copyPath: null, copyState: null } });
     expect(screen.getByText('Nebula Finterest est à jour (v0.1.36).')).toBeInTheDocument();
     expect(screen.getByText('Sauvegarde vérifiée (2 compte(s)) :')).toBeInTheDocument();
   });

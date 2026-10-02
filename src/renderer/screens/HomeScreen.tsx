@@ -90,6 +90,7 @@ export function HomeScreen(props: CatalogScreenProps & HomeExtras) {
                     mode="launch"
                     onOpen={() => onNavigate({ screen: 'app', appId: entry.app.id })}
                     onLaunch={onLaunch ? () => onLaunch(entry.app.id) : undefined}
+                    onInstall={props.onInstall ? () => props.onInstall!(entry.app.id) : undefined}
                   />
                 ))}
               </div>

@@ -157,10 +157,17 @@ export type FailureReason =
 export interface BackupStatus {
   /** Full path of the file the app is asked to write (shown before confirming). */
   path: string;
-  state: 'pending' | 'running' | 'ok' | 'failed' | 'skipped';
+  /**
+   * `skipped`: the backup failed and the user confirmed a second time; `declined`: the user chose
+   * not to back up on the confirmation screen, which said what happens to the data (ADR-026).
+   */
+  state: 'pending' | 'running' | 'ok' | 'failed' | 'skipped' | 'declined';
   /** Accounts found in a valid backup (0 is valid: nothing to lose). */
   accounts: number | null;
   problem: BackupProblem | null;
+  /** Second copy in the folder chosen in the settings (ADR-026); the root file stays the reference. */
+  copyPath: string | null;
+  copyState: 'ok' | 'failed' | null;
 }
 
 /** One operation as the renderer sees it (queue and progress). */
@@ -240,6 +247,8 @@ export interface OperationPlan {
   needsConfirmation: boolean;
   /** Where the app's backup will be written, when it makes one. */
   backupPath: string | null;
+  /** Where its copy will go (folder chosen in the settings), if any. */
+  backupCopyPath: string | null;
   /** The app is open now: it will have to be closed (never by force, R08). */
   running: boolean;
   /** Why the operation is not possible, when it is not. */

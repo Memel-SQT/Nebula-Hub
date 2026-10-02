@@ -15,6 +15,8 @@ import { localize } from '@shared/catalog';
 import { familyEntries } from './catalog';
 import { HubMark } from './brand/HubMark';
 import { Onboarding } from './components/Onboarding';
+import type { DataActions, InstallerSaves } from './components/AppData';
+import type { InstallerSaveProgress, SaveInstallerResult } from '@shared/backup';
 import { ConfirmDialog, OperationConfirmation } from './components/ConfirmDialog';
 import { ErrorState } from './components/ScreenState';
 import { Sidebar } from './components/Sidebar';
@@ -48,6 +50,8 @@ export function App() {
   const [link, setLink] = useState<LinkView | undefined>(undefined);
   const [widgets, setWidgets] = useState<WidgetView[]>([]);
   const [activity, setActivity] = useState<ActivityItem[]>([]);
+  const [saveProgress, setSaveProgress] = useState<Record<string, InstallerSaveProgress | undefined>>({});
+  const [saveResults, setSaveResults] = useState<Record<string, SaveInstallerResult | undefined>>({});
   // Shown once after the splash, until finished or skipped (brief §9.9); "Show again" in Settings.
   const [onboarding, setOnboarding] = useState(!initial.settings.onboardingCompleted && !initial.startedHidden);
   const appearance = settings.appearance;
@@ -172,6 +176,21 @@ export function App() {
     };
   }, [bridge]);
 
+  useEffect(() => bridge.onInstallerSaveProgress((progress) => setSaveProgress((current) => ({ ...current, [progress.appId]: progress }))), [bridge]);
+
+  const saveInstaller = useCallback((appId: string) => {
+    setSaveResults((current) => ({ ...current, [appId]: undefined }));
+    setSaveProgress((current) => ({ ...current, [appId]: { appId, received: 0, total: 1 } }));
+    const done = (result: SaveInstallerResult) => {
+      setSaveProgress((current) => ({ ...current, [appId]: undefined }));
+      setSaveResults((current) => ({ ...current, [appId]: result }));
+      if (!result.ok) playSound('error');
+    };
+    void bridge.saveInstaller(appId).then(done, () => done({ ok: false, reason: 'failed' }));
+  }, [bridge]);
+
+  const installerSaves = useMemo<InstallerSaves>(() => ({ progress: saveProgress, results: saveResults, save: saveInstaller }), [saveProgress, saveResults, saveInstaller]);
+
   const openDeepLink = useCallback((url: string) => {
     void bridge.openDeepLink(url);
   }, [bridge]);
@@ -186,8 +205,8 @@ export function App() {
 
   const appName = useCallback((appId: string) => catalog.entries.find((entry) => entry.app.id === appId)?.app.name ?? appId, [catalog.entries]);
 
-  const startOperation = useCallback((appId: string, kind: OperationKind, confirmed: boolean) => {
-    void bridge.startOperation(appId, kind, confirmed).then(
+  const startOperation = useCallback((appId: string, kind: OperationKind, confirmed: boolean, skipBackup = false) => {
+    void (skipBackup ? bridge.startOperation(appId, kind, confirmed, { skipBackup }) : bridge.startOperation(appId, kind, confirmed)).then(
       (result) => {
         if (result === 'queued') {
           setLaunchError(null);
@@ -294,6 +313,17 @@ export function App() {
     else apply();
   }, [catalog.entries, settings.autoUpdate, updateSettings]);
 
+  const pickBackupCopyDirectory = useCallback(() => {
+    void bridge.pickBackupCopyDirectory().then((fresh) => fresh && handleSaved(fresh), () => setSaveError(true));
+  }, [bridge, handleSaved]);
+
+  const dataActions = useMemo<DataActions>(() => ({
+    backupCopyDirectory: settings.backupCopyDirectory,
+    exportData: (appId) => bridge.exportAppData(appId),
+    importData: (appId) => bridge.importAppData(appId),
+    reveal: (filePath) => void bridge.revealFile(filePath),
+  }), [bridge, settings.backupCopyDirectory]);
+
   const reorderWidgets = useCallback((order: string[]) => updateSettings({ widgetOrder: order }), [updateSettings]);
   const widgetConsent = useCallback((capability: string, state: ConsentState) => setLinkConsent(HUB_ID, capability, state), [setLinkConsent]);
   const markActivityRead = useCallback(() => updateSettings({ activitySeenAt: new Date().toISOString() }), [updateSettings]);
@@ -350,6 +380,8 @@ export function App() {
     onUpdateAll: updateAll,
     autoUpdate: settings.autoUpdate,
     onToggleAutoUpdate: toggleAutoUpdate,
+    dataActions,
+    installerSaves,
   };
   const closeDialog = () => setDialog(null);
   const dialogEntry = (appId: string) => catalog.entries.find((entry) => entry.app.id === appId);
@@ -396,6 +428,7 @@ export function App() {
               onSettingsChange={updateSettings}
               onRefreshCatalog={refreshCatalog}
               onPickInstallDirectory={pickInstallDirectory}
+              onPickBackupCopyDirectory={pickBackupCopyDirectory}
               onClearActivity={clearActivity}
               onReplayOnboarding={replayOnboarding}
             />
@@ -408,9 +441,9 @@ export function App() {
           plan={dialog.plan}
           entry={dialogEntry(dialog.plan.appId)!}
           onCancel={closeDialog}
-          onConfirm={() => {
+          onConfirm={(skipBackup) => {
             closeDialog();
-            startOperation(dialog.plan.appId, dialog.plan.kind, true);
+            startOperation(dialog.plan.appId, dialog.plan.kind, true, skipBackup);
           }}
         />
       ) : null}

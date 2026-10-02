@@ -2,6 +2,18 @@
 
 Technical log, newest session first. Release notes live only in the GitHub release body.
 
+## [2026-10-02] - Nebula Hub Session #9 — User feedback: app data, installers, wide layout
+
+- **Backup choice** (ADR-026, amends ADR-022): the confirmation of an update / repair / uninstall of an app that backs up has a "back up first" box, ticked; unticked, it states what happens to the data, renames the button and turns the dialog to danger. `enqueue(..., { skipBackup })` only with the confirmation, never for automatic updates; backup state `declined`.
+- **Root folder + copy**: backups stay in `Documents\<app>`; setting `backupCopyDirectory` (Settings → Backups) receives a byte copy in `<folder>\<app>\<same file>`; a failed copy is reported, never blocking (`copyPath`, `copyState`, plan `backupCopyPath`).
+- **Export / import** on the app page: `InstallManager.exportData` (backup now, checked, copied; refused during an operation); import picks a file from the root folder, checks its shape, then opens the app on it when the catalog declares `importArgument` (new optional field of `preOperationBackup`), else opens the app, shows the file and the steps.
+- **Download the installer** (`install/save-installer.ts`): same download and SHA-512 check as an install, then a copy in Downloads without overwriting (`name (2).exe`), progress pushed to the page; nothing run. `shell:reveal-file` only shows files the Hub wrote or checked in the session.
+- **Install in one click** from Discover and launcher tiles.
+- **Layout**: every screen's content is a centered column (1480 → 2280 px as the screen grows), text base 17–18 px above 2400 px, fluid KPI grid, wider launcher tiles; no overflow from 760 to 3440 px (CDP viewport emulation).
+- **`docs/PROMPT_APPS.md`**: prompt to paste in each app's repository (update and audit, Nebula Link, root backup folder with copy-only sync folder, headless backup, `--import-backup=`, publication), with Finterest, Clock and News sections.
+- **Proposal** (to validate): apps "inside the Hub" as docked windows driven by Link (ADR-026).
+- Tests: manager (declined backup, never without confirmation or for auto updates, copy, failed copy, export), save-installer, catalog import switch, App (unticked backup, tile install, export / import / reveal, installer download, copy folder).
+
 ## [2026-10-02] - Nebula Hub Session #8 — M7: the Hub
 
 - **Widgets (I3)**: `WidgetBoard` (`src/electron/link/widgets.ts`) reads every `widget` capability of the admitted apps as `nebula.hub` through the Link server, at connection then at the declared interval (min 30 s, 5 min default, 30 s retry while a connected app is not ready); undecided or refused private widgets are not polled again until their consent changes; nothing is read while the window is hidden, and private values are dropped then. Values only in memory; the order is a setting (`widgetOrder`). Pure rules in `shared/widgets.ts`.

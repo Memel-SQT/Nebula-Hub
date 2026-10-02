@@ -4,6 +4,7 @@ import { updateAvailable } from '@shared/installed-view';
 import { localize } from '@shared/catalog';
 import { catalogLoadState, findEntry, hasInstalledOnce, installable, installedOf, operationOf } from '../catalog';
 import { AppIcon, AppStateChip, Panel, SnapshotRow, StatusChip } from '../components/Cards';
+import { DataActionsPanel, InstallerSaveButton } from '../components/AppData';
 import { CatalogNotices } from '../components/CatalogNotices';
 import { Markdown } from '../components/Markdown';
 import { OperationStatus } from '../components/Operation';
@@ -19,7 +20,7 @@ import type { CatalogScreenProps } from './types';
  * Install (M4) runs from here with its live progress; update, repair and uninstall arrive in M5;
  * integrations (manifest) in M6.
  */
-export function AppDetailScreen({ appId, catalog, installed, downloads, onNavigate, onRefresh, onLaunch, onShowFolder, onInstall, onCancelOperation, onDismissOperation, onOperation, onRequestClose, onContinueWithoutBackup, loadAsset, onOpenLink }: CatalogScreenProps & {
+export function AppDetailScreen({ appId, catalog, installed, downloads, onNavigate, onRefresh, onLaunch, onShowFolder, onInstall, onCancelOperation, onDismissOperation, onOperation, onRequestClose, onContinueWithoutBackup, loadAsset, onOpenLink, dataActions, installerSaves }: CatalogScreenProps & {
   appId: string;
   loadAsset: (appId: string, path: string) => Promise<string | null>;
   onOpenLink: (url: string) => void;
@@ -111,6 +112,7 @@ export function AppDetailScreen({ appId, catalog, installed, downloads, onNaviga
                     ) : null}
                   </div>
                 ) : null}
+                {!isHub && installerSaves && dataActions ? <InstallerSaveButton entry={entry} saves={installerSaves} onReveal={dataActions.reveal} /> : null}
               </div>
               <div className="app-hero-version">
                 {local ? (
@@ -162,9 +164,10 @@ export function AppDetailScreen({ appId, catalog, installed, downloads, onNaviga
               </Panel>
             </div>
 
-            {entry.app.dataNotice ? (
-              <Panel eyebrow={t('appDetail.data')} title={entry.app.name} labelledBy="app-detail-data" className="data-panel">
-                <p className="panel-note"><Icon name="shield" size={16} />{localize(entry.app.dataNotice, language)}</p>
+            {entry.app.dataNotice || entry.app.windows.preOperationBackup ? (
+              <Panel eyebrow={t('data.eyebrow')} title={entry.app.windows.preOperationBackup ? t('data.title') : entry.app.name} labelledBy="app-detail-data" className="data-panel">
+                {entry.app.dataNotice ? <p className="panel-note"><Icon name="shield" size={16} />{localize(entry.app.dataNotice, language)}</p> : null}
+                {dataActions ? <DataActionsPanel entry={entry} installed={Boolean(local?.exeFound)} actions={dataActions} /> : null}
               </Panel>
             ) : null}
 

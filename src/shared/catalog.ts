@@ -27,6 +27,11 @@ export interface PreOperationBackup {
   filePrefix: string;
   /** Known content format the Hub can check after the backup ran. */
   format: 'finterest-backup-v1';
+  /**
+   * Optional switch that opens the app's import screen on a backup file (`--import-backup=`),
+   * the user still confirming in the app. Without it, the Hub shows the file and the steps.
+   */
+  importArgument?: string;
 }
 
 export interface CatalogApp {
@@ -191,6 +196,10 @@ function validateApp(value: unknown, path: string, check: Checker): CatalogApp |
         check.fail(`${path}.windows.preOperationBackup`, 'expected { argument: "--x=", documentsFolder, filePrefix, format }');
       } else {
         backup = { argument: String(raw.argument), documentsFolder: String(raw.documentsFolder), filePrefix: String(raw.filePrefix), format: 'finterest-backup-v1' };
+        if (raw.importArgument !== undefined) {
+          if (/^--[a-z][a-z-]{1,40}=$/.test(String(raw.importArgument))) backup.importArgument = String(raw.importArgument);
+          else check.fail(`${path}.windows.preOperationBackup.importArgument`, 'expected "--x="');
+        }
       }
     }
   }

@@ -1,3 +1,4 @@
+import fs from 'node:fs/promises';
 import path from 'node:path';
 import { app, dialog, ipcMain, nativeTheme, shell } from 'electron';
 import { shouldRelay, toastContent, unreadCount, type ActivityItem } from '../shared/activity';
@@ -8,6 +9,7 @@ import { updateAvailable } from '../shared/installed-view';
 import { mainString, operationEntry } from '../shared/main-strings';
 import type { HubSettings } from '../shared/settings';
 import { isSafeExternalUrl } from '../shared/url';
+import { backupArgument, MAX_BACKUP_BYTES, validateBackup, type ImportDataResult, type SaveInstallerResult } from '../shared/backup';
 import { InstalledAppsService } from './apps/installed-apps';
 import { windowsProbe } from './apps/system-probe';
 import { CatalogService } from './catalog/catalog-service';
@@ -18,6 +20,7 @@ import { defaultSessionDir, userPipe } from './link/session';
 import { writeFileAtomic } from './fsutil';
 import { InstallHistory } from './install/history';
 import { InstallManager } from './install/install-manager';
+import { saveInstaller } from './install/save-installer';
 import { spawnInstallerRunner } from './install/installer-runner';
 import { downloadFile, verifyFile } from './net/download';
 import { httpGet } from './net/http';
@@ -102,6 +105,7 @@ if (!app.requestSingleInstanceLock()) {
       documentsDir: app.getPath('documents'),
       env: process.env,
       installDirectory: () => settingsStore.get().installDirectory,
+      backupCopyDirectory: () => settingsStore.get().backupCopyDirectory,
     });
     await installs.cleanup();
     let lastHistoryId = Math.max(0, ...installs.getView().history.map((entry) => entry.id));
@@ -360,9 +364,90 @@ function registerIpcHandlers(): void {
     return installs.plan(appId, kind);
   });
 
-  ipcMain.handle(CHANNELS.operationStart, (event, appId: unknown, kind: unknown, confirmed: unknown) => {
+  ipcMain.handle(CHANNELS.operationStart, (event, appId: unknown, kind: unknown, confirmed: unknown, skipBackup: unknown) => {
     if (!isTrustedSender(event) || !installs || typeof appId !== 'string' || !isOperationKind(kind)) return 'unknown-app';
-    return installs.enqueue(appId, kind, { confirmed: confirmed === true });
+    return installs.enqueue(appId, kind, { confirmed: confirmed === true, skipBackup: skipBackup === true });
+  });
+
+  ipcMain.handle(CHANNELS.dataExport, async (event, appId: unknown) => {
+    if (!isTrustedSender(event) || !installs || typeof appId !== 'string') return { ok: false, reason: 'unsupported' };
+    const result = await installs.exportData(appId);
+    if (result.ok) {
+      writtenFiles.add(result.path);
+      if (result.copyPath && result.copyState === 'ok') writtenFiles.add(result.copyPath);
+    }
+    return result;
+  });
+
+  ipcMain.handle(CHANNELS.dataImport, async (event, appId: unknown): Promise<ImportDataResult> => {
+    if (!isTrustedSender(event) || !installed || typeof appId !== 'string') return { mode: 'failed' };
+    const spec = catalog?.catalogApps().find((candidate) => candidate.id === appId)?.windows.preOperationBackup;
+    if (!spec) return { mode: 'unsupported' };
+    if (!installed.record(appId)?.exeFound) return { mode: 'not-installed' };
+    // The root folder first: that is where every backup lands (ADR-026).
+    const window = getMainWindow();
+    const options = {
+      defaultPath: path.join(app.getPath('documents'), spec.documentsFolder),
+      properties: ['openFile' as const],
+      filters: [{ name: 'JSON', extensions: ['json'] }],
+    };
+    const choice = window ? await dialog.showOpenDialog(window, options) : await dialog.showOpenDialog(options);
+    const file = choice.filePaths[0];
+    if (choice.canceled || !file) return { mode: 'cancelled' };
+    let check: ReturnType<typeof validateBackup>;
+    try {
+      const stat = await fs.stat(file);
+      check = stat.size > MAX_BACKUP_BYTES ? { ok: false, reason: 'too-large' } : validateBackup(spec.format, await fs.readFile(file, 'utf8'));
+    } catch {
+      return { mode: 'invalid', reason: 'missing' };
+    }
+    if (!check.ok) return { mode: 'invalid', reason: check.reason };
+    writtenFiles.add(file);
+    if (spec.importArgument) {
+      const launched = await installed.launch(appId, [backupArgument({ ...spec, argument: spec.importArgument }, file)]);
+      return launched === 'launched' ? { mode: 'launched', file, accounts: check.accounts } : { mode: 'failed' };
+    }
+    shell.showItemInFolder(file);
+    void installed.launch(appId);
+    return { mode: 'manual', file, accounts: check.accounts };
+  });
+
+  ipcMain.handle(CHANNELS.installerSave, async (event, appId: unknown): Promise<SaveInstallerResult> => {
+    if (!isTrustedSender(event) || !catalog || typeof appId !== 'string') return { ok: false, reason: 'failed' };
+    const installer = catalog.getView().entries.find((entry) => entry.app.id === appId)?.release?.installer;
+    if (!installer) return { ok: false, reason: 'no-installer' };
+    if (savingInstallers.has(appId)) return { ok: false, reason: 'busy' };
+    savingInstallers.add(appId);
+    try {
+      const saved = await saveInstaller({ download: downloadFile, verify: verifyFile, workDir: downloadsDir() }, installer, app.getPath('downloads'), {
+        onProgress: (received, total) => getMainWindow()?.webContents.send(CHANNELS.installerSaveProgress, { appId, received, total }),
+      });
+      writtenFiles.add(saved);
+      shell.showItemInFolder(saved);
+      return { ok: true, path: saved };
+    } catch {
+      return { ok: false, reason: 'failed' };
+    } finally {
+      savingInstallers.delete(appId);
+    }
+  });
+
+  ipcMain.handle(CHANNELS.revealFile, (event, filePath: unknown) => {
+    if (!isTrustedSender(event) || typeof filePath !== 'string' || !writtenFiles.has(filePath)) return false;
+    shell.showItemInFolder(filePath);
+    return true;
+  });
+
+  ipcMain.handle(CHANNELS.pickBackupCopyDirectory, async (event) => {
+    if (!isTrustedSender(event)) return null;
+    const window = getMainWindow();
+    const current = settingsStore.get().backupCopyDirectory;
+    const options = { properties: ['openDirectory' as const, 'createDirectory' as const], ...(current ? { defaultPath: current } : {}) };
+    const choice = window ? await dialog.showOpenDialog(window, options) : await dialog.showOpenDialog(options);
+    if (choice.canceled || !choice.filePaths[0]) return null;
+    const settings = await settingsStore.update({ backupCopyDirectory: choice.filePaths[0] });
+    broadcastSettings(settings);
+    return settings;
   });
 
   ipcMain.handle(CHANNELS.operationRequestClose, (event, operationId: unknown) => {
@@ -471,6 +556,10 @@ function registerIpcHandlers(): void {
     return catalog.getAsset(appId, assetPath);
   });
 }
+
+/** Files the Hub wrote or checked in this session: the only ones the renderer may ask to show. */
+const writtenFiles = new Set<string>();
+const savingInstallers = new Set<string>();
 
 function isOperationKind(value: unknown): value is OperationKind {
   return value === 'install' || value === 'update' || value === 'repair' || value === 'uninstall';

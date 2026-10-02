@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import { CHANNELS, type InitialState, type NavigateRequest, type NebulaHubBridge } from '../shared/bridge';
 import type { ActivityItem } from '../shared/activity';
+import type { InstallerSaveProgress } from '../shared/backup';
 import type { CatalogView } from '../shared/catalog-view';
 import type { DownloadsView } from '../shared/install-state';
 import type { InstalledView } from '../shared/installed-view';
@@ -42,7 +43,7 @@ const bridge: NebulaHubBridge = {
   exportHistory: () => ipcRenderer.invoke(CHANNELS.historyExport),
   pickInstallDirectory: () => ipcRenderer.invoke(CHANNELS.pickInstallDirectory),
   planOperation: (appId, kind) => ipcRenderer.invoke(CHANNELS.operationPlan, appId, kind),
-  startOperation: (appId, kind, confirmed) => ipcRenderer.invoke(CHANNELS.operationStart, appId, kind, confirmed),
+  startOperation: (appId, kind, confirmed, options) => ipcRenderer.invoke(CHANNELS.operationStart, appId, kind, confirmed, options?.skipBackup === true),
   requestAppClose: (operationId) => ipcRenderer.invoke(CHANNELS.operationRequestClose, operationId),
   continueWithoutBackup: (operationId) => ipcRenderer.invoke(CHANNELS.operationContinue, operationId),
   onNavigateRequest: (callback) => subscribe<NavigateRequest>(CHANNELS.navigate, callback),
@@ -57,6 +58,12 @@ const bridge: NebulaHubBridge = {
   getActivity: () => ipcRenderer.invoke(CHANNELS.activityGet),
   onActivityChanged: (callback) => subscribe<ActivityItem[]>(CHANNELS.activityChanged, callback),
   clearActivity: (appId) => ipcRenderer.invoke(CHANNELS.activityClear, appId),
+  exportAppData: (appId) => ipcRenderer.invoke(CHANNELS.dataExport, appId),
+  importAppData: (appId) => ipcRenderer.invoke(CHANNELS.dataImport, appId),
+  saveInstaller: (appId) => ipcRenderer.invoke(CHANNELS.installerSave, appId),
+  onInstallerSaveProgress: (callback) => subscribe<InstallerSaveProgress>(CHANNELS.installerSaveProgress, callback),
+  revealFile: (filePath) => ipcRenderer.invoke(CHANNELS.revealFile, filePath),
+  pickBackupCopyDirectory: () => ipcRenderer.invoke(CHANNELS.pickBackupCopyDirectory),
 };
 
 contextBridge.exposeInMainWorld('nebulaHub', bridge);

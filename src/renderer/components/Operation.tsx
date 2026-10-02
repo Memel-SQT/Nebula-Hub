@@ -86,6 +86,9 @@ export function OperationStatus({ operation, name, onCancel, onRetry, onDismiss,
       {backup?.state === 'running' ? <p className="operation-meta"><Icon name="folderSync" size={13} /><span>{t('backup.running', { name })}<code className="operation-path">{backup.path}</code></span></p> : null}
       {backup?.state === 'ok' ? <p className="operation-meta success"><Icon name="check" size={13} /><span>{t('backup.ok', { count: String(backup.accounts ?? 0) })}<code className="operation-path">{backup.path}</code></span></p> : null}
       {backup?.state === 'skipped' ? <p className="operation-meta"><Icon name="alert" size={13} />{t('backup.skipped')}</p> : null}
+      {backup?.state === 'declined' ? <p className="operation-meta"><Icon name="alert" size={13} />{t('backup.declined')}</p> : null}
+      {backup?.state === 'ok' && backup.copyState === 'ok' ? <p className="operation-meta success"><Icon name="check" size={13} /><span>{t('backup.copyOk')}<code className="operation-path">{backup.copyPath}</code></span></p> : null}
+      {backup?.state === 'ok' && backup.copyState === 'failed' ? <p className="operation-meta"><Icon name="alert" size={13} /><span>{t('backup.copyFailed')}<code className="operation-path">{backup.copyPath}</code></span></p> : null}
       {phase === 'backup-failed' && backup ? (
         <p className="operation-note error" role="alert"><Icon name="alert" size={15} />{t('backup.failed', { problem: t(`backup.problem.${backup.problem ?? 'missing'}`) })}</p>
       ) : null}

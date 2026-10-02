@@ -16,6 +16,11 @@ export interface HubSettings {
   /** Base folder for new installs (each app in its own subfolder); null = the installer's default. */
   installDirectory: string | null;
   /**
+   * Folder that receives a second copy of every app backup (ADR-026); null = none. The backup itself
+   * always stays in Documents, where the app looks first.
+   */
+  backupCopyDirectory: string | null;
+  /**
    * Apps updated automatically when a new release appears (brief §7.5), off by default. For an
    * app that backs up its data first, turning it on is confirmed once (R04).
    */
@@ -36,6 +41,7 @@ export const DEFAULT_SETTINGS: HubSettings = {
   channel: 'stable',
   onboardingCompleted: false,
   installDirectory: null,
+  backupCopyDirectory: null,
   autoUpdate: {},
   widgetOrder: [],
   windowsNotifications: true,
@@ -66,6 +72,7 @@ export function parseSettings(value: unknown, fallback: HubSettings = DEFAULT_SE
     channel: record.channel === 'beta' || record.channel === 'stable' ? record.channel : fallback.channel,
     onboardingCompleted: bool(record.onboardingCompleted, fallback.onboardingCompleted),
     installDirectory: record.installDirectory === null || isSafeInstallDirectory(record.installDirectory) ? (record.installDirectory as string | null) : fallback.installDirectory,
+    backupCopyDirectory: record.backupCopyDirectory === null || isSafeInstallDirectory(record.backupCopyDirectory) ? (record.backupCopyDirectory as string | null) ?? null : fallback.backupCopyDirectory,
     autoUpdate: record.autoUpdate === undefined ? fallback.autoUpdate : parseAutoUpdate(record.autoUpdate),
     widgetOrder: record.widgetOrder === undefined ? fallback.widgetOrder : parseIds(record.widgetOrder),
     windowsNotifications: bool(record.windowsNotifications, fallback.windowsNotifications),

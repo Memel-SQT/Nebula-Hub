@@ -2,6 +2,7 @@ import { createContext, useContext } from 'react';
 import type { Language } from '@nebula/design';
 import { activity as frActivity } from './fr/activity';
 import { catalog as frCatalog } from './fr/catalog';
+import { data as frData } from './fr/data';
 import { common as frCommon } from './fr/common';
 import { errors as frErrors } from './fr/errors';
 import { hub as frHub } from './fr/hub';
@@ -10,6 +11,7 @@ import { link as frLink } from './fr/link';
 import { settings as frSettings } from './fr/settings';
 import { activity as enActivity } from './en/activity';
 import { catalog as enCatalog } from './en/catalog';
+import { data as enData } from './en/data';
 import { common as enCommon } from './en/common';
 import { errors as enErrors } from './en/errors';
 import { hub as enHub } from './en/hub';
@@ -22,9 +24,9 @@ import { settings as enSettings } from './en/settings';
  * fallback), with the dictionaries split by domain. Each English file is typed against its
  * French twin, so a missing key fails `tsc`; `i18n.test.ts` checks the parity as well.
  */
-export const fr = { ...frCommon, ...frHub, ...frCatalog, ...frInstall, ...frLink, ...frActivity, ...frSettings, ...frErrors };
+export const fr = { ...frCommon, ...frHub, ...frCatalog, ...frInstall, ...frData, ...frLink, ...frActivity, ...frSettings, ...frErrors };
 export type TranslationKey = keyof typeof fr;
-export const en: Record<TranslationKey, string> = { ...enCommon, ...enHub, ...enCatalog, ...enInstall, ...enLink, ...enActivity, ...enSettings, ...enErrors };
+export const en: Record<TranslationKey, string> = { ...enCommon, ...enHub, ...enCatalog, ...enInstall, ...enData, ...enLink, ...enActivity, ...enSettings, ...enErrors };
 
 const dictionaries: Record<Language, Record<TranslationKey, string>> = { fr, en };
 

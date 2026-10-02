@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { Icon, type IconName } from '@nebula/design/react';
 import { localize } from '@shared/catalog';
 import type { CatalogEntry } from '@shared/catalog-view';
@@ -36,7 +36,7 @@ export function ConfirmDialog({ title, icon = 'alert', tone = 'warning', confirm
       return;
     }
     if (event.key !== 'Tab' || !dialog.current) return;
-    const focusable = [...dialog.current.querySelectorAll<HTMLElement>('button:not([disabled]), [href], [tabindex]:not([tabindex="-1"])')];
+    const focusable = [...dialog.current.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled]), [href], [tabindex]:not([tabindex="-1"])')];
     const first = focusable[0];
     const last = focusable[focusable.length - 1];
     if (event.shiftKey && document.activeElement === first) {
@@ -67,24 +67,31 @@ export function ConfirmDialog({ title, icon = 'alert', tone = 'warning', confirm
 
 const KIND_ICON: Record<OperationPlan['kind'], IconName> = { install: 'download', update: 'update', repair: 'repair', uninstall: 'uninstall' };
 
-/** The body of an update / repair / uninstall confirmation: versions, data notice, backup, open app. */
+/**
+ * The body of an update / repair / uninstall confirmation: versions, data notice, backup, open app.
+ * The backup is ticked by default; unticking it (ADR-026) says plainly what happens to the data and
+ * renames the button, so the operation never stays blocked on a backup the user does not want.
+ */
 export function OperationConfirmation({ plan, entry, onConfirm, onCancel }: {
   plan: OperationPlan;
   entry: CatalogEntry;
-  onConfirm: () => void;
+  /** `skipBackup`: the user unticked "back up first". */
+  onConfirm: (skipBackup: boolean) => void;
   onCancel: () => void;
 }) {
   const t = useT();
   const language = useLanguage();
+  const [backupFirst, setBackupFirst] = useState(true);
   const name = entry.app.name;
   const params = { name, version: plan.version ? `v${plan.version}` : '', from: plan.fromVersion ? `v${plan.fromVersion}` : '' };
+  const declined = Boolean(plan.backupPath) && !backupFirst;
   return (
     <ConfirmDialog
       title={t(`confirm.${plan.kind}.title`, params)}
       icon={KIND_ICON[plan.kind]}
-      tone={plan.kind === 'uninstall' ? 'danger' : 'warning'}
-      confirmLabel={t(`confirm.${plan.kind}.confirm`)}
-      onConfirm={onConfirm}
+      tone={plan.kind === 'uninstall' || declined ? 'danger' : 'warning'}
+      confirmLabel={declined && plan.kind !== 'install' ? t(`confirm.${plan.kind}.confirmNoBackup`) : t(`confirm.${plan.kind}.confirm`)}
+      onConfirm={() => onConfirm(declined)}
       onCancel={onCancel}
     >
       <p>{t(`confirm.${plan.kind}.body`, params)}</p>
@@ -93,9 +100,20 @@ export function OperationConfirmation({ plan, entry, onConfirm, onCancel }: {
         <p>{entry.app.dataNotice ? localize(entry.app.dataNotice, language) : t('confirm.noNotice')}</p>
         {plan.backupPath ? (
           <>
-            <p>{t('confirm.backup', { name })}</p>
-            <code className="dialog-path">{plan.backupPath}</code>
-            <p className="dialog-note">{t('confirm.backupCheck')}</p>
+            <label className="dialog-check">
+              <input type="checkbox" checked={backupFirst} onChange={(event) => setBackupFirst(event.target.checked)} />
+              <span>{t('confirm.backupFirst')}</span>
+            </label>
+            {backupFirst ? (
+              <>
+                <p>{t('confirm.backup', { name })}</p>
+                <code className="dialog-path">{plan.backupPath}</code>
+                {plan.backupCopyPath ? <><p>{t('confirm.backupCopy')}</p><code className="dialog-path">{plan.backupCopyPath}</code></> : null}
+                <p className="dialog-note">{t('confirm.backupCheck')}</p>
+              </>
+            ) : (
+              <p className="dialog-note warning" role="alert"><Icon name="alert" size={15} />{t(plan.kind === 'uninstall' ? 'confirm.noBackup.warning' : 'confirm.noBackup.warningKeep', { name })}</p>
+            )}
           </>
         ) : null}
       </section>

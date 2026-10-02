@@ -1,6 +1,6 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { backupArgument, backupPath, MAX_BACKUP_BYTES, validateBackup, type BackupProblem } from '../../shared/backup';
+import { backupArgument, backupCopyPath, backupPath, MAX_BACKUP_BYTES, validateBackup, type BackupProblem, type ExportDataResult } from '../../shared/backup';
 import type { CatalogEntry } from '../../shared/catalog-view';
 import {
   isActive,
@@ -70,6 +70,8 @@ export interface InstallManagerDeps {
   env: Record<string, string | undefined>;
   /** Base folder chosen in the settings, or null for each installer's default. */
   installDirectory(): string | null;
+  /** Folder that receives a second copy of every backup (ADR-026), or null. */
+  backupCopyDirectory?(): string | null;
   now?: () => Date;
   installerTimeoutMs?: number;
   backupTimeoutMs?: number;
@@ -184,12 +186,17 @@ export class InstallManager {
       fromVersion: installed?.version ?? null,
       needsConfirmation: needsConfirmation(kind, entry),
       backupPath: planned,
+      backupCopyPath: planned && backup ? this.copyPathOf(backup, planned) : null,
       running: Boolean(installed?.running),
       blocked,
     };
   }
 
-  enqueue(appId: string, kind: OperationKind = 'install', options: { confirmed?: boolean; auto?: boolean } = {}): EnqueueResult {
+  /**
+   * `skipBackup` (ADR-026): the user unticked "back up first" on the confirmation screen, which
+   * said what happens to the data. Only honoured with that confirmation, never for automatic updates.
+   */
+  enqueue(appId: string, kind: OperationKind = 'install', options: { confirmed?: boolean; auto?: boolean; skipBackup?: boolean } = {}): EnqueueResult {
     const blocked = this.blocker(appId, kind);
     if (blocked) return blocked;
     const entry = this.deps.entry(appId)!;
@@ -222,7 +229,9 @@ export class InstallManager {
         bytesPerSecond: null,
         etaSeconds: null,
         resumed: false,
-        backup: backup && kind !== 'install' ? { path: plannedPath ?? backupPath(this.deps.documentsDir, backup, now), state: 'pending', accounts: null, problem: null } : null,
+        backup: backup && kind !== 'install'
+          ? { path: plannedPath ?? backupPath(this.deps.documentsDir, backup, now), state: options.skipBackup && options.confirmed && !options.auto ? 'declined' : 'pending', accounts: null, problem: null, copyPath: null, copyState: null }
+          : null,
         auto: Boolean(options.auto),
         closeRequested: false,
         queuedAt: now.toISOString(),
@@ -426,7 +435,7 @@ export class InstallManager {
     }
     this.checkCancelled(operation);
 
-    if (operation.view.backup) await this.backUp(operation);
+    if (operation.view.backup && operation.view.backup.state !== 'declined') await this.backUp(operation);
 
     const base = this.deps.installDirectory();
     const target = operation.view.kind === 'install' && base ? installTarget(base, entry.app.windows.productName) : null;
@@ -470,7 +479,7 @@ export class InstallManager {
       await this.waitForAppExit(operation);
     }
     this.checkCancelled(operation);
-    if (operation.view.backup) await this.backUp(operation);
+    if (operation.view.backup && operation.view.backup.state !== 'declined') await this.backUp(operation);
 
     this.move(operation, 'removing');
     try {
@@ -501,7 +510,7 @@ export class InstallManager {
     this.move(operation, 'backing-up');
     backup.state = 'running';
     this.emit();
-    const problem = await this.runBackup(operation, backup.path);
+    const problem = await this.runBackup(operation.entry, operation.view.appId, backup.path);
     this.checkCancelled(operation);
     if (!problem.ok) {
       backup.state = 'failed';
@@ -520,12 +529,56 @@ export class InstallManager {
     }
     backup.state = 'ok';
     backup.accounts = problem.accounts;
+    const copy = await this.copyBackup(operation.entry, backup.path);
+    backup.copyPath = copy.path;
+    backup.copyState = copy.state;
     this.emit();
   }
 
-  private async runBackup(operation: Operation, file: string | null): Promise<{ ok: true; accounts: number } | { ok: false; reason: BackupProblem }> {
-    const spec = operation.entry.app.windows.preOperationBackup!;
-    const record = this.deps.record(operation.view.appId);
+  /** `<copy folder>\<app folder>\<file>` for a backup written at `file`, when a copy folder is set. */
+  private copyPathOf(spec: NonNullable<CatalogEntry['app']['windows']['preOperationBackup']>, file: string): string | null {
+    const dir = this.deps.backupCopyDirectory?.() ?? null;
+    return dir ? backupCopyPath(dir, spec, file) : null;
+  }
+
+  /**
+   * ADR-026: the backup stays in Documents (the reference the app reads first); a second copy goes
+   * to the folder chosen in the settings. A failed copy never blocks anything: it is reported.
+   */
+  private async copyBackup(entry: CatalogEntry, file: string): Promise<{ path: string | null; state: 'ok' | 'failed' | null }> {
+    const target = this.copyPathOf(entry.app.windows.preOperationBackup!, file);
+    if (!target) return { path: null, state: null };
+    try {
+      await fs.mkdir(path.dirname(target), { recursive: true });
+      await fs.copyFile(file, target);
+      return { path: target, state: 'ok' };
+    } catch {
+      return { path: target, state: 'failed' };
+    }
+  }
+
+  /**
+   * "Export my data" (ADR-026): the app writes a backup now, outside of any operation, in the same
+   * root folder, with the same check and the same optional copy. Refused while an operation runs
+   * for this app.
+   */
+  async exportData(appId: string): Promise<ExportDataResult> {
+    const entry = this.deps.entry(appId);
+    const spec = entry?.app.windows.preOperationBackup;
+    if (!entry || !spec) return { ok: false, reason: 'unsupported' };
+    if (!this.deps.record(appId)?.exeFound) return { ok: false, reason: 'not-installed' };
+    if (this.operations.some((operation) => operation.view.appId === appId && isActive(operation.view.phase))) return { ok: false, reason: 'busy' };
+    const file = backupPath(this.deps.documentsDir, spec, this.now());
+    await fs.mkdir(path.dirname(file), { recursive: true }).catch(() => undefined);
+    const result = await this.runBackup(entry, appId, file);
+    if (!result.ok) return result;
+    const copy = await this.copyBackup(entry, file);
+    return { ok: true, path: file, accounts: result.accounts, copyPath: copy.path, copyState: copy.state };
+  }
+
+  private async runBackup(entry: CatalogEntry, appId: string, file: string | null): Promise<{ ok: true; accounts: number } | { ok: false; reason: BackupProblem }> {
+    const spec = entry.app.windows.preOperationBackup!;
+    const record = this.deps.record(appId);
     if (!file || !record?.exeFound) return { ok: false, reason: 'not-started' };
     // Never validate a stale file: the path is new, but make sure.
     await fs.rm(file, { force: true }).catch(() => undefined);

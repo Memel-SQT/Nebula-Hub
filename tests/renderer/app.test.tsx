@@ -74,7 +74,7 @@ function installBridge(overrides: Partial<HubSettings> = {}, startedHidden = tru
     dismissOperation: jest.fn(async () => true),
     exportHistory: jest.fn(async () => 'saved' as const),
     pickInstallDirectory: jest.fn(async () => null),
-    planOperation: jest.fn(async (appId, kind) => ({ appId, kind, version: '0.1.36', fromVersion: '0.1.35', needsConfirmation: kind !== 'update' || appId === 'nebula.finterest', backupPath: appId === 'nebula.finterest' ? 'C:\\Users\\<user>\\Documents\\Nebula Finterest\\finterest-store-backup-2026-10-01_21-05-03.json' : null, running: false, blocked: null })),
+    planOperation: jest.fn(async (appId, kind) => ({ appId, kind, version: '0.1.36', fromVersion: '0.1.35', needsConfirmation: kind !== 'update' || appId === 'nebula.finterest', backupPath: appId === 'nebula.finterest' ? 'C:\\Users\\<user>\\Documents\\Nebula Finterest\\finterest-store-backup-2026-10-01_21-05-03.json' : null, backupCopyPath: null, running: false, blocked: null })),
     startOperation: jest.fn(async () => 'queued' as const),
     requestAppClose: jest.fn(async () => true),
     continueWithoutBackup: jest.fn(async () => true),
@@ -90,6 +90,12 @@ function installBridge(overrides: Partial<HubSettings> = {}, startedHidden = tru
     getActivity: jest.fn(async () => activity),
     onActivityChanged: () => () => undefined,
     clearActivity: jest.fn(async () => []),
+    exportAppData: jest.fn(async () => ({ ok: true as const, path: 'C:\\Users\\<user>\\Documents\\Nebula Finterest\\finterest-store-backup-2026-10-02_10-00-00.json', accounts: 2, copyPath: null, copyState: null })),
+    importAppData: jest.fn(async () => ({ mode: 'manual' as const, file: 'C:\\Users\\<user>\\Documents\\Nebula Finterest\\old.json', accounts: 2 })),
+    saveInstaller: jest.fn(async () => ({ ok: true as const, path: 'C:\\Users\\<user>\\Downloads\\Nebula-Clock-Setup-1.1.3.exe' })),
+    onInstallerSaveProgress: () => () => undefined,
+    revealFile: jest.fn(async () => true),
+    pickBackupCopyDirectory: jest.fn(async () => null),
   };
   window.nebulaHub = bridge;
   return {
@@ -243,7 +249,7 @@ describe('App: confirmations (R04)', () => {
     const { bridge, pushDownloads } = installBridge();
     await render(<App />);
     await openMyApps();
-    await pushDownloads(downloadsView({ operations: [operation({ id: 'op-9', kind: 'update', fromVersion: '0.1.35', phase: 'backup-failed', backup: { path: 'C:\\x.json', state: 'failed', accounts: null, problem: 'missing' } })], history: [] }));
+    await pushDownloads(downloadsView({ operations: [operation({ id: 'op-9', kind: 'update', fromVersion: '0.1.35', phase: 'backup-failed', backup: { path: 'C:\\x.json', state: 'failed', accounts: null, problem: 'missing', copyPath: null, copyState: null } })], history: [] }));
     await userEvent.click(screen.getByRole('button', { name: 'Continuer sans sauvegarde' }));
     const dialog = await screen.findByRole('alertdialog', { name: 'Continuer sans sauvegarde ?' });
     expect(bridge.continueWithoutBackup).not.toHaveBeenCalled();
@@ -393,5 +399,64 @@ describe('App: first launch (M7)', () => {
     await userEvent.keyboard('{Escape}');
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(bridge.updateSettings).toHaveBeenCalledWith({ onboardingCompleted: true });
+  });
+});
+
+describe('App: data and installers (ADR-026)', () => {
+  it('uninstalls without backup only after unticking it, with a plain warning and a renamed button', async () => {
+    const { bridge } = installBridge();
+    await render(<App />);
+    await userEvent.click(screen.getByRole('button', { name: /Mes apps/ }));
+    await userEvent.click(screen.getByRole('button', { name: 'Désinstaller Nebula Finterest' }));
+    const dialog = await screen.findByRole('alertdialog', { name: 'Désinstaller Nebula Finterest ?' });
+    const box = within(dialog).getByRole('checkbox', { name: 'Sauvegarder mes données avant (recommandé)' });
+    expect(box).toBeChecked();
+    await userEvent.click(box);
+    expect(within(dialog).getByRole('alert')).toHaveTextContent('définitivement supprimées');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Désinstaller sans sauvegarde' }));
+    expect(bridge.startOperation).toHaveBeenCalledWith('nebula.finterest', 'uninstall', true, { skipBackup: true });
+  });
+
+  it('installs in one click from a Discover tile', async () => {
+    const { bridge } = installBridge({}, true, installedView({ apps: [] }));
+    await render(<App />);
+    await userEvent.click(screen.getByRole('button', { name: 'Découvrir' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Installer Nebula Finterest' }));
+    expect(bridge.installApp).toHaveBeenCalledWith('nebula.finterest');
+  });
+
+  it('exports and imports the data from the app page, and shows the file', async () => {
+    const { bridge } = installBridge();
+    await render(<App />);
+    await userEvent.click(screen.getByRole('button', { name: 'Voir la fiche de Nebula Finterest' }));
+    expect(screen.getByText(/vont toujours dans le dossier racine Documents.Nebula Finterest/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Exporter mes données' }));
+    expect(bridge.exportAppData).toHaveBeenCalledWith('nebula.finterest');
+    expect(await screen.findByText('Sauvegarde vérifiée (2 compte(s)) :')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Afficher le fichier' }));
+    expect(bridge.revealFile).toHaveBeenCalledWith(expect.stringContaining('finterest-store-backup-2026-10-02_10-00-00.json'));
+
+    await userEvent.click(screen.getByRole('button', { name: 'Importer une sauvegarde' }));
+    expect(await screen.findByText(/Réglages → Sauvegarde → Importer/)).toBeInTheDocument();
+  });
+
+  it('downloads the verified installer to Downloads', async () => {
+    const { bridge } = installBridge();
+    await render(<App />);
+    await userEvent.click(screen.getByRole('button', { name: 'Voir la fiche de Nebula Finterest' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Télécharger l’installeur' }));
+    expect(bridge.saveInstaller).toHaveBeenCalledWith('nebula.finterest');
+    expect(await screen.findByText('Installeur vérifié, enregistré dans Téléchargements :')).toBeInTheDocument();
+  });
+
+  it('chooses the folder of the backup copies in Settings', async () => {
+    const { bridge } = installBridge({ backupCopyDirectory: 'E:\Sauvegardes' });
+    await render(<App />);
+    await userEvent.click(screen.getByRole('button', { name: 'Réglages' }));
+    expect(screen.getByText('E:\Sauvegardes')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /Ne plus faire de copie/ }));
+    expect(bridge.updateSettings).toHaveBeenCalledWith({ backupCopyDirectory: null });
+    await userEvent.click(within(screen.getByRole('group', { name: 'Copie des sauvegardes' })).getByRole('button', { name: /Choisir un dossier/ }));
+    expect(bridge.pickBackupCopyDirectory).toHaveBeenCalled();
   });
 });

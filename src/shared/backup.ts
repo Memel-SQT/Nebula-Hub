@@ -29,6 +29,42 @@ export function backupPath(documentsDir: string, backup: PreOperationBackup, now
   return `${base}\\${backup.documentsFolder}\\${backupFileName(backup.filePrefix, now)}`;
 }
 
+/**
+ * The second copy (ADR-026): `<chosen folder>\<app folder>\<same file name>`. The file in
+ * Documents stays the reference the app reads first; the copy is only a duplicate elsewhere.
+ */
+export function backupCopyPath(copyDir: string, backup: PreOperationBackup, file: string): string {
+  const base = copyDir.replace(/[\\/]+$/, '');
+  const name = file.split(/[\\/]/).pop() ?? file;
+  return `${base}\\${backup.documentsFolder}\\${name}`;
+}
+
+/** Outcome of "Export my data" (a backup outside of any operation). */
+export type ExportDataResult =
+  | { ok: true; path: string; accounts: number; copyPath: string | null; copyState: 'ok' | 'failed' | null }
+  | { ok: false; reason: BackupProblem | 'unsupported' | 'not-installed' | 'busy' };
+
+/**
+ * Outcome of "Import my data": the user picked a backup (the Hub only checks its shape, R07); the app
+ * opens on its import screen when it declares an import switch (`launched`), otherwise the Hub
+ * shows the file and the steps to follow in the app (`manual`).
+ */
+export type ImportDataResult =
+  | { mode: 'launched' | 'manual'; file: string; accounts: number }
+  | { mode: 'cancelled' }
+  | { mode: 'invalid'; reason: BackupProblem }
+  | { mode: 'unsupported' | 'not-installed' | 'failed' };
+
+/** Outcome of "Download the installer". */
+export type SaveInstallerResult = { ok: true; path: string } | { ok: false; reason: 'no-installer' | 'busy' | 'failed' };
+
+/** Progress of a "Download the installer". */
+export interface InstallerSaveProgress {
+  appId: string;
+  received: number;
+  total: number;
+}
+
 /** The single command-line argument that asks the app for its backup. */
 export function backupArgument(backup: PreOperationBackup, file: string): string {
   return `${backup.argument}${file}`;

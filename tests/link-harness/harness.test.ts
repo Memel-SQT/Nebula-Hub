@@ -353,6 +353,8 @@ describe('Home widgets (M7)', () => {
     expect(hub.consentRequests).toContainEqual({ consumer: HUB_ID, capability: 'alpha.status' });
 
     hub.grant(HUB_ID, 'alpha.status');
+    // Granted is not enough: Alpha must also have declared its widgets ready (link.ready).
+    for (let tries = 0; tries < 300 && 'error' in (await hub.server.queryAs(HUB_ID, 'alpha.status')); tries += 1) await new Promise((resolve) => setTimeout(resolve, 10));
     board.consentChanged('alpha.status');
     await eventually(() => board.views()[0].state === 'ready');
     expect(board.views()[0].data).toMatchObject({ title: 'État', value: 'OK' });
@@ -376,7 +378,7 @@ describe('Home widgets (M7)', () => {
     await link.connect();
     await eventually(() => hub.server.connectedApps().length === 1);
     // Connected is not ready yet: wait until Alpha has declared its widgets (link.ready).
-    for (let tries = 0; tries < 100 && 'error' in (await hub.server.queryAs(HUB_ID, 'alpha.status')); tries += 1) await new Promise((resolve) => setTimeout(resolve, 10));
+    for (let tries = 0; tries < 300 && 'error' in (await hub.server.queryAs(HUB_ID, 'alpha.status')); tries += 1) await new Promise((resolve) => setTimeout(resolve, 10));
     board.sync();
     await eventually(() => board.views()[0].state === 'ready');
     link.dispose();

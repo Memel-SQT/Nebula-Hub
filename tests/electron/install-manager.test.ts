@@ -773,3 +773,66 @@ describe('InstallManager: the real backup command line', () => {
     expect(JSON.parse(await fs.readFile(operation.backup!.path, 'utf8')).accounts).toHaveLength(2);
   });
 });
+
+describe('InstallManager: backup choices, copy and export (ADR-026)', () => {
+  it('uninstalls without backup when the user unticked it on the confirmation screen', async () => {
+    const h = harness();
+    h.installed.push(installedApp('nebula.finterest', '0.1.36'));
+    h.uninstallAfterChecks = 1;
+    expect(h.manager.enqueue('nebula.finterest', 'uninstall', { confirmed: true, skipBackup: true })).toBe('queued');
+    await h.manager.idle();
+    expect(h.phases.get('nebula.finterest')).toEqual(['uninstalling', 'removing', 'absent']);
+    expect(h.backups).toEqual([]);
+    expect(operationOf(h, 'nebula.finterest').backup).toMatchObject({ state: 'declined' });
+  });
+
+  it('never skips the backup without the confirmation, nor for an automatic update', async () => {
+    const h = harness();
+    h.installed.push(installedApp('nebula.finterest', '0.1.35'));
+    expect(h.manager.enqueue('nebula.finterest', 'update', { skipBackup: true })).toBe('confirmation-required');
+    h.manager.enqueue('nebula.finterest', 'update', { confirmed: true, auto: true, skipBackup: true });
+    await h.manager.idle();
+    expect(h.backups).toHaveLength(1);
+  });
+
+  it('keeps the backup in Documents and copies it to the chosen folder', async () => {
+    const copies = path.join(root, 'Copies');
+    const h = harness(undefined, { backupCopyDirectory: () => copies });
+    h.installed.push(installedApp('nebula.finterest', '0.1.36'));
+    h.uninstallAfterChecks = 1;
+    const plan = h.manager.plan('nebula.finterest', 'uninstall');
+    expect(plan.backupCopyPath).toBe(path.join(copies, 'Nebula Finterest', path.basename(plan.backupPath!)));
+    h.manager.enqueue('nebula.finterest', 'uninstall', { confirmed: true });
+    await h.manager.idle();
+    const backup = operationOf(h, 'nebula.finterest').backup!;
+    expect(backup).toMatchObject({ state: 'ok', copyState: 'ok' });
+    expect(await fs.readFile(backup.path, 'utf8')).toBe(GOOD_BACKUP);
+    expect(await fs.readFile(backup.copyPath!, 'utf8')).toBe(GOOD_BACKUP);
+  });
+
+  it('reports a failed copy without blocking the operation', async () => {
+    const blocker = path.join(root, 'not-a-folder');
+    await fs.writeFile(blocker, 'x');
+    const h = harness(undefined, { backupCopyDirectory: () => blocker });
+    h.installed.push(installedApp('nebula.finterest', '0.1.36'));
+    h.uninstallAfterChecks = 1;
+    h.manager.enqueue('nebula.finterest', 'uninstall', { confirmed: true });
+    await h.manager.idle();
+    expect(operationOf(h, 'nebula.finterest')).toMatchObject({ phase: 'absent', backup: { state: 'ok', copyState: 'failed' } });
+  });
+
+  it('exports the data on demand, checked and copied, and refuses what it cannot do', async () => {
+    const copies = path.join(root, 'Copies');
+    const h = harness(undefined, { backupCopyDirectory: () => copies });
+    expect(await h.manager.exportData('nebula.finterest')).toEqual({ ok: false, reason: 'not-installed' });
+    h.installed.push(installedApp('nebula.finterest', '0.1.36'), installedApp('nebula.clock', '1.1.3'));
+    expect(await h.manager.exportData('nebula.clock')).toEqual({ ok: false, reason: 'unsupported' });
+    const result = await h.manager.exportData('nebula.finterest');
+    expect(result).toMatchObject({ ok: true, accounts: 1, copyState: 'ok' });
+    if (!result.ok) throw new Error('export failed');
+    expect(result.path.startsWith(path.join(root, 'Documents', 'Nebula Finterest'))).toBe(true);
+    expect(await fs.readFile(result.copyPath!, 'utf8')).toBe(GOOD_BACKUP);
+    h.backupContent = '{ broken';
+    expect(await h.manager.exportData('nebula.finterest')).toEqual({ ok: false, reason: 'invalid' });
+  });
+});

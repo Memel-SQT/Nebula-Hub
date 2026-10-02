@@ -635,3 +635,55 @@ Les constats qui fondent ces décisions sont détaillés dans [DISCOVERY.md](DIS
   revoir l'accueil).
 - **Zone de notification** : entrée « Centre d'activité (n non lues) » qui ouvre l'accueil.
 - **Reporté à M8** : I4 (pause lecture Clock → News), qui dépend des capacités réelles des apps.
+
+## ADR-026 — Données des apps sans blocage, copie des sauvegardes, installeur, mise en page large
+
+- **Statut** : Accepté (retours de l'utilisateur du 2026-10-02). **Amende ADR-022** sur un point :
+  la sauvegarde avant opération n'est plus obligatoire.
+- **Sauvegarder d'abord, par défaut** : la confirmation d'une mise à jour, d'une réparation ou d'une
+  désinstallation d'une app qui se sauvegarde (Finterest) porte une case « Sauvegarder mes données
+  avant (recommandé) », cochée. La décocher affiche ce qui arrive aux données (désinstallation :
+  supprimées définitivement avec l'app ; sinon : plus de filet si l'opération tourne mal), invite à
+  exporter ailleurs, renomme le bouton (« Désinstaller sans sauvegarde ») et passe le dialogue en
+  ton « danger ». Le processus principal n'accepte ce choix qu'avec la confirmation, jamais pour
+  une mise à jour automatique. **[CRITIQUE]** R04 reste respectée : rien ne se passe sans une
+  confirmation qui dit ce qu'il advient des données. But : une app ne reste plus bloquée entre une
+  désinstallation et une réinstallation à cause d'une sauvegarde que l'utilisateur ne veut pas.
+  L'ancien chemin (sauvegarde ratée → seconde confirmation) est inchangé.
+- **Dossier racine et copie** : chaque sauvegarde reste dans `Documents\<app>` (la référence, lue
+  en premier par l'app). Réglages → Sauvegardes permet de choisir un dossier qui reçoit **une copie**
+  (`<dossier>\<app>\<même nom de fichier>`). Une copie ratée ne bloque rien ; elle est signalée.
+  Le Hub copie le fichier octet pour octet sans le lire au-delà de la vérification de forme déjà
+  admise (R07, ADR-022).
+- **Exporter mes données** (fiche de l'app) : l'app écrit sa sauvegarde maintenant, hors de toute
+  opération, avec la même vérification et la même copie. Refusé pendant une opération sur l'app.
+- **Importer une sauvegarde** : l'utilisateur choisit un fichier (le sélecteur s'ouvre sur le
+  dossier racine) ; le Hub vérifie sa forme, puis : si le catalogue déclare `importArgument`
+  (`--import-backup=`, champ facultatif ajouté au schéma de `preOperationBackup`), l'app s'ouvre sur
+  son import ; sinon le Hub ouvre l'app, montre le fichier dans l'Explorateur et dit où cliquer.
+  L'import se confirme toujours dans l'app.
+- **Télécharger l'installeur** (fiche de l'app) : même téléchargement et mêmes contrôles qu'une
+  installation (liste blanche, taille, SHA-512 de la release, R02), puis copie du fichier vérifié
+  dans Téléchargements, sans jamais écraser un fichier existant. Rien n'est exécuté. Pour installer
+  l'app seule, plus tard ou ailleurs.
+- **Installer en un clic** depuis une carte (Découvrir, lanceur de l'accueil) pour une app pas
+  encore installée.
+- **Mise en page** : le contenu de chaque écran est une colonne centrée dont la largeur maximale
+  grandit avec l'écran (1480 px, 1680 px dès 1900 px, 1960 px dès 2400 px, 2280 px dès 3000 px) ;
+  au-delà de 2400 px de large, la taille de base du texte passe à 17 puis 18 px. Cartes de synthèse
+  en grille fluide, tuiles du lanceur qui s'élargissent. Vérifié sans débordement de 760 à 3440 px.
+- **Prompts pour les apps** : `docs/PROMPT_APPS.md` (mise à jour, audit, Nebula Link, dossier
+  racine + copie, sauvegarde sans interface, `--import-backup=`, publication), à coller app par app.
+  Remplace la conduite de M8 par la session du Hub ; R01 reste vrai pour cette session.
+- **À valider — apps « dans le Hub »** : trois voies étudiées.
+  1. *Fenêtre ancrée* (recommandée) : l'app garde son processus et sa fenêtre ; en mode « Hub »,
+     elle s'ouvre sans cadre, posée sur la zone de contenu du Hub, et suit ses déplacements,
+     redimensionnements et sa réduction (événement Link `nebula.hub.dock` avec la zone, en
+     coordonnées écran). La barre latérale du Hub reste visible : on passe d'une app à l'autre
+     comme des onglets. En mode autonome, rien ne change. Demande un amendement de la
+     spécification Link et l'adoption par chaque app.
+  2. *Onglets internes* (le Hub charge l'interface des apps dans sa propre fenêtre) : écartée, le
+     Hub exécuterait le code et lirait les données des apps (R07, R10), sans leur processus
+     principal.
+  3. *Fenêtre réparentée* (SetParent Windows) : écartée, fragile (DPI, focus, raccourcis) et
+     demande du code natif.

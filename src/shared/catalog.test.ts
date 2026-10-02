@@ -54,6 +54,7 @@ describe('validateCatalog', () => {
     ['shell metacharacters', (c: Json) => { c.apps[0].windows.silentArgs = ['/S & calc']; }, '$.apps[0].windows.silentArgs'],
     ['backup folder traversal', (c: Json) => { c.apps[0].windows.preOperationBackup.documentsFolder = '..\\..\\AppData'; }, '$.apps[0].windows.preOperationBackup'],
     ['unknown backup format', (c: Json) => { c.apps[0].windows.preOperationBackup.format = 'raw'; }, '$.apps[0].windows.preOperationBackup'],
+    ['import switch with a value', (c: Json) => { c.apps[0].windows.preOperationBackup.importArgument = '--import-backup=C:/x'; }, '$.apps[0].windows.preOperationBackup.importArgument'],
     ['GitHub owner', (c: Json) => { c.apps[0].source.owner = 'Memel-SQT/../x'; }, '$.apps[0].source.owner'],
     ['other provider', (c: Json) => { c.apps[0].source.provider = 'gitlab'; }, '$.apps[0].source'],
     ['category', (c: Json) => { c.apps[0].category = 'games'; }, '$.apps[0].category'],
@@ -66,6 +67,13 @@ describe('validateCatalog', () => {
     const value = clone();
     mutate(value);
     expect(errorsOf(value).some((error) => error.startsWith(where))).toBe(true);
+  });
+
+  it('keeps an optional import switch (ADR-026)', () => {
+    const value = clone();
+    value.apps[0].windows.preOperationBackup.importArgument = '--import-backup=';
+    const result = validateCatalog(value);
+    expect(result.ok && result.catalog.apps[0].windows.preOperationBackup?.importArgument).toBe('--import-backup=');
   });
 
   it('rejects non-objects and empty lists', () => {

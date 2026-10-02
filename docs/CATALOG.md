@@ -51,7 +51,8 @@ erreur rejette le catalogue entier.
           "argument": "--backup-before-uninstall=",
           "documentsFolder": "Nebula Finterest",
           "filePrefix": "finterest-store-backup",
-          "format": "finterest-backup-v1"
+          "format": "finterest-backup-v1",
+          "importArgument": "--import-backup="   // facultatif (ADR-026) : ouvre l'import de l'app sur un fichier
         }
       },
       "dataNotice": { "fr": "…", "en": "…" },          // affiché avant désinstallation ou réparation

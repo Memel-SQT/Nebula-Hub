@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Icon } from '@nebula/design/react';
 import { localize, type AppCategory } from '@shared/catalog';
-import { catalogLoadState, familyEntries, installedOf } from '../catalog';
+import { catalogLoadState, familyEntries, installedOf, operationOf } from '../catalog';
 import { AppTile } from '../components/Cards';
 import { CatalogNotices } from '../components/CatalogNotices';
 import { EmptyState, StateView } from '../components/ScreenState';
@@ -14,7 +14,7 @@ function normalize(text: string): string {
 }
 
 /** The signed catalog as cards, with a category filter and a local, accent-insensitive search. */
-export function DiscoverScreen({ catalog, installed, onNavigate, onRefresh }: CatalogScreenProps) {
+export function DiscoverScreen({ catalog, installed, downloads, onNavigate, onRefresh, onInstall }: CatalogScreenProps) {
   const t = useT();
   const language = useLanguage();
   const [query, setQuery] = useState('');
@@ -64,7 +64,7 @@ export function DiscoverScreen({ catalog, installed, onNavigate, onRefresh }: Ca
         </div>
         {shown.length > 0 ? (
           <div className="catalog-grid">
-            {shown.map((entry) => <AppTile key={entry.app.id} entry={entry} installed={installedOf(installed, entry.app.id)} onOpen={() => onNavigate({ screen: 'app', appId: entry.app.id })} />)}
+            {shown.map((entry) => <AppTile key={entry.app.id} entry={entry} installed={installedOf(installed, entry.app.id)} operation={operationOf(downloads, entry.app.id)} onOpen={() => onNavigate({ screen: 'app', appId: entry.app.id })} onInstall={onInstall ? () => onInstall(entry.app.id) : undefined} />)}
           </div>
         ) : (
           <p className="panel-empty" role="status"><Icon name="search" size={18} />{t('discover.noMatch', { query })}</p>
