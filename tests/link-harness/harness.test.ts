@@ -438,3 +438,30 @@ describe('Hub mode (ADR-027)', () => {
     expect(events.some((entry) => entry.event === 'nebula.hub.dock')).toBe(false);
   });
 });
+
+describe('Hub mode: detached from the app (ADR-027)', () => {
+  it('forgets an app that unsubscribes from the Hub mode by itself', async () => {
+    const link = NebulaLink.create({ appId: 'nebula.beta', appVersion: '1.0.0', manifestPath: manifestOf('beta'), sessionFile: hub.sessionFile, minBackoffMs: 50, maxBackoffMs: 200 });
+    links.push(link);
+    const off = link.on('nebula.hub.dock', () => undefined);
+    await link.connect();
+    await eventually(() => hub.server.subscribersOf('nebula.hub.dock').includes('nebula.beta'));
+    const views: string[][] = [];
+    const dock = new DockController({
+      dockable: () => ['nebula.beta'],
+      subscribed: () => hub.server.subscribersOf('nebula.hub.dock'),
+      send: (appId, payload) => hub.server.sendTo(appId, 'nebula.hub.dock', payload),
+      content: () => ({ x: 0, y: 0, width: 1280, height: 860 }),
+      launch: async () => true,
+      onChange: (view) => views.push(view.open.map((entry) => entry.appId)),
+    });
+    dock.setArea({ x: 236, y: 0, width: 1044, height: 860 });
+    await dock.show('nebula.beta');
+    dock.connectionsChanged();
+    expect(dock.view().open).toEqual([{ appId: 'nebula.beta', connected: true }]);
+    off();
+    await eventually(() => !hub.server.subscribersOf('nebula.hub.dock').includes('nebula.beta'));
+    dock.connectionsChanged();
+    expect(dock.view()).toMatchObject({ open: [], active: null });
+  });
+});

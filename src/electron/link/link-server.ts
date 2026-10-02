@@ -479,6 +479,8 @@ export class LinkServer {
     if (typeof event !== 'string') return { error: 'invalid-params' };
     if (!subscribe) {
       connection.subscriptions.delete(event);
+      // An app leaving the Hub mode by itself ("Detach" in the app, § 17): the Hub forgets it.
+      if (event === 'nebula.hub.dock') this.deps.onChange?.();
       return { result: {} };
     }
     if (!consumesCapability(connection.manifest!, event)) return { error: 'unknown-capability' };
