@@ -15,7 +15,7 @@ Technical log, newest session first. Release notes live only in the GitHub relea
   - the unused ESLint directive of the Link demo (the only lint warning).
 - `npm audit`: no vulnerability in runtime dependencies; one low advisory on esbuild's own development server (`esbuild --serve`, unused here: Vite serves the renderer), whose fix needs esbuild 0.28, outside Vite 7's range: not forced.
 - Checks: typecheck, lint (0 warning), 934 tests, build, `dist:win`, packaged build started on a throwaway profile, SDK archive installed in a bare project (CJS and ESM, DockV1).
-- Version 0.2.0-beta.2; SDK `@nebula/link` 1.0.0 published (`link-v1.0.0`).
+- Version 0.2.0-beta.2 published as a GitHub pre-release (v0.1.0 stays latest); SDK `@nebula/link` 1.0.0 published (`link-v1.0.0`, not latest; the downloaded archive is byte-identical to the local build). The SDK workflow, run for the first time, cut the tag one character short (`v1.0.0`): fixed, tag recreated before any release existed.
 
 ## [2026-10-02] - Nebula Hub Session #10 — Apps inside the Hub (docked windows)
 
