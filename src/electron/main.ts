@@ -28,7 +28,8 @@ import { showWindowsNotification } from './notifier';
 import { hardenApp, hardenSession, isTrustedSender } from './security';
 import { SettingsStore } from './settings-store';
 import { createTray, destroyTray, updateTray, type TrayOptions } from './tray';
-import { applyWindowTheme, createMainWindow, getMainWindow, isWindowFocused, onWindowVisibilityChange, setQuitting, showMainWindow } from './window';
+import { applyWindowTheme, contentBounds, createMainWindow, getMainWindow, isWindowFocused, onWindowGeometry, onWindowVisibilityChange, setQuitting, showMainWindow } from './window';
+import { isRect } from '../shared/dock';
 
 // Pinned explicitly (ADR-007, ADR-013): a future product rename must never orphan the
 // consents and history. NEBULA_HUB_USER_DATA_DIR points manual tests at a throwaway folder; it
@@ -135,9 +136,12 @@ if (!app.requestSingleInstanceLock()) {
       onWidgets: (widgets) => getMainWindow()?.webContents.send(CHANNELS.widgetsChanged, widgets),
       onActivity: (item) => activityAdded(item),
       onConsentRequest: (consumer, capability) => consentRequested(consumer, capability),
+      dockContent: contentBounds,
+      onDock: (view) => getMainWindow()?.webContents.send(CHANNELS.dockChanged, view),
     });
     await link.start();
     onWindowVisibilityChange((visible) => link?.widgets.setVisible(visible));
+    onWindowGeometry((focused) => link?.dock.windowChanged(focused));
     if (startedHidden) link.widgets.setVisible(false);
     installed.onChange((view) => void link?.onInstalledChanged(view));
     if (app.isPackaged) app.setAsDefaultProtocolClient('nebula');
@@ -549,6 +553,27 @@ function registerIpcHandlers(): void {
     const items = await link.clearActivity(appId ?? undefined);
     updateTray(trayOptions());
     return items;
+  });
+
+  ipcMain.handle(CHANNELS.dockGet, (event) => {
+    if (!isTrustedSender(event) || !link) throw new Error('ERR_UNTRUSTED_SENDER');
+    return link.dock.view();
+  });
+
+  ipcMain.handle(CHANNELS.dockShow, async (event, appId: unknown) => {
+    if (!isTrustedSender(event) || !link || typeof appId !== 'string') return false;
+    return link.dock.show(appId);
+  });
+
+  ipcMain.on(CHANNELS.dockArea, (event, area: unknown) => {
+    if (!isTrustedSender(event) || !link || !(area === null || isRect(area))) return;
+    link.dock.setArea(area);
+  });
+
+  ipcMain.handle(CHANNELS.dockRelease, (event, appId: unknown) => {
+    if (!isTrustedSender(event) || !link || typeof appId !== 'string') return false;
+    link.dock.release(appId);
+    return true;
   });
 
   ipcMain.handle(CHANNELS.catalogAsset, async (event, appId: unknown, assetPath: unknown) => {

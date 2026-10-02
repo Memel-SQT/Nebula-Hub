@@ -5,7 +5,7 @@ import type { TranslationKey } from './i18n';
 /** Navigation is typed application state (no router), shared with the main process. */
 export type { Route };
 
-export type Section = Exclude<Route['screen'], 'app'>;
+export type Section = Exclude<Route['screen'], 'app' | 'docked'>;
 
 export const SECTIONS: ReadonlyArray<{ id: Section; icon: IconName; labelKey: TranslationKey }> = [
   { id: 'home', icon: 'home', labelKey: 'nav.home' },
@@ -16,7 +16,9 @@ export const SECTIONS: ReadonlyArray<{ id: Section; icon: IconName; labelKey: Tr
   { id: 'settings', icon: 'sliders', labelKey: 'nav.settings' },
 ];
 
-/** The section highlighted in the sidebar for a route (an app page belongs to Discover). */
+/** The section highlighted in the sidebar for a route (an app page belongs to Discover, an app inside the Hub to Home). */
 export function sectionOf(route: Route): Section {
-  return route.screen === 'app' ? 'discover' : route.screen;
+  if (route.screen === 'app') return 'discover';
+  if (route.screen === 'docked') return 'home';
+  return route.screen;
 }

@@ -8,6 +8,7 @@ import type { InstalledView } from '../shared/installed-view';
 import type { LinkView } from '../shared/link-view';
 import type { HubSettings } from '../shared/settings';
 import type { WidgetView } from '../shared/widgets';
+import type { DockView } from '../shared/dock';
 
 function subscribe<T>(channel: string, callback: (payload: T) => void): () => void {
   const listener = (_event: unknown, payload: T) => callback(payload);
@@ -64,6 +65,11 @@ const bridge: NebulaHubBridge = {
   onInstallerSaveProgress: (callback) => subscribe<InstallerSaveProgress>(CHANNELS.installerSaveProgress, callback),
   revealFile: (filePath) => ipcRenderer.invoke(CHANNELS.revealFile, filePath),
   pickBackupCopyDirectory: () => ipcRenderer.invoke(CHANNELS.pickBackupCopyDirectory),
+  getDock: () => ipcRenderer.invoke(CHANNELS.dockGet),
+  onDockChanged: (callback) => subscribe<DockView>(CHANNELS.dockChanged, callback),
+  showDocked: (appId) => ipcRenderer.invoke(CHANNELS.dockShow, appId),
+  setDockArea: (area) => ipcRenderer.send(CHANNELS.dockArea, area),
+  releaseDocked: (appId) => ipcRenderer.invoke(CHANNELS.dockRelease, appId),
 };
 
 contextBridge.exposeInMainWorld('nebulaHub', bridge);

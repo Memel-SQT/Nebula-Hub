@@ -7,6 +7,7 @@ import type { DownloadsView } from '../../src/shared/install-state';
 import { EMPTY_LINK_VIEW } from '../../src/shared/link-view';
 import type { ActivityItem } from '../../src/shared/activity';
 import type { WidgetView } from '../../src/shared/widgets';
+import { EMPTY_DOCK_VIEW, type DockView } from '../../src/shared/dock';
 import { App } from '../../src/renderer/App';
 import { catalogView, downloadsView, installedView, operation } from './fixtures';
 
@@ -22,9 +23,11 @@ async function render(node: JSX.Element) {
 /** Widgets and activity the next installBridge() serves (reset after each test). */
 let widgets: WidgetView[] = [];
 let activity: ActivityItem[] = [];
+let dockView: DockView = EMPTY_DOCK_VIEW;
 afterEach(() => {
   widgets = [];
   activity = [];
+  dockView = EMPTY_DOCK_VIEW;
 });
 
 function widget(overrides: Partial<WidgetView> = {}): WidgetView {
@@ -96,6 +99,11 @@ function installBridge(overrides: Partial<HubSettings> = {}, startedHidden = tru
     onInstallerSaveProgress: () => () => undefined,
     revealFile: jest.fn(async () => true),
     pickBackupCopyDirectory: jest.fn(async () => null),
+    getDock: jest.fn(async () => dockView),
+    onDockChanged: () => () => undefined,
+    showDocked: jest.fn(async () => true),
+    setDockArea: jest.fn(),
+    releaseDocked: jest.fn(async () => true),
   };
   window.nebulaHub = bridge;
   return {
@@ -458,5 +466,54 @@ describe('App: data and installers (ADR-026)', () => {
     expect(bridge.updateSettings).toHaveBeenCalledWith({ backupCopyDirectory: null });
     await userEvent.click(within(screen.getByRole('group', { name: 'Copie des sauvegardes' })).getByRole('button', { name: /Choisir un dossier/ }));
     expect(bridge.pickBackupCopyDirectory).toHaveBeenCalled();
+  });
+});
+
+describe('App: apps inside the Hub (ADR-027)', () => {
+  it('offers the Hub mode only to an app that supports it', async () => {
+    installBridge();
+    await render(<App />);
+    await userEvent.click(screen.getByRole('button', { name: 'Voir la fiche de Nebula Finterest' }));
+    expect(screen.getByText(/Le mode Hub arrivera avec une prochaine version de Nebula Finterest/)).toBeInTheDocument();
+    expect(screen.queryByRole('switch', { name: /dans le Hub/ })).not.toBeInTheDocument();
+  });
+
+  it('turns the Hub mode on, then opens the app inside the Hub from the launcher', async () => {
+    dockView = { dockable: ['nebula.finterest'], open: [], active: null };
+    const { bridge } = installBridge();
+    const { rerender } = await render(<App />);
+    await userEvent.click(screen.getByRole('button', { name: 'Voir la fiche de Nebula Finterest' }));
+    await userEvent.click(screen.getByRole('switch', { name: 'Ouvrir Nebula Finterest dans le Hub plutôt que dans sa propre fenêtre' }));
+    expect(bridge.updateSettings).toHaveBeenCalledWith({ openInHub: ['nebula.finterest'] });
+    rerender(<App />);
+    await userEvent.click(within(screen.getByRole('group', { name: 'Lancer une app' })).getByRole('button', { name: 'Ouvrir Nebula Finterest' }));
+    expect(bridge.showDocked).toHaveBeenCalledWith('nebula.finterest');
+    expect(bridge.launchApp).not.toHaveBeenCalled();
+    expect(screen.getByRole('heading', { level: 1, name: 'Nebula Finterest' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Zone de Nebula Finterest' })).toBeInTheDocument();
+    expect(bridge.setDockArea).toHaveBeenCalledWith(expect.objectContaining({ width: expect.any(Number) }));
+    expect(screen.getByText('Nebula Finterest a été fermée.')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /Retour à l’accueil/ }));
+    expect(bridge.setDockArea).toHaveBeenLastCalledWith(null);
+  });
+
+  it('detaches a docked app to its own window', async () => {
+    dockView = { dockable: ['nebula.finterest'], open: [{ appId: 'nebula.finterest', connected: true }], active: 'nebula.finterest' };
+    const { bridge } = installBridge({ openInHub: ['nebula.finterest'] });
+    await render(<App />);
+    await userEvent.click(within(screen.getByRole('group', { name: 'Lancer une app' })).getByRole('button', { name: 'Ouvrir Nebula Finterest' }));
+    expect(screen.getByText('Nebula Finterest s’affiche ici.')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /Détacher dans sa propre fenêtre/ }));
+    expect(bridge.releaseDocked).toHaveBeenCalledWith('nebula.finterest');
+    expect(screen.getByRole('heading', { level: 1, name: 'Mes apps Nebula' })).toBeInTheDocument();
+  });
+
+  it('opens an app in its own window when the Hub mode is off', async () => {
+    dockView = { dockable: ['nebula.clock'], open: [], active: null };
+    const { bridge } = installBridge();
+    await render(<App />);
+    await userEvent.click(within(screen.getByRole('group', { name: 'Lancer une app' })).getByRole('button', { name: 'Ouvrir Nebula Clock' }));
+    expect(bridge.launchApp).toHaveBeenCalledWith('nebula.clock');
+    expect(bridge.showDocked).not.toHaveBeenCalled();
   });
 });

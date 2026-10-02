@@ -20,7 +20,7 @@ import type { CatalogScreenProps } from './types';
  * Install (M4) runs from here with its live progress; update, repair and uninstall arrive in M5;
  * integrations (manifest) in M6.
  */
-export function AppDetailScreen({ appId, catalog, installed, downloads, onNavigate, onRefresh, onLaunch, onShowFolder, onInstall, onCancelOperation, onDismissOperation, onOperation, onRequestClose, onContinueWithoutBackup, loadAsset, onOpenLink, dataActions, installerSaves }: CatalogScreenProps & {
+export function AppDetailScreen({ appId, catalog, installed, downloads, onNavigate, onRefresh, onLaunch, onShowFolder, onInstall, onCancelOperation, onDismissOperation, onOperation, onRequestClose, onContinueWithoutBackup, loadAsset, onOpenLink, dataActions, installerSaves, dock, openInHub = [], onToggleOpenInHub, onOpenDocked }: CatalogScreenProps & {
   appId: string;
   loadAsset: (appId: string, path: string) => Promise<string | null>;
   onOpenLink: (url: string) => void;
@@ -110,6 +110,26 @@ export function AppDetailScreen({ appId, catalog, installed, downloads, onNaviga
                         </button>
                       </>
                     ) : null}
+                  </div>
+                ) : null}
+                {!isHub && local?.exeFound && onToggleOpenInHub ? (
+                  <div className="dock-choice">
+                    {dock?.dockable.includes(entry.app.id) ? (
+                      <>
+                        <button type="button" role="switch" aria-checked={openInHub.includes(entry.app.id)} aria-describedby="dock-mode-hint" className={`switch ${openInHub.includes(entry.app.id) ? 'on' : ''}`} data-sound="toggle" onClick={() => onToggleOpenInHub(entry.app.id, !openInHub.includes(entry.app.id))}>
+                          <i aria-hidden="true" />
+                          <span>{t('dock.mode', { name: entry.app.name })}</span>
+                        </button>
+                        <small className="path-note" id="dock-mode-hint">{t('dock.modeHint', { name: entry.app.name })}</small>
+                        {onOpenDocked ? (
+                          <button type="button" className="ghost small" data-sound="none" onClick={() => onOpenDocked(entry.app.id)}>
+                            <Icon name="grid" size={15} />{t('dock.openInHubNamed', { name: entry.app.name })}
+                          </button>
+                        ) : null}
+                      </>
+                    ) : (
+                      <small className="path-note settings-hint"><Icon name="info" size={14} />{t('dock.unsupported', { name: entry.app.name })}</small>
+                    )}
                   </div>
                 ) : null}
                 {!isHub && installerSaves && dataActions ? <InstallerSaveButton entry={entry} saves={installerSaves} onReveal={dataActions.reveal} /> : null}

@@ -76,6 +76,7 @@ export interface LinkServerDeps {
 const HUB_CAPABILITIES: Capability[] = [
   { id: 'nebula.appearance.changed', kind: 'event', sensitivity: 'public', title: { fr: 'Apparence Nebula', en: 'Nebula appearance' }, description: { fr: 'Thème, accent, fond, animations, sons et langue réglés dans le Hub.', en: 'Theme, accent, background, motion, sounds and language set in the Hub.' }, payloadSchema: 'AppearanceV1' },
   { id: 'nebula.hub.present', kind: 'event', sensitivity: 'public', title: { fr: 'Présence du Hub', en: 'Hub presence' }, description: { fr: 'Le Hub est ouvert, avec sa version.', en: 'The Hub is running, with its version.' }, payloadSchema: 'PresenceV1' },
+  { id: 'nebula.hub.dock', kind: 'event', sensitivity: 'public', title: { fr: 'Mode Hub', en: 'Hub mode' }, description: { fr: 'Où placer la fenêtre de l’app quand elle s’ouvre dans le Hub.', en: 'Where to place the app window when it opens inside the Hub.' }, payloadSchema: 'DockV1' },
   { id: 'hub.open', kind: 'intent', sensitivity: 'public', title: { fr: 'Ouvrir le Hub', en: 'Open the Hub' }, description: { fr: 'Ouvre le Hub sur un écran.', en: 'Opens the Hub on a screen.' }, payloadSchema: 'EmptyV1', path: '/' },
 ];
 
@@ -185,6 +186,24 @@ export class LinkServer {
     for (const connection of this.connections) {
       if (connection.authenticated && connection.subscriptions.has(event)) this.deliverEvent(connection, HUB_ID, capability, payload);
     }
+  }
+
+  /**
+   * A Hub event for one app only (`nebula.hub.dock`, § 17): delivered if that app is connected,
+   * subscribed and allowed. Returns whether it was sent.
+   */
+  sendTo(appId: string, event: string, payload: unknown): boolean {
+    const capability = capabilityOf(HUB_MANIFEST, event);
+    if (!capability?.payloadSchema || !validateSchema(capability.payloadSchema, payload)) return false;
+    const connection = [...this.connections].find((candidate) => candidate.authenticated && candidate.appId === appId && candidate.subscriptions.has(event));
+    if (!connection || this.decision(appId, capability) !== 'allow') return false;
+    this.deliverEvent(connection, HUB_ID, capability, payload);
+    return true;
+  }
+
+  /** Apps connected and subscribed to a Hub event (`nebula.hub.dock`: ready for the Hub mode). */
+  subscribersOf(event: string): string[] {
+    return [...this.connections].filter((connection) => connection.authenticated && connection.appId && connection.subscriptions.has(event)).map((connection) => connection.appId!);
   }
 
   /** The Hub reads a capability (widgets), under the same consent rules as an app. */
@@ -466,6 +485,8 @@ export class LinkServer {
     // The Hub's state events are sent at once, so a new client starts in sync.
     if (consent === 'allow' && event === 'nebula.appearance.changed') this.deliverEvent(connection, HUB_ID, capability, this.deps.appearance());
     if (consent === 'allow' && event === 'nebula.hub.present') this.deliverEvent(connection, HUB_ID, capability, this.presence());
+    // A docked app that (re)subscribes gets its place at once (§ 17).
+    if (event === 'nebula.hub.dock') this.deps.onChange?.();
     return { result: { consent } };
   }
 

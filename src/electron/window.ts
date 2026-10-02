@@ -65,6 +65,21 @@ export function onWindowVisibilityChange(listener: (visible: boolean) => void): 
   return () => visibilityListeners.delete(listener);
 }
 
+const geometryListeners = new Set<(focused: boolean) => void>();
+
+/** Moves, resizes, minimize / restore, hide / show and focus of the window (Hub mode, ADR-027). */
+export function onWindowGeometry(listener: (focused: boolean) => void): () => void {
+  geometryListeners.add(listener);
+  return () => geometryListeners.delete(listener);
+}
+
+/** The content area in screen DIPs, or null when the window is hidden or minimized. */
+export function contentBounds(): { x: number; y: number; width: number; height: number } | null {
+  const window = getMainWindow();
+  if (!window || window.isDestroyed() || !window.isVisible() || window.isMinimized()) return null;
+  return window.getContentBounds();
+}
+
 /** Whether the user is looking at the Hub right now (Windows notifications are not needed then). */
 export function isWindowFocused(): boolean {
   const window = getMainWindow();
@@ -136,6 +151,11 @@ export async function createMainWindow(options: { settings: () => HubSettings; s
   for (const name of ['show', 'hide', 'minimize', 'restore'] as const) {
     window.on(name as 'show', () => sendVisibility(window));
   }
+  for (const name of ['move', 'resize', 'show', 'hide', 'minimize', 'restore', 'maximize', 'unmaximize', 'enter-full-screen', 'leave-full-screen'] as const) {
+    window.on(name as 'move', () => geometryListeners.forEach((listener) => listener(false)));
+  }
+  window.on('focus', () => geometryListeners.forEach((listener) => listener(true)));
+  window.on('closed', () => geometryListeners.forEach((listener) => listener(false)));
   window.once('ready-to-show', () => {
     if (!options.startHidden) {
       window.show();

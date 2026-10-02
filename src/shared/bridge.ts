@@ -9,6 +9,7 @@ import type { LinkView } from './link-view';
 import type { Route } from './route';
 import type { HubSettings, SettingsPatch } from './settings';
 import type { WidgetView } from './widgets';
+import type { DockView, Rect } from './dock';
 
 /** IPC channel names: the only routes between the renderer and the main process. */
 export const CHANNELS = {
@@ -56,6 +57,11 @@ export const CHANNELS = {
   installerSaveProgress: 'apps:save-installer-progress',
   revealFile: 'shell:reveal-file',
   pickBackupCopyDirectory: 'settings:pick-backup-copy-directory',
+  dockGet: 'dock:get',
+  dockChanged: 'dock:changed',
+  dockShow: 'dock:show',
+  dockArea: 'dock:area',
+  dockRelease: 'dock:release',
 } as const;
 
 /** Screens the main process may ask the renderer to show (tray menu, Nebula Link). */
@@ -156,4 +162,13 @@ export interface NebulaHubBridge {
   revealFile(filePath: string): Promise<boolean>;
   /** Picks the folder for the backup copies; resolves with the saved settings, or null if cancelled. */
   pickBackupCopyDirectory(): Promise<HubSettings | null>;
+  /** Hub mode (ADR-027): which apps can open inside the Hub, which are open, which is shown. */
+  getDock(): Promise<DockView>;
+  onDockChanged(callback: (view: DockView) => void): () => void;
+  /** Opens (or shows again) an app inside the Hub; false if it cannot (not compatible, launch failed). */
+  showDocked(appId: string): Promise<boolean>;
+  /** Where the docked app goes, relative to the window content; null when another screen is shown. */
+  setDockArea(area: Rect | null): void;
+  /** Sends the app back to its own window. */
+  releaseDocked(appId: string): Promise<boolean>;
 }

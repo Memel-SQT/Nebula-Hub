@@ -3,6 +3,7 @@ import type { DownloadsView, OperationKind, OperationView } from '@shared/instal
 import type { InstalledView } from '@shared/installed-view';
 import type { Route } from '../navigation';
 import type { DataActions, InstallerSaves } from '../components/AppData';
+import type { DockView } from '@shared/dock';
 
 /** Screens fed by the signed catalog (M2) and the detection of installed apps (M3). */
 export interface CatalogScreenProps {
@@ -29,4 +30,9 @@ export interface CatalogScreenProps {
   dataActions?: DataActions;
   /** "Download the installer" (ADR-026). */
   installerSaves?: InstallerSaves;
+  /** Hub mode (ADR-027): apps that support it, apps opened in it, and the per-app choice. */
+  dock?: DockView;
+  openInHub?: string[];
+  onToggleOpenInHub?: (appId: string, enabled: boolean) => void;
+  onOpenDocked?: (appId: string) => void;
 }

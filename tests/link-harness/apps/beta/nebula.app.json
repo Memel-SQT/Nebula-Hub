@@ -9,7 +9,8 @@
     { "id": "alpha.alert", "kind": "event" },
     { "id": "alpha.open-panel", "kind": "intent" },
     { "id": "nebula.appearance.changed", "kind": "event" },
-    { "id": "nebula.hub.present", "kind": "event" }
+    { "id": "nebula.hub.present", "kind": "event" },
+    { "id": "nebula.hub.dock", "kind": "event" }
   ],
   "deepLinks": [{ "path": "/", "params": {} }]
 }

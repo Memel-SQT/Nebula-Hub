@@ -9,4 +9,6 @@ export type Route =
   | { screen: 'my-apps' }
   | { screen: 'downloads' }
   | { screen: 'integrations' }
-  | { screen: 'settings' };
+  | { screen: 'settings' }
+  /** An app shown inside the Hub (ADR-027). */
+  | { screen: 'docked'; appId: string };

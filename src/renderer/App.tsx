@@ -8,6 +8,8 @@ import { updateAvailable } from '@shared/installed-view';
 import { HUB_ID, type ConsentState } from '@shared/consent';
 import type { ActivityItem } from '@shared/activity';
 import type { WidgetView } from '@shared/widgets';
+import { EMPTY_DOCK_VIEW, type DockView, type Rect } from '@shared/dock';
+import { DockedScreen } from './screens/DockedScreen';
 import type { LinkView } from '@shared/link-view';
 import { playSound } from '@nebula/design';
 import type { HubSettings, SettingsPatch } from '@shared/settings';
@@ -49,6 +51,7 @@ export function App() {
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const [link, setLink] = useState<LinkView | undefined>(undefined);
   const [widgets, setWidgets] = useState<WidgetView[]>([]);
+  const [dock, setDock] = useState<DockView>(EMPTY_DOCK_VIEW);
   const [activity, setActivity] = useState<ActivityItem[]>([]);
   const [saveProgress, setSaveProgress] = useState<Record<string, InstallerSaveProgress | undefined>>({});
   const [saveResults, setSaveResults] = useState<Record<string, SaveInstallerResult | undefined>>({});
@@ -101,8 +104,44 @@ export function App() {
     void bridge.refreshInstalled().then(setInstalled, () => undefined);
   }, [bridge]);
 
+  // Hub mode (ADR-027): which apps can open inside the Hub, which are open.
+  useEffect(() => {
+    let active = true;
+    void bridge.getDock().then((view) => active && setDock(view), () => undefined);
+    const unsubscribe = bridge.onDockChanged(setDock);
+    return () => {
+      active = false;
+      unsubscribe();
+    };
+  }, [bridge]);
+
+  const setDockArea = useCallback((area: Rect | null) => bridge.setDockArea(area), [bridge]);
+
+  const showDocked = useCallback((appId: string) => {
+    setRoute({ screen: 'docked', appId });
+    void bridge.showDocked(appId).then((shown) => {
+      if (shown) {
+        setLaunchError(null);
+        playSound('open');
+      } else {
+        setLaunchError(translate(language, 'dock.failed', { name: catalog.entries.find((entry) => entry.app.id === appId)?.app.name ?? appId }));
+        playSound('error');
+      }
+    }, () => undefined);
+  }, [bridge, catalog.entries, language]);
+
+  const releaseDocked = useCallback((appId: string) => {
+    void bridge.releaseDocked(appId);
+    setRoute({ screen: 'home' });
+  }, [bridge]);
+
   const launchApp = useCallback((appId: string) => {
     const name = catalog.entries.find((entry) => entry.app.id === appId)?.app.name ?? appId;
+    // Opened inside the Hub when the user chose it and the app supports it; its own window otherwise.
+    if (settings.openInHub.includes(appId) && dock.dockable.includes(appId)) {
+      showDocked(appId);
+      return;
+    }
     void bridge.launchApp(appId).then(
       (result) => {
         if (result === 'launched') {
@@ -115,7 +154,7 @@ export function App() {
       },
       () => setLaunchError(translate(language, 'launch.failed', { name })),
     );
-  }, [bridge, catalog.entries, language]);
+  }, [bridge, catalog.entries, language, settings.openInHub, dock.dockable, showDocked]);
 
   // Install queue and history (M4), then every change pushed by the main process.
   useEffect(() => {
@@ -324,6 +363,10 @@ export function App() {
     reveal: (filePath) => void bridge.revealFile(filePath),
   }), [bridge, settings.backupCopyDirectory]);
 
+  const toggleOpenInHub = useCallback((appId: string, enabled: boolean) => {
+    updateSettings({ openInHub: enabled ? [...settings.openInHub.filter((id) => id !== appId), appId] : settings.openInHub.filter((id) => id !== appId) });
+  }, [settings.openInHub, updateSettings]);
+
   const reorderWidgets = useCallback((order: string[]) => updateSettings({ widgetOrder: order }), [updateSettings]);
   const widgetConsent = useCallback((capability: string, state: ConsentState) => setLinkConsent(HUB_ID, capability, state), [setLinkConsent]);
   const markActivityRead = useCallback(() => updateSettings({ activitySeenAt: new Date().toISOString() }), [updateSettings]);
@@ -382,6 +425,10 @@ export function App() {
     onToggleAutoUpdate: toggleAutoUpdate,
     dataActions,
     installerSaves,
+    dock,
+    openInHub: settings.openInHub,
+    onToggleOpenInHub: toggleOpenInHub,
+    onOpenDocked: showDocked,
   };
   const closeDialog = () => setDialog(null);
   const dialogEntry = (appId: string) => catalog.entries.find((entry) => entry.app.id === appId);
@@ -413,6 +460,7 @@ export function App() {
             />
           ) : null}
           {route.screen === 'discover' ? <DiscoverScreen {...catalogProps} /> : null}
+          {route.screen === 'docked' ? <DockedScreen key={route.appId} appId={route.appId} catalog={catalog} dock={dock} onShow={showDocked} onRelease={releaseDocked} onNavigate={setRoute} onArea={setDockArea} /> : null}
           {route.screen === 'app' ? <AppDetailScreen key={route.appId} {...catalogProps} appId={route.appId} loadAsset={loadAsset} onOpenLink={openLink} /> : null}
           {route.screen === 'my-apps' ? <MyAppsScreen {...catalogProps} onRefreshInstalled={refreshInstalled} /> : null}
           {route.screen === 'downloads' ? <DownloadsScreen {...catalogProps} onExportHistory={exportHistory} /> : null}

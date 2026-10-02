@@ -687,3 +687,24 @@ Les constats qui fondent ces décisions sont détaillés dans [DISCOVERY.md](DIS
      principal.
   3. *Fenêtre réparentée* (SetParent Windows) : écartée, fragile (DPI, focus, raccourcis) et
      demande du code natif.
+
+## ADR-027 — Apps « dans le Hub » par fenêtre ancrée
+
+- **Statut** : Accepté (l'utilisateur a validé la voie recommandée par ADR-026 le 2026-10-02).
+  Amende `docs/NEBULA_LINK.md` (nouveau § 17, schéma `DockV1`).
+- **Décision** : une app ouverte « dans le Hub » garde son processus et sa fenêtre ; sa fenêtre,
+  sans cadre, se pose exactement sur la zone de contenu du Hub et la suit. Le Hub lui envoie, à
+  elle seule, l'événement Link `nebula.hub.dock` (zone en DIP écran, visible ou non, passage au
+  premier plan, ou retour à la fenêtre normale).
+- **Pourquoi** : c'est la seule voie qui garde R07 (le Hub ne lit ni n'exécute le code ou les
+  données d'une app) et R10 (pas de contenu étranger dans la fenêtre durcie du Hub), sans code
+  natif. Les onglets internes et le réparentage Windows sont écartés (ADR-026).
+- **Hub** : `src/shared/dock.ts` (géométrie et messages, purs), `src/electron/link/dock.ts`
+  (`DockController` : ouverture, lancement si besoin, une app visible à la fois, suivi de la
+  fenêtre, détachement, tout relâcher en quittant), `LinkServer.sendTo` / `subscribersOf`, écran
+  `docked` (barre fine + zone mesurée par `ResizeObserver`), réglage `openInHub` par app.
+- **Limites connues** : l'empilement entre deux processus n'est pas garanti par Windows ; le Hub
+  demande à l'app de repasser devant à chaque fois qu'il reprend le focus (`raise`). Une app non
+  compatible (sans `nebula.hub.dock` dans son manifeste) n'a pas l'option ; une app compatible qui
+  ne répond pas reste dans sa fenêtre, sans blocage.
+- **Adoption** : chaque app, avec le prompt `docs/PROMPT_APPS.md` (section « Mode Hub »).

@@ -83,6 +83,20 @@ A. Nebula Link (spécification : docs/NEBULA_LINK.md du dépôt Memel-SQT/Nebula
    - I6 : à la réception de `nebula.hub.present`, propose dans les réglages de l'app « Mises à
      jour gérées par Nebula Hub » (désactivé par défaut). Activé, l'updater intégré de l'app ne
      télécharge plus rien lui-même.
+   - MODE HUB (§ 17 de la spécification, ADR-027) : l'app peut s'afficher « dans le Hub » tout en
+     gardant son processus et ses données. Déclare `{ "id": "nebula.hub.dock", "kind": "event" }`
+     dans `consumes` et abonne-toi avec `link.on('nebula.hub.dock', …)`. Charge utile DockV1 :
+     • `{ state: 'docked', visible: true, raise, bounds }` → fenêtre SANS CADRE (une seconde
+       BrowserWindow dédiée ou la principale reconfigurée), `setBounds(bounds)` exactement
+       (coordonnées écran DIP), `showInactive()` (jamais de vol de focus), `skipTaskbar: true` ;
+       si `raise`, `moveTop()` ;
+     • `{ state: 'docked', visible: false }` → cache la fenêtre ;
+     • `{ state: 'released' }` OU perte de connexion au Hub (`link.onStatus`) → retour IMMÉDIAT à
+       la fenêtre normale (cadre, taille et position d'avant). L'app ne doit jamais rester
+       invisible ni inaccessible.
+     Ajoute dans l'app un bouton « Détacher » visible en mode Hub, qui revient à la fenêtre
+     normale. Teste : bascule aller-retour, Hub qui quitte en plein mode Hub, plusieurs écrans,
+     mise à l'échelle 100 / 125 / 150 %.
    - Tests : avec le Hub absent (l'app démarre et fonctionne), avec un faux Hub (banc d'essai :
      tests/link-harness/ du dépôt Nebula Hub, à reproduire en petit), schémas des résultats.
 B. Données : sauvegarde, copie, import (ADR-016 et ADR-026 du Hub). But : on peut désinstaller,
@@ -196,3 +210,5 @@ empaquetée pour Windows ; main Electron en CommonJS dans `desktop/main.js` : ut
 - Reconnaître les nouveaux formats de sauvegarde (`clock-backup-v1`, `news-backup-v1`) s'ils
   existent.
 - Activer l'intégration I4 (pause lecture) quand Clock et News publient leurs capacités.
+- Proposer « Ouvrir dans le Hub » dès que le manifeste installé d'une app consomme
+  `nebula.hub.dock` (rien à faire de plus côté Hub : c'est déjà en place).

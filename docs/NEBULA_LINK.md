@@ -243,6 +243,7 @@ nouveau nom (`V2`). Chaque validateur est une fonction pure et testée, qui born
 | `BreakStartedV1` | `{ kind: "short" \| "long", durationMin }` — Clock, I4 |
 | `PresenceV1` | `{ hubVersion, protocol, managesUpdates }` — I6 |
 | `EmptyV1` | `{}` |
+| `DockV1` | `{ state: "docked", visible, raise, bounds: { x, y, width, height } }` (entiers, DIP écran) ou `{ state: "released" }` — mode Hub, § 17 |
 
 ## 9. Méthodes JSON-RPC
 
@@ -408,3 +409,37 @@ Ces points complètent la spécification sans en changer les règles.
   collision avec le Hub installé.
 - **Manifeste** : un chemin d'intent (`path`) doit figurer dans `deepLinks` ; les segments `.` et
   `..` d'un lien `nebula://` sont refusés avant toute normalisation.
+
+## 17. Mode Hub : une app dans la fenêtre du Hub (amendement, ADR-027)
+
+Ajouté le 2026-10-02 à la demande de l'utilisateur (« les apps tournent soit seules, soit dans le
+Hub »). Le principe ne change pas : chaque app garde **son processus, sa fenêtre et ses données** ;
+le Hub ne charge ni ne voit jamais son interface (R07, R10).
+
+- **Capacité du Hub** `nebula.hub.dock` (event, public, `DockV1`). Une app compatible la déclare
+  dans `consumes` et s'y abonne au démarrage. C'est ce qui la rend « compatible mode Hub » : le Hub
+  ne propose ce mode qu'à une app dont le manifeste installé consomme cet événement.
+- **Envoi ciblé** : contrairement à l'apparence, cet événement n'est jamais diffusé ; le Hub
+  l'envoie à **une seule app**, connectée, abonnée et autorisée (la paire peut être coupée dans
+  Intégrations).
+- **Charge utile** : `{ state: 'docked', visible, raise, bounds }`, `bounds` en coordonnées écran
+  DIP (l'unité de `BrowserWindow.setBounds` d'Electron), ou `{ state: 'released' }`.
+- **Côté app** :
+  - `docked` + `visible` : fenêtre sans cadre (créée ou réutilisée), placée exactement sur
+    `bounds`, affichée **sans prendre le focus** (`showInactive`), sans icône dans la barre des
+    tâches. Si `raise` est vrai, elle repasse au premier plan (`moveTop`) sans voler le focus ;
+  - `docked` + `visible: false` : la fenêtre se cache (le Hub est réduit, caché, ou montre un
+    autre écran ou une autre app) ;
+  - `released`, ou perte de la connexion au Hub : retour à la fenêtre normale de l'app (cadre,
+    taille et position d'avant), **toujours** ; l'app ne doit jamais rester invisible.
+  - L'app reste utilisable au clavier et à la souris normalement ; elle peut proposer un bouton
+    « Détacher » qui revient à sa fenêtre (et le Hub le comprend en voyant l'app quitter le mode).
+- **Côté Hub** (`DockController`) : le Hub envoie la zone de contenu de son écran « app dans le
+  Hub » à chaque déplacement, redimensionnement, réduction ou changement d'écran (rien n'est
+  renvoyé si rien ne bouge). Une seule app est montrée à la fois, les autres apps ouvertes en mode
+  Hub sont cachées : la barre latérale sert d'onglets. Une app qui ne répond pas (version
+  antérieure) reste dans sa propre fenêtre ; l'utilisateur peut toujours la détacher. Quand le Hub
+  quitte, toutes les apps reçoivent `released`.
+- **Choix de l'utilisateur** : par app, « Ouvrir dans le Hub plutôt que dans sa propre fenêtre »
+  (désactivé par défaut), sur la fiche de l'app. Le lanceur (barre latérale, accueil, zone de
+  notification) suit ce choix.

@@ -22,7 +22,7 @@ export function alpha(sessionFile: string, options: { secret?: () => unknown } =
 export function beta(sessionFile: string): { link: NebulaLink; events: Array<{ event: string; payload: unknown; source: string }> } {
   const link = NebulaLink.create({ appId: 'nebula.beta', appVersion: '1.0.0', manifestPath: manifestOf('beta'), sessionFile, minBackoffMs: 50, maxBackoffMs: 200, requestTimeoutMs: 1500 });
   const events: Array<{ event: string; payload: unknown; source: string }> = [];
-  for (const event of ['alpha.tick', 'alpha.alert', 'nebula.appearance.changed', 'nebula.hub.present']) {
+  for (const event of ['alpha.tick', 'alpha.alert', 'nebula.appearance.changed', 'nebula.hub.present', 'nebula.hub.dock']) {
     link.on(event, (payload, source) => events.push({ event, payload, source }));
   }
   return { link, events };

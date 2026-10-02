@@ -2,6 +2,15 @@
 
 Technical log, newest session first. Release notes live only in the GitHub release body.
 
+## [2026-10-02] - Nebula Hub Session #10 — Apps inside the Hub (docked windows)
+
+- **Decision** (ADR-027, validated by the user): an app opened "inside the Hub" keeps its process, window and data; its frameless window lies over the Hub's content area and follows it. Spec amended (`docs/NEBULA_LINK.md` § 17, schema `DockV1`).
+- **Protocol**: Hub capability `nebula.hub.dock` (event, public, DockV1: `docked` with `visible`, `raise` and integer DIP `bounds`, or `released`), never broadcast: `LinkServer.sendTo` delivers to one connected, subscribed, allowed app; `subscribersOf`; a (re)subscription triggers a resync.
+- **Hub**: `shared/dock.ts` (bounds from the content-relative area, payload, `supportsDock` from the installed manifest), `link/dock.ts` (`DockController`: show launches the app if needed, one visible app at a time, follows move / resize / minimize / restore / focus with `raise`, nothing re-sent when nothing moved, forgets an app the user quit, releases everything when the Hub quits), window geometry listeners and content bounds, IPC get / show / area / release.
+- **UI**: `docked` screen (slim bar with Detach and Back to Home, measured area reported on every layout change and cleared when left; starting / too slow / closed states), per-app "Open inside the Hub" switch and button on the app page (or a note when the app is not compatible yet), the launcher follows the choice; setting `openInHub`.
+- **Prompts**: Hub mode section for the apps (frameless window, `showInactive`, `moveTop` on raise, always back to the normal window on `released` or lost connection, Detach button).
+- Tests: geometry and DockV1 schema, controller (launch then place, follow, tabs, release, quit, refusals), two bench scenarios over real pipes (targeted delivery and window following; pair turned off), App (switch only for compatible apps, launch inside the Hub, own window when off, detach).
+
 ## [2026-10-02] - Nebula Hub Session #9 — User feedback: app data, installers, wide layout
 
 - **Backup choice** (ADR-026, amends ADR-022): the confirmation of an update / repair / uninstall of an app that backs up has a "back up first" box, ticked; unticked, it states what happens to the data, renames the button and turns the dialog to danger. `enqueue(..., { skipBackup })` only with the confirmation, never for automatic updates; backup state `declined`.

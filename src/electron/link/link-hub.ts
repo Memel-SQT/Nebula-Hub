@@ -11,6 +11,8 @@ import { HUB_MANIFEST, LinkServer, type AdmittedApp } from './link-server';
 import { LinkStore } from './link-store';
 import { readInstalledManifest, removeSession, writeSession } from './session';
 import { WidgetBoard } from './widgets';
+import { DockController } from './dock';
+import { DOCK_EVENT, supportsDock, type DockView, type Rect } from '../../shared/dock';
 
 /**
  * Nebula Link inside the Hub (docs/NEBULA_LINK.md): session file, pipe server, consents and
@@ -35,6 +37,9 @@ export interface LinkHubDeps {
   onActivity?(item: ActivityItem): void;
   /** A private pair now waits for the user (shown in Windows if the Hub is hidden). */
   onConsentRequest?(consumer: string, capability: string): void;
+  /** Hub mode (ADR-027): the Hub window's content bounds (null when hidden or minimized). */
+  dockContent?(): Rect | null;
+  onDock?(view: DockView): void;
   now?(): Date;
 }
 
@@ -54,6 +59,7 @@ export class LinkHub {
   readonly store: LinkStore;
   server: LinkServer | null = null;
   readonly widgets: WidgetBoard;
+  readonly dock: DockController;
   private token = '';
   private readonly manifests = new Map<string, Manifest>();
   private readonly pending = new Map<string, { consumer: string; capability: string; at: string }>();
@@ -67,6 +73,14 @@ export class LinkHub {
       query: (capability) => (this.server ? this.server.queryAs(HUB_ID, capability) : Promise.resolve({ error: 'provider-offline' })),
       onChange: (widgets) => this.deps.onWidgets?.(widgets),
       now: deps.now ? () => deps.now!().getTime() : undefined,
+    });
+    this.dock = new DockController({
+      dockable: () => [...this.manifests.values()].filter(supportsDock).map((manifest) => manifest.appId),
+      subscribed: () => this.server?.subscribersOf(DOCK_EVENT) ?? [],
+      send: (appId, payload) => this.server?.sendTo(appId, DOCK_EVENT, payload) ?? false,
+      content: () => this.deps.dockContent?.() ?? null,
+      launch: (appId) => this.deps.launch(appId, []),
+      onChange: (view) => this.deps.onDock?.(view),
     });
   }
 
@@ -116,6 +130,7 @@ export class LinkHub {
       },
       onChange: () => {
         this.widgets.connectionsChanged();
+        this.dock.connectionsChanged();
         this.changed();
       },
       now: this.deps.now,
@@ -130,6 +145,7 @@ export class LinkHub {
   }
 
   async stop(): Promise<void> {
+    this.dock.releaseAll();
     this.widgets.stop();
     await this.server?.stop();
     await removeSession(this.deps.sessionDir, this.token);
@@ -159,6 +175,7 @@ export class LinkHub {
     for (const appId of [...this.manifests.keys()]) if (!ids.has(appId)) this.manifests.delete(appId);
     for (const appId of ids) await this.admit(appId);
     this.widgets.sync();
+    this.dock.connectionsChanged();
     this.changed();
   }
 

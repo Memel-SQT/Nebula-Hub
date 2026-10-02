@@ -4,7 +4,7 @@
  * value of the wrong shape, and texts are bounded so a buggy app cannot flood a screen.
  * A breaking change makes a new name (`…V2`).
  */
-export const SCHEMA_NAMES = ['AppearanceV1', 'WidgetV1', 'NotificationV1', 'HeadlinesV1', 'FocusTodayV1', 'BreakStartedV1', 'PresenceV1', 'EmptyV1'] as const;
+export const SCHEMA_NAMES = ['AppearanceV1', 'WidgetV1', 'NotificationV1', 'HeadlinesV1', 'FocusTodayV1', 'BreakStartedV1', 'PresenceV1', 'EmptyV1', 'DockV1'] as const;
 export type SchemaName = (typeof SCHEMA_NAMES)[number];
 
 export function isSchemaName(value: unknown): value is SchemaName {
@@ -65,6 +65,14 @@ const CHECKS: Record<SchemaName, Check> = {
   BreakStartedV1: shape({ kind: (value) => value === 'short' || value === 'long', durationMin: integer(1, 240) }),
   PresenceV1: shape({ hubVersion: text(40), protocol: text(40), managesUpdates: (value) => typeof value === 'boolean' }),
   EmptyV1: shape({}),
+  // Hub mode (§ 17): where the app window goes, in screen DIPs, or back to standalone.
+  DockV1: (value) => shape({ state: (state) => state === 'released' })(value)
+    || shape({
+      state: (state) => state === 'docked',
+      visible: (flag) => typeof flag === 'boolean',
+      raise: (flag) => typeof flag === 'boolean',
+      bounds: shape({ x: integer(-20_000, 20_000), y: integer(-20_000, 20_000), width: integer(0, 20_000), height: integer(0, 20_000) }),
+    })(value),
 };
 
 export function validateSchema(name: SchemaName, value: unknown): boolean {

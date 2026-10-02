@@ -32,6 +32,8 @@ export interface HubSettings {
   mutedApps: string[];
   /** Last time the user opened the activity center: anything newer is unread. */
   activitySeenAt: string | null;
+  /** Apps opened inside the Hub rather than in their own window (ADR-027); off by default. */
+  openInHub: string[];
 }
 
 export const DEFAULT_SETTINGS: HubSettings = {
@@ -47,6 +49,7 @@ export const DEFAULT_SETTINGS: HubSettings = {
   windowsNotifications: true,
   mutedApps: [],
   activitySeenAt: null,
+  openInHub: [],
 };
 
 export type SettingsPatch = Partial<Omit<HubSettings, 'appearance'>>;
@@ -77,6 +80,7 @@ export function parseSettings(value: unknown, fallback: HubSettings = DEFAULT_SE
     widgetOrder: record.widgetOrder === undefined ? fallback.widgetOrder : parseIds(record.widgetOrder),
     windowsNotifications: bool(record.windowsNotifications, fallback.windowsNotifications),
     mutedApps: record.mutedApps === undefined ? fallback.mutedApps : parseIds(record.mutedApps),
+    openInHub: record.openInHub === undefined ? fallback.openInHub : parseIds(record.openInHub),
     activitySeenAt: record.activitySeenAt === null || isIsoTime(record.activitySeenAt) ? (record.activitySeenAt as string | null) : fallback.activitySeenAt,
   };
 }

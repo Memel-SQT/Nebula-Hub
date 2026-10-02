@@ -8,6 +8,7 @@ import { NebulaLink, newToken, parseManifestBytes, PROTOCOL } from '@nebula/link
 import { HUB_ID } from '../../src/shared/consent';
 import { writeSession } from '../../src/electron/link/session';
 import { WidgetBoard } from '../../src/electron/link/widgets';
+import { DockController } from '../../src/electron/link/dock';
 import type { WidgetView } from '../../src/shared/widgets';
 import { alpha, beta, eventually } from './fake-apps';
 import { rawAuth, rawConnect } from './raw-client';
@@ -385,5 +386,54 @@ describe('Home widgets (M7)', () => {
     await eventually(() => hub.server.connectedApps().length === 0);
     board.connectionsChanged();
     expect(board.views()[0]).toMatchObject({ state: 'offline', data: null });
+  });
+});
+
+describe('Hub mode (ADR-027)', () => {
+  it('tells a docked app where to be, only that app, and follows the Hub window', async () => {
+    const { link, events } = track(beta(hub.sessionFile));
+    await link.connect();
+    await eventually(() => hub.server.subscribersOf('nebula.hub.dock').includes('nebula.beta'));
+    expect(hub.server.subscribersOf('nebula.hub.dock')).toEqual(['nebula.beta']);
+    expect(hub.server.sendTo('nebula.alpha', 'nebula.hub.dock', { state: 'released' })).toBe(false);
+    expect(hub.server.sendTo('nebula.beta', 'nebula.hub.dock', { state: 'docked', visible: true })).toBe(false);
+
+    let content: { x: number; y: number; width: number; height: number } | null = { x: 100, y: 80, width: 1280, height: 860 };
+    const dock = new DockController({
+      dockable: () => ['nebula.beta'],
+      subscribed: () => hub.server.subscribersOf('nebula.hub.dock'),
+      send: (appId, payload) => hub.server.sendTo(appId, 'nebula.hub.dock', payload),
+      content: () => content,
+      launch: async () => true,
+      onChange: () => undefined,
+    });
+    // The renderer reports the area of the docked screen, then the app is shown there.
+    dock.setArea({ x: 236, y: 0, width: 1044, height: 860 });
+    await dock.show('nebula.beta');
+    const docks = () => events.filter((entry) => entry.event === 'nebula.hub.dock').map((entry) => entry.payload);
+    await eventually(() => docks().length === 1);
+    expect(docks()[0]).toEqual({ state: 'docked', visible: true, raise: true, bounds: { x: 336, y: 80, width: 1044, height: 860 } });
+
+    content = { x: 400, y: 80, width: 1280, height: 860 };
+    dock.windowChanged();
+    content = null;
+    dock.windowChanged();
+    dock.release('nebula.beta');
+    await eventually(() => docks().length === 4);
+    expect(docks().slice(1)).toEqual([
+      { state: 'docked', visible: true, raise: false, bounds: { x: 636, y: 80, width: 1044, height: 860 } },
+      { state: 'docked', visible: false, raise: false, bounds: { x: 0, y: 0, width: 0, height: 0 } },
+      { state: 'released' },
+    ]);
+  });
+
+  it('does not send the Hub mode to an app whose pair the user turned off', async () => {
+    const { link, events } = track(beta(hub.sessionFile));
+    await link.connect();
+    await eventually(() => hub.server.subscribersOf('nebula.hub.dock').includes('nebula.beta'));
+    hub.deny('nebula.beta', 'nebula.hub.dock');
+    expect(hub.server.sendTo('nebula.beta', 'nebula.hub.dock', { state: 'released' })).toBe(false);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(events.some((entry) => entry.event === 'nebula.hub.dock')).toBe(false);
   });
 });
