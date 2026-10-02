@@ -2,6 +2,31 @@
 
 Technical log, newest session first. Release notes live only in the GitHub release body.
 
+## [2026-10-02] - Nebula Hub Session #12 — M8: the three apps adopt Nebula Link; 0.2.0
+
+- **The user asked for the three apps to be updated with everything requested, then a release.** Done one repository at a time, each on `feat/nebula-link` following its own conventions, then merged and released:
+  - **Nebula Finterest 0.1.37**:
+    - the sync folder becomes a copy only, local profiles being the reference;
+    - backups in `Documents\Nebula Finterest`, `--import-backup=` with confirmation, latest backup offered after a reinstall, uninstall asking instead of blocking;
+    - Link: private widget, private charge notifications, appearance, deep links, updates by the Hub, Hub mode;
+    - Electron 44.
+  - **Nebula Clock 1.2.0** (semantic-release):
+    - Link: focus widget, break start event, notifications to the activity center, appearance, deep links, updates by the Hub, Hub mode;
+    - the main window runs sandboxed;
+    - Electron 44.
+  - **Nebula News 0.3.0**:
+    - Next.js 14 → 15.5.27, fixing critical advisories including an unauthenticated RCE on Windows-hosted Next servers;
+    - Link: headlines widget, "briefing ready", Nebula language, `news.open-briefing`, Hub mode;
+    - desktop shell hardened (single instance, no navigation away, http(s)-only external links);
+    - installer `Nebula-News-Setup-<v>.exe` with `latest.yml`, so it is installable from the Hub.
+- **Every app checked end to end against the Hub's Link server in test mode** with the new driver `tests/link-harness/e2e-app.ts` (the app pointed at it with `NEBULA_LINK_SESSION_FILE`, throwaway data). Checked: admission with the real manifest, widgets with real data (null while Finterest is locked), notifications delivered once, Hub mode placing the window exactly at the bounds sent, release, in-app "Détacher", and the Hub disappearing while docked.
+- **Hub**: an app unsubscribing from `nebula.hub.dock` ("Détacher" in the app) is forgotten at once (`onSubscribe` resync); spec § 17 amended accordingly.
+- **Catalog** (re-signed): Finterest `importArgument: --import-backup=`, News `stable` with its Link manifest, the Hub `stable`.
+- **CI fixes in the apps**:
+  - Clock's Linux build failed with electron-builder 26 (executable name derived from the scoped package name): explicit `linux.executableName`;
+  - Finterest's installer workflow failed on every tag since 0.1.36 (electron-builder publishing on its own in CI): `--publish never`.
+- Version 0.2.0 (stable).
+
 ## [2026-10-02] - Nebula Hub Session #11 — Audit, SDK 1.0.0 and 0.2.0-beta.2
 
 - **Audit** of everything since 0.2.0-beta.1 (M7, ADR-026, ADR-027). Fixed:

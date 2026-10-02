@@ -1,4 +1,3 @@
-/* eslint-disable no-console -- a step-by-step driver for a manual end-to-end check */
 import fs from 'node:fs';
 import path from 'node:path';
 import { HUB_ID } from '../../src/shared/consent';

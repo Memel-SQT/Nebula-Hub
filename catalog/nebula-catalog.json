@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "generatedAt": "2026-10-01T12:00:00Z",
+  "generatedAt": "2026-10-02T12:35:00Z",
   "apps": [
     {
       "id": "nebula.finterest",
@@ -27,7 +27,8 @@
           "argument": "--backup-before-uninstall=",
           "documentsFolder": "Nebula Finterest",
           "filePrefix": "finterest-store-backup",
-          "format": "finterest-backup-v1"
+          "format": "finterest-backup-v1",
+          "importArgument": "--import-backup="
         }
       },
       "dataNotice": {
@@ -75,7 +76,7 @@
         "en": "A daily briefing of world news, aggregated from French and English RSS feeds, summarized and ranked by importance. Works without any API key."
       },
       "category": "info",
-      "status": "coming-soon",
+      "status": "stable",
       "icon": "icons/news.svg",
       "screenshots": [],
       "source": { "provider": "github", "owner": "Memel-SQT", "repo": "Nebula-News" },
@@ -92,6 +93,7 @@
         "fr": "Vos articles et favoris restent sur cet ordinateur, même après une désinstallation.",
         "en": "Your articles and favorites stay on this computer, even after an uninstall."
       },
+      "link": { "manifest": "nebula.app.json", "minProtocol": 1 },
       "minHubVersion": "0.1.0"
     },
     {
@@ -104,7 +106,7 @@
         "en": "The launcher and store of the Nebula family: installs, updates and connects your apps, without account or telemetry. Every app still works on its own."
       },
       "category": "system",
-      "status": "beta",
+      "status": "stable",
       "icon": "icons/hub.svg",
       "screenshots": ["screenshots/hub-home.png", "screenshots/hub-glass.png"],
       "source": { "provider": "github", "owner": "Memel-SQT", "repo": "Nebula-Hub" },

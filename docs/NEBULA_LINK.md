@@ -434,6 +434,9 @@ le Hub ne charge ni ne voit jamais son interface (R07, R10).
     taille et position d'avant), **toujours** ; l'app ne doit jamais rester invisible.
   - L'app reste utilisable au clavier et à la souris normalement ; elle peut proposer un bouton
     « Détacher » qui revient à sa fenêtre (et le Hub le comprend en voyant l'app quitter le mode).
+    Concrètement (2026-10-02, adopté par Finterest, Clock et News) : l'app **se désabonne** de
+    `nebula.hub.dock` (le Hub l'oublie aussitôt), revient à sa fenêtre normale, puis se réabonne
+    pour que le mode Hub puisse être choisi à nouveau depuis le Hub.
 - **Côté Hub** (`DockController`) : le Hub envoie la zone de contenu de son écran « app dans le
   Hub » à chaque déplacement, redimensionnement, réduction ou changement d'écran (rien n'est
   renvoyé si rien ne bouge). Une seule app est montrée à la fois, les autres apps ouvertes en mode

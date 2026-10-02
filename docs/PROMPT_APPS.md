@@ -5,6 +5,12 @@ Finterest, Nebula Clock, Nebula News). Ils font trois choses, dans cet ordre : m
 et l'auditer, la rendre compatible avec Nebula Hub (Nebula Link, sauvegardes, import), puis
 préparer sa publication. Chaque session présente d'abord son plan et attend ton accord.
 
+> **État au 2026-10-02** : ces prompts ont été appliqués aux trois apps, publiées avec Nebula Link
+> (Finterest 0.1.37, Clock 1.2.0, News 0.3.0). Ils restent la référence pour une mise à niveau
+> future ou pour une nouvelle app de la famille. Pour vérifier une app de bout en bout contre le
+> Hub : `tests/link-harness/e2e-app.ts` (serveur Link du Hub en mode test, variable
+> `NEBULA_LINK_SESSION_FILE` côté app).
+
 ## Mode d'emploi
 
 1. **Une app à la fois**, dans l'ordre Finterest → Clock → News (brief, M8).
