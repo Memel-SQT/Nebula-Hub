@@ -38,8 +38,4 @@ export const link = {
   'integrations.error': 'Nebula Link n’a pas pu démarrer. Fermez les autres fenêtres de Nebula Hub, puis relancez-le.',
   'link.offline': 'Link hors ligne',
   'link.online': 'Link actif',
-  'link.starting': 'Link démarre…',
-  'link.ready': 'Link prêt',
-  'link.unavailable': 'Link indisponible',
-  'link.onlineCount': 'Link actif · {count} app(s)',
 } as const;

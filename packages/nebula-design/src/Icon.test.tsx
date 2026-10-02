@@ -1,7 +1,7 @@
 import { render } from '@testing-library/react';
 import { Icon, ICON_NAMES } from './Icon';
 
-const STORE_ICONS = ['store', 'grid', 'link', 'puzzle', 'package', 'update', 'repair', 'uninstall', 'tray', 'bell', 'pause', 'external'] as const;
+const STORE_ICONS = ['store', 'grid', 'link', 'puzzle', 'package', 'update', 'repair', 'uninstall', 'tray', 'bell', 'pause', 'external', 'navHome', 'compass', 'apps', 'downloadTray', 'orbit', 'gear'] as const;
 
 describe('Icon', () => {
   it.each(ICON_NAMES)('renders %s on the 24 px grid in currentColor, hidden from assistive tech', (name) => {

@@ -7,13 +7,16 @@ export type { Route };
 
 export type Section = Exclude<Route['screen'], 'app' | 'docked'>;
 
-export const SECTIONS: ReadonlyArray<{ id: Section; icon: IconName; labelKey: TranslationKey }> = [
-  { id: 'home', icon: 'home', labelKey: 'nav.home' },
-  { id: 'discover', icon: 'store', labelKey: 'nav.discover' },
-  { id: 'my-apps', icon: 'grid', labelKey: 'nav.myApps' },
-  { id: 'downloads', icon: 'download', labelKey: 'nav.downloads' },
-  { id: 'integrations', icon: 'link', labelKey: 'nav.integrations' },
-  { id: 'settings', icon: 'sliders', labelKey: 'nav.settings' },
+/** Sidebar groups: the user's space, what the Hub manages, and the settings pinned at the bottom. */
+export type SectionGroup = 'space' | 'manage' | 'system';
+
+export const SECTIONS: ReadonlyArray<{ id: Section; icon: IconName; labelKey: TranslationKey; group: SectionGroup }> = [
+  { id: 'home', icon: 'navHome', labelKey: 'nav.home', group: 'space' },
+  { id: 'discover', icon: 'compass', labelKey: 'nav.discover', group: 'space' },
+  { id: 'my-apps', icon: 'apps', labelKey: 'nav.myApps', group: 'space' },
+  { id: 'downloads', icon: 'downloadTray', labelKey: 'nav.downloads', group: 'manage' },
+  { id: 'integrations', icon: 'orbit', labelKey: 'nav.integrations', group: 'manage' },
+  { id: 'settings', icon: 'gear', labelKey: 'nav.settings', group: 'system' },
 ];
 
 /** The section highlighted in the sidebar for a route (an app page belongs to Discover, an app inside the Hub to Home). */

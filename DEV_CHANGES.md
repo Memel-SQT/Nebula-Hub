@@ -2,6 +2,23 @@
 
 Technical log, newest session first. Release notes live only in the GitHub release body.
 
+## [2026-10-02] - Nebula Hub Session #13 — Sidebar redesign, navigation icons, family design prompt
+
+- **Bug: the sidebar entries were 20 px high.** The `button.plain` reset (installed.css, M4) outranked `.nav-button` and removed their padding, height and hover background. Sidebar styles now live in `styles/sidebar.css`, every selector scoped to `.sidebar`; the old rules were removed from app.css, dashboard.css, operations.css and installed.css.
+- **New sidebar** (ADR-028):
+  - a floating panel with grouped sections and 44 px entries, each icon in a tile;
+  - the active entry gets the DA recipe plus an accent bar;
+  - the launcher sits below the sections;
+  - Settings, a Nebula Link status card and the local footer are pinned at the bottom;
+  - an 88 px icon rail below 1100 px, the top bar below 720 px, tighter entries at 860 px or less.
+- **Navigation icons** in `@nebula/design`: `navHome`, `compass`, `apps`, `downloadTray`, `orbit`, `gear`. `SECTIONS` gains a `group`.
+- **i18n**: `nav.group.*` and `sidebar.link*` added; the old `link.starting/ready/unavailable/onlineCount` were removed.
+- **Layout fixes found while checking**:
+  - Discover's search and refresh no longer stack (`.topbar-actions` does not shrink, fixed search width);
+  - tile grids and KPI cards use auto-fit so a short row fills the width (KPI minimum 180 px).
+- **docs/PROMPT_DESIGN.md**: the prompt that aligns Finterest, Clock and News on the DA and on the Hub (shell, sidebar, icons, appearance model, components, checks), with one section per app.
+- Checked on a throwaway profile at 700, 1050, 1280, 1600 and 2560 px, in the four themes. Typecheck, lint, 947 tests and build pass.
+
 ## [2026-10-02] - Nebula Hub Session #12 — M8: the three apps adopt Nebula Link; 0.2.0
 
 - **The user asked for the three apps to be updated with everything requested, then a release.** Done one repository at a time, each on `feat/nebula-link` following its own conventions, then merged and released:

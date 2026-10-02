@@ -40,10 +40,6 @@
 .history-date { color: var(--muted); font-size: 0.72rem; white-space: nowrap; }
 .error-text { color: var(--danger); }
 
-/* Sidebar: number of operations in flight on "Downloads". */
-.nav-button:has(.nav-badge) { grid-template-columns: 24px minmax(0, 1fr) auto 12px; }
-.nav-badge { min-width: 1.25rem; padding: 0.05rem 0.4rem; border-radius: 999px; background: var(--accent-soft); color: var(--accent-hover); font-size: 0.66rem; font-weight: 800; text-align: center; }
-
 /* Settings: install folder. */
 .install-dir { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem 1rem; }
 .install-dir .settings-actions { margin: 0; }
@@ -53,12 +49,6 @@
 @media (max-width: 760px) {
   .history-row { grid-template-columns: auto minmax(0, 1fr); }
   .history-row .status-chip, .history-date { grid-column: 2; justify-self: start; }
-}
-
-/* Compact sidebar (app.css, ≤ 1100 px): icons only, the badge sits on the icon. */
-@media (max-width: 1100px) {
-  .nav-button:has(.nav-badge) { grid-template-columns: 1fr; }
-  .nav-badge { position: absolute; top: 0.15rem; right: 0.1rem; min-width: 1rem; padding: 0 0.25rem; font-size: 0.6rem; }
 }
 
 /* M5: confirmation dialog (R04). Only opacity and transform are animated. */

@@ -379,6 +379,51 @@ const glyphs = {
       <path d="M6 18c-1 .4-1.5 1-1.5 1.5.5 0 1.1-.5 1.5-1.5z" />
     </>
   ),
+
+  // ---- Navigation set (Hub sidebar, shared by the family): one glyph per section, the
+  // duotone shape carries the meaning so the icon still reads at 18 px. ----
+  navHome: (
+    <>
+      <path d="M4 10.6 12 4l8 6.6v7.9a2 2 0 0 1-2 2h-3.2v-5.2a1.5 1.5 0 0 0-1.5-1.5h-2.6a1.5 1.5 0 0 0-1.5 1.5v5.2H6a2 2 0 0 1-2-2z" {...duo} />
+      <path d="M18.5 3.5v3M17 5h3" />
+    </>
+  ),
+  compass: (
+    <>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="m15.6 8.4-2.1 5.1-5.1 2.1 2.1-5.1z" {...duo} />
+      <circle cx="12" cy="12" r="1" {...dot} />
+    </>
+  ),
+  apps: (
+    <>
+      <rect x="3.5" y="3.5" width="7" height="7" rx="2.2" />
+      <rect x="13.5" y="3.5" width="7" height="7" rx="2.2" {...duo} />
+      <rect x="3.5" y="13.5" width="7" height="7" rx="2.2" {...duo} />
+      <circle cx="17" cy="17" r="3.6" />
+    </>
+  ),
+  downloadTray: (
+    <>
+      <path d="M3.5 14.5h4.2l1.4 2.2h5.8l1.4-2.2h4.2v3.5a2.5 2.5 0 0 1-2.5 2.5H6A2.5 2.5 0 0 1 3.5 18z" {...duo} />
+      <path d="M12 3.5v9" />
+      <path d="m8.3 9 3.7 3.7L15.7 9" />
+    </>
+  ),
+  orbit: (
+    <>
+      <circle cx="12" cy="12" r="3" {...duo} />
+      <ellipse cx="12" cy="12" rx="9" ry="4.3" transform="rotate(-30 12 12)" />
+      <circle cx="18.6" cy="6.5" r="1.5" {...dot} />
+      <circle cx="5.4" cy="17.5" r="1.5" {...dot} />
+    </>
+  ),
+  gear: (
+    <>
+      <path d="M10.44 5.49L10.64 3.41L13.36 3.41L13.56 5.49L15.5 6.29L17.11 4.96L19.04 6.89L17.71 8.5L18.51 10.44L20.59 10.64L20.59 13.36L18.51 13.56L17.71 15.5L19.04 17.11L17.11 19.04L15.5 17.71L13.56 18.51L13.36 20.59L10.64 20.59L10.44 18.51L8.5 17.71L6.89 19.04L4.96 17.11L6.29 15.5L5.49 13.56L3.41 13.36L3.41 10.64L5.49 10.44L6.29 8.5L4.96 6.89L6.89 4.96L8.5 6.29Z" {...duo} />
+      <circle cx="12" cy="12" r="2.8" />
+    </>
+  ),
 } satisfies Record<string, ReactNode>;
 
 export type IconName = keyof typeof glyphs;

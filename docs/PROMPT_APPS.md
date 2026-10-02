@@ -4,6 +4,8 @@ Ces prompts sont à coller dans une session Claude Code **ouverte dans le dépô
 Finterest, Nebula Clock, Nebula News). Ils font trois choses, dans cet ordre : mettre l'app à jour
 et l'auditer, la rendre compatible avec Nebula Hub (Nebula Link, sauvegardes, import), puis
 préparer sa publication. Chaque session présente d'abord son plan et attend ton accord.
+Pour l'harmonisation visuelle (coquille, barre latérale, icônes, personnalisation), voir
+[`PROMPT_DESIGN.md`](PROMPT_DESIGN.md).
 
 > **État au 2026-10-02** : ces prompts ont été appliqués aux trois apps, publiées avec Nebula Link
 > (Finterest 0.1.37, Clock 1.2.0, News 0.3.0). Ils restent la référence pour une mise à niveau

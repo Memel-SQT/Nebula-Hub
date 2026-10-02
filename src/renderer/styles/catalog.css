@@ -3,7 +3,7 @@
 
 .warning-banner { border-color: var(--warning-soft); background: var(--warning-soft); }
 .warning-banner .icon { color: var(--warning); }
-.topbar-actions { align-items: end; }
+.topbar-actions { align-items: center; justify-content: flex-end; }
 .topbar-control-box .topbar-control-action { min-width: auto; min-height: auto; padding: 0.15rem; border: 0; background: transparent; color: var(--muted); box-shadow: none; }
 .topbar-control-box .topbar-control-action:hover { transform: none; color: var(--ink); background: transparent; }
 .spin { animation: spin 900ms linear infinite; }

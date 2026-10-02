@@ -40,8 +40,4 @@ export const link: Record<keyof typeof fr, string> = {
   'integrations.error': 'Nebula Link could not start. Close the other Nebula Hub windows, then restart it.',
   'link.offline': 'Link offline',
   'link.online': 'Link active',
-  'link.starting': 'Link is starting…',
-  'link.ready': 'Link ready',
-  'link.unavailable': 'Link unavailable',
-  'link.onlineCount': 'Link active · {count} app(s)',
 };

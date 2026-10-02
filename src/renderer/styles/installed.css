@@ -23,13 +23,6 @@ button.app-tile-more:hover { color: var(--accent); }
 .pulse-once { animation: chip-pulse-once 900ms var(--ease-out) 300ms 1 both; }
 :root[data-motion='off'] .pulse-once, :root[data-motion='reduced'] .pulse-once { animation: none; }
 
-/* Sidebar launcher: installed apps read as ready, the others stay quieter. */
-.launcher-app { grid-template-columns: 30px minmax(0, 1fr) auto; }
-.launcher-app.available { color: var(--muted); }
-.launcher-app.available .app-icon { opacity: 0.6; filter: saturate(0.6); }
-.launcher-app.available:hover .app-icon { opacity: 1; filter: none; }
-.launcher-app .status-dot { width: 7px; height: 7px; margin-right: 0.2rem; }
-
 /* My apps. */
 .installed-list { display: grid; gap: 0.6rem; margin: 0; padding: 0; list-style: none; }
 .installed-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "icon main actions" ". details details"; align-items: start; gap: 0.2rem 1rem; padding: 1rem; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface-muted); transition: border-color var(--motion-base) var(--ease), background var(--motion-base) var(--ease); }

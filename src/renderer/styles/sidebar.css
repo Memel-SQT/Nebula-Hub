@@ -1,0 +1,152 @@
+/* Sidebar (user feedback 2026-10-02: more air between the entries, specific icons, a more
+   modern panel). A floating panel set off from the window edges, sections in titled groups,
+   44 px entries with their icon in a tile; the active entry follows the family recipe
+   (nebula-design-system, direction-artistique.md §5: raised background, 1 px accent ring,
+   accent icon) plus a short accent bar. Every selector is scoped to .sidebar so it outranks
+   the `button.plain` reset (installed.css), which used to flatten the entries to 20 px. */
+
+.app-shell { --sidebar-width: 284px; --sidebar-gap: 0.75rem; }
+
+@keyframes nav-indicator-in { from { opacity: 0; transform: scaleY(0.2); } to { opacity: 1; transform: none; } }
+
+.sidebar {
+  position: sticky;
+  top: var(--sidebar-gap);
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 2 * var(--sidebar-gap));
+  margin: var(--sidebar-gap) 0 var(--sidebar-gap) var(--sidebar-gap);
+  padding: 1.2rem 0.75rem 0.85rem;
+  overflow: hidden auto;
+  scrollbar-width: none;
+  animation: sidebar-in var(--motion-slow) var(--ease-out) both;
+}
+:root .sidebar.nebula-surface {
+  border: 1px solid color-mix(in srgb, var(--line) 85%, transparent);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--sidebar) 82%, transparent);
+  -webkit-backdrop-filter: blur(22px) saturate(150%);
+  backdrop-filter: blur(22px) saturate(150%);
+  box-shadow: var(--shadow);
+}
+:root[data-theme^='glass-'] .sidebar.nebula-surface {
+  background: linear-gradient(160deg, var(--glass-hi), var(--glass-lo));
+  box-shadow: inset 0 1px 0 var(--glass-edge), var(--shadow);
+}
+
+/* Brand */
+.brand-lockup { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.9rem; padding: 0.3rem 0.5rem 1.1rem; border-bottom: 1px solid color-mix(in srgb, var(--line) 70%, transparent); }
+.brand-lockup .hub-mark { flex: 0 0 auto; border-radius: 11px; filter: drop-shadow(0 8px 18px var(--accent-glow)); }
+.brand-lockup > div { min-width: 0; }
+.brand-lockup strong, .brand-lockup span { display: block; }
+.brand-lockup strong { font-size: 1.05rem; font-weight: 700; letter-spacing: -0.02em; }
+.brand-lockup span { margin-top: 0.2rem; color: var(--muted); font-size: 0.7rem; line-height: 1.4; }
+
+/* Groups */
+.sidebar-nav { display: flex; flex: 1 0 auto; flex-direction: column; gap: 1.15rem; }
+.nav-group { display: grid; gap: 0.2rem; }
+.nav-group-title { margin: 0 0 0.35rem; padding: 0 0.75rem; color: var(--muted); font-size: 0.66rem; font-weight: 750; letter-spacing: 0.12em; text-transform: uppercase; }
+.nav-group-system { margin-top: auto; padding-top: 0.9rem; border-top: 1px solid color-mix(in srgb, var(--line) 70%, transparent); }
+.launcher-empty { margin: 0; padding: 0 0.75rem; color: var(--muted); font-size: 0.74rem; line-height: 1.5; }
+
+/* Entries */
+.sidebar .nav-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.75rem;
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.3rem 0.65rem 0.3rem 0.35rem;
+  border-radius: var(--radius);
+  color: var(--muted);
+  font-size: 0.86rem;
+  font-weight: 600;
+  text-align: left;
+  transition: background var(--motion-fast) var(--ease), color var(--motion-fast) var(--ease), box-shadow var(--motion-fast) var(--ease), transform var(--motion-fast) var(--ease);
+}
+.sidebar .nav-icon { display: grid; flex: 0 0 auto; place-items: center; width: 2.1rem; height: 2.1rem; border-radius: calc(var(--radius) - 3px); background: color-mix(in srgb, var(--surface-raised) 55%, transparent); color: var(--muted); transition: background var(--motion-fast) var(--ease), color var(--motion-fast) var(--ease), transform var(--motion-base) var(--ease-spring); }
+.sidebar .nav-icon .icon-duo { fill-opacity: 0.22; }
+.sidebar .launcher-app .nav-icon { background: transparent; }
+.sidebar .nav-label { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sidebar .nav-item:hover { background: color-mix(in srgb, var(--surface-raised) 70%, transparent); color: var(--ink); transform: translateX(2px); }
+.sidebar .nav-item:hover .nav-icon { color: var(--ink); transform: scale(1.06); }
+.sidebar .nav-item.active { background: var(--surface-raised); color: var(--ink); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent); }
+.sidebar .nav-item.active .nav-icon { background: var(--accent-soft); color: var(--accent-hover); }
+.sidebar .nav-item.active .icon-duo { fill-opacity: 0.34; }
+.sidebar .nav-item.active::before { content: ''; position: absolute; top: 50%; left: 0; width: 3px; height: 1.3rem; margin-top: -0.65rem; border-radius: 0 999px 999px 0; background: var(--accent); animation: nav-indicator-in var(--motion-base) var(--ease-spring) both; }
+.sidebar .nav-badge { min-width: 1.35rem; padding: 0.1rem 0.45rem; border-radius: 999px; background: var(--accent-soft); color: var(--accent-hover); font-size: 0.68rem; font-weight: 800; text-align: center; }
+
+/* Launcher: installed apps read as ready, the others stay quieter. */
+.sidebar .launcher-app .app-icon { border-radius: 26%; box-shadow: none; transition: transform var(--motion-base) var(--ease-spring), opacity var(--motion-fast) var(--ease); }
+.sidebar .launcher-app:hover .app-icon { transform: scale(1.08); }
+.sidebar .launcher-app:hover .nav-icon { transform: none; }
+.sidebar .launcher-app.available .app-icon { opacity: 0.55; filter: saturate(0.6); }
+.sidebar .launcher-app.available:hover .app-icon { opacity: 1; filter: none; }
+.sidebar .launcher-app .status-dot { flex: 0 0 auto; width: 7px; height: 7px; margin-right: 0.25rem; }
+
+/* Nebula Link card */
+.sidebar .link-card { display: flex; flex: 0 0 auto; align-items: center; justify-content: flex-start; gap: 0.7rem; width: 100%; margin-top: 0.7rem; padding: 0.6rem 0.7rem 0.6rem 0.6rem; border: 1px solid color-mix(in srgb, var(--line) 85%, transparent); border-radius: var(--radius); background: color-mix(in srgb, var(--surface) 70%, transparent); color: var(--ink); text-align: left; transition: background var(--motion-fast) var(--ease), border-color var(--motion-fast) var(--ease); }
+.sidebar .link-card:hover { border-color: color-mix(in srgb, var(--accent) 55%, transparent); background: var(--surface-raised); }
+.link-card-icon { position: relative; display: grid; flex: 0 0 auto; place-items: center; width: 2.1rem; height: 2.1rem; border-radius: calc(var(--radius) - 3px); background: var(--accent-soft); color: var(--accent-hover); }
+.link-card-icon .status-dot { position: absolute; right: -2px; bottom: -2px; width: 9px; height: 9px; box-shadow: 0 0 0 2px var(--surface); }
+.link-card.is-error .link-card-icon, .link-card.is-starting .link-card-icon { background: var(--warning-soft); color: var(--warning); }
+.link-card-text { display: grid; flex: 1 1 auto; gap: 0.1rem; min-width: 0; }
+.link-card-text strong { font-size: 0.8rem; font-weight: 700; }
+.link-card-text small { overflow: hidden; color: var(--muted); font-size: 0.7rem; text-overflow: ellipsis; white-space: nowrap; }
+.link-card-chevron { color: var(--muted); transition: transform var(--motion-fast) var(--ease); }
+.sidebar .link-card:hover .link-card-chevron { transform: translateX(2px); }
+
+/* Footer */
+.sidebar-foot { display: flex; align-items: center; gap: 0.4rem; margin: 0.75rem 0 0; padding: 0 0.6rem; color: var(--muted); font-size: 0.68rem; }
+.sidebar-foot .icon { color: var(--positive); }
+.sidebar-foot span { color: var(--ink); font-weight: 650; }
+.sidebar-foot small { margin-left: auto; }
+
+:root[data-motion='reduced'] .sidebar :is(.nav-item, .link-card):hover, :root[data-motion='reduced'] .sidebar :is(.nav-item:hover .nav-icon, .launcher-app:hover .app-icon) { transform: none; }
+
+/* Low windows: tighter entries so the whole rail fits (it still scrolls, without a bar, below that). */
+@media (max-height: 860px) {
+  .sidebar { padding-top: 0.9rem; }
+  .brand-lockup { margin-bottom: 0.6rem; padding-bottom: 0.8rem; }
+  .sidebar-nav { gap: 0.75rem; }
+  .sidebar .nav-item { min-height: 2.45rem; }
+  .nav-group-title { margin-bottom: 0.2rem; }
+}
+
+/* Compact mode (< 1100 px): an icon rail. Labels stay as tooltips (title) and for screen
+   readers (visually hidden, never removed); group titles become short separators. */
+@media (max-width: 1100px) {
+  .app-shell { --sidebar-width: 88px; --sidebar-gap: 0.6rem; }
+  .sidebar { align-items: center; padding: 1rem 0.5rem 0.75rem; }
+  .brand-lockup { justify-content: center; width: 100%; margin-bottom: 0.7rem; padding: 0.3rem 0 0.9rem; }
+  .brand-lockup > div,
+  .sidebar .nav-label,
+  .link-card-text,
+  .link-card-chevron { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .sidebar-nav { width: 100%; gap: 0.75rem; }
+  .nav-group { justify-items: center; }
+  .nav-group-title { width: 1.6rem; height: 1px; margin: 0 auto 0.3rem; padding: 0; overflow: hidden; background: var(--line); font-size: 0; }
+  .nav-group:first-child .nav-group-title { display: none; }
+  .nav-group-system { width: 100%; justify-items: center; }
+  .sidebar .nav-item { justify-content: center; width: 2.9rem; min-height: 2.9rem; padding: 0; }
+  .sidebar .nav-item:hover { transform: none; }
+  .sidebar .nav-badge { position: absolute; top: 0.1rem; right: 0.05rem; min-width: 1rem; padding: 0 0.25rem; font-size: 0.6rem; }
+  .sidebar .launcher-app .status-dot { position: absolute; top: 0.3rem; right: 0.3rem; margin: 0; }
+  .sidebar .link-card { justify-content: center; width: 2.9rem; padding: 0.4rem 0; border-color: transparent; background: transparent; }
+  .launcher-empty, .sidebar-foot { display: none; }
+}
+
+/* Very narrow windows: the navigation becomes a bar at the top. */
+@media (max-width: 720px) {
+  .app-shell { display: block; }
+  .sidebar { position: sticky; top: 0; flex-direction: row; gap: 0.4rem; height: auto; margin: 0; padding: 2.6rem 0.75rem 0.6rem; overflow: visible; }
+  :root .sidebar.nebula-surface { border-width: 0 0 1px; border-radius: 0; }
+  .brand-lockup { width: auto; margin: 0; padding: 0; border: 0; }
+  .sidebar-nav { flex: 1 1 auto; flex-direction: row; gap: 0.2rem; overflow-x: auto; }
+  .nav-group { display: contents; }
+  .nav-group-title, .sidebar .launcher-rail { display: none; }
+  .sidebar .link-card { margin: 0; }
+}

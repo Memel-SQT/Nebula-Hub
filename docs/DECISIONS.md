@@ -708,3 +708,29 @@ Les constats qui fondent ces décisions sont détaillés dans [DISCOVERY.md](DIS
   compatible (sans `nebula.hub.dock` dans son manifeste) n'a pas l'option ; une app compatible qui
   ne répond pas reste dans sa fenêtre, sans blocage.
 - **Adoption** : chaque app, avec le prompt `docs/PROMPT_APPS.md` (section « Mode Hub »).
+
+## ADR-028 — Barre latérale flottante, icônes de navigation, harmonisation visuelle de la famille
+
+- **Statut** : Accepté (retour de l'utilisateur du 2026-10-02 : menus de la barre latérale pas
+  assez espacés, icônes à rendre spécifiques et belles, barre plus moderne ; toutes les apps
+  doivent se ressembler et suivre la DA). Complète ADR-014 et ADR-026.
+- **Cause du défaut** : la réinitialisation `button.plain` (installed.css, M4) est plus
+  spécifique que `.nav-button` ; elle annulait marge intérieure, hauteur et survols de toutes
+  les entrées de la barre latérale (20 px de haut au lieu de 44).
+- **Décision** :
+  - la barre latérale devient un panneau flottant (décalé de 12 px des bords, rayon
+    `--radius-lg`, flou d'arrière-plan) ;
+  - les sections sont rangées en groupes titrés (« Votre espace », « Gestion »), et le lanceur
+    reste en dessous ;
+  - Réglages, une carte d'état Nebula Link et le pied local sont épinglés en bas ;
+  - les entrées font 44 px, avec l'icône dans une tuile ; l'état actif suit la recette de la
+    DA, plus une barre d'accent ;
+  - le rail compact (< 1100 px) et la barre du haut (< 720 px) sont conservés ;
+  - tous les sélecteurs sont préfixés par `.sidebar` (`styles/sidebar.css`).
+- **Icônes** : six glyphes de navigation dans `@nebula/design` (`navHome`, `compass`, `apps`,
+  `downloadTray`, `orbit`, `gear`). Ils suivent le même style (24 px, trait 1.8, une forme
+  duotone) et sont partagés avec les apps.
+- **Famille** : `docs/PROMPT_DESIGN.md` est le prompt qui aligne Finterest, Clock et News sur la
+  DA. Le Hub y est la référence vivante : même coquille, même barre latérale, mêmes icônes et
+  même modèle d'apparence (celui diffusé par Nebula Link), avec la migration des réglages
+  existants.
