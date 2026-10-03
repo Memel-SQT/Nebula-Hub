@@ -57,6 +57,7 @@ erreur rejette le catalogue entier.
       },
       "dataNotice": { "fr": "…", "en": "…" },          // affiché avant désinstallation ou réparation
       "link": { "manifest": "nebula.app.json", "minProtocol": 1 },
+      "visibility": "installed-only",   // facultatif (ADR-033) : visible seulement si l'app est détectée
       "minHubVersion": "0.1.0"
     }
   ]

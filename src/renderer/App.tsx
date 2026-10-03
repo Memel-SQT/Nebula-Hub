@@ -14,7 +14,7 @@ import type { LinkView } from '@shared/link-view';
 import { playSound } from '@nebula/design';
 import type { HubSettings, SettingsPatch } from '@shared/settings';
 import { localize } from '@shared/catalog';
-import { familyEntries } from './catalog';
+import { familyEntries, visibleCatalog } from './catalog';
 import { HubMark } from './brand/HubMark';
 import { Onboarding } from './components/Onboarding';
 import type { DataActions, InstallerSaves } from './components/AppData';
@@ -61,6 +61,8 @@ export function App() {
   // Shown once after the splash, until finished or skipped (brief §9.9); "Show again" in Settings.
   const [onboarding, setOnboarding] = useState(!initial.settings.onboardingCompleted && !initial.startedHidden);
   const appearance = settings.appearance;
+  // Apps marked installed-only appear once detected (ADR-033); everything shown uses this view.
+  const shownCatalog = useMemo(() => visibleCatalog(catalog, installed), [catalog, installed]);
   const language = appearance.language;
 
   const resolvedTheme = useResolvedTheme(appearance.theme);
@@ -468,7 +470,7 @@ export function App() {
   }
 
   const catalogProps = {
-    catalog,
+    catalog: shownCatalog,
     installed,
     downloads,
     onNavigate: setRoute,
@@ -507,7 +509,7 @@ export function App() {
       {background}
       <div className="titlebar-drag" aria-hidden="true" />
       <main className="app-shell">
-        <Sidebar active={sectionOf(route)} version={initial.appVersion} launcher={familyEntries(catalog)} installed={installed} downloads={downloads} link={link} hubUpdate={hubUpdate} onNavigate={setRoute} onLaunch={launchApp} onHubUpdate={requestHubUpdate} onCancelHubUpdate={cancelHubUpdate} onQuitNebula={requestQuitNebula} />
+        <Sidebar active={sectionOf(route)} version={initial.appVersion} launcher={familyEntries(shownCatalog)} installed={installed} downloads={downloads} link={link} hubUpdate={hubUpdate} onNavigate={setRoute} onLaunch={launchApp} onHubUpdate={requestHubUpdate} onCancelHubUpdate={cancelHubUpdate} onQuitNebula={requestQuitNebula} />
         <div className="workspace-column">
           {saveError ? <ErrorState message={t('error.saveSettings')} /> : null}
           {launchError ? <ErrorState message={launchError} onRetry={() => setLaunchError(null)} /> : null}
@@ -533,13 +535,13 @@ export function App() {
           {route.screen === 'app' ? <AppDetailScreen key={route.appId} {...catalogProps} appId={route.appId} loadAsset={loadAsset} onOpenLink={openLink} /> : null}
           {route.screen === 'my-apps' ? <MyAppsScreen {...catalogProps} onRefreshInstalled={refreshInstalled} /> : null}
           {route.screen === 'downloads' ? <DownloadsScreen {...catalogProps} onExportHistory={exportHistory} /> : null}
-          {route.screen === 'integrations' ? <IntegrationsScreen link={link} catalog={catalog} homeWidgets={settings.homeWidgets} onNavigate={setRoute} onSetConsent={setLinkConsent} onDenyApp={denyLinkApp} onToggleHomeWidget={toggleHomeWidget} /> : null}
+          {route.screen === 'integrations' ? <IntegrationsScreen link={link} catalog={shownCatalog} homeWidgets={settings.homeWidgets} onNavigate={setRoute} onSetConsent={setLinkConsent} onDenyApp={denyLinkApp} onToggleHomeWidget={toggleHomeWidget} /> : null}
           {route.screen === 'settings' ? (
             <SettingsScreen
               settings={settings}
               resolvedTheme={resolvedTheme}
               version={initial.appVersion}
-              catalog={catalog}
+              catalog={shownCatalog}
               activity={activity}
               onAppearanceChange={updateAppearance}
               onSettingsChange={updateSettings}
@@ -555,7 +557,7 @@ export function App() {
           ) : null}
         </div>
       </main>
-      {onboarding ? <Onboarding catalog={catalog} installed={installed} settings={settings} onSettingsChange={updateSettings} onFinish={finishOnboarding} /> : null}
+      {onboarding ? <Onboarding catalog={shownCatalog} installed={installed} settings={settings} onSettingsChange={updateSettings} onFinish={finishOnboarding} /> : null}
       {dialog?.type === 'operation' && dialogEntry(dialog.plan.appId) ? (
         <OperationConfirmation
           plan={dialog.plan}

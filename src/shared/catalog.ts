@@ -57,6 +57,11 @@ export interface CatalogApp {
   };
   dataNotice?: Localized;
   link?: { manifest: string; minProtocol: number };
+  /**
+   * `installed-only` (ADR-033): the app is shown in the Hub (Discover, launcher, Home) only when it
+   * is detected on this computer, e.g. a private edition the Hub cannot install. Absent: always shown.
+   */
+  visibility?: 'installed-only';
   minHubVersion: string;
 }
 
@@ -210,6 +215,7 @@ function validateApp(value: unknown, path: string, check: Checker): CatalogApp |
     check.fail(`${path}.link`, 'expected { manifest: <file name>, minProtocol: integer >= 1 }');
   }
   if (!isSemver(app.minHubVersion)) check.fail(`${path}.minHubVersion`, 'expected a semantic version');
+  if (app.visibility !== undefined && app.visibility !== 'installed-only') check.fail(`${path}.visibility`, 'expected "installed-only" or nothing');
 
   if (check.errors.length > before || !windows || !source) {
     return null;
@@ -237,6 +243,7 @@ function validateApp(value: unknown, path: string, check: Checker): CatalogApp |
     },
     ...(app.dataNotice !== undefined ? { dataNotice: pickLocalized(app.dataNotice) } : {}),
     ...(link ? { link: { manifest: String(link.manifest), minProtocol: Number(link.minProtocol) } } : {}),
+    ...(app.visibility === 'installed-only' ? { visibility: 'installed-only' as const } : {}),
     minHubVersion: String(app.minHubVersion),
   };
 }

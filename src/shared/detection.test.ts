@@ -57,6 +57,10 @@ describe('detection', () => {
     expect(matchesProduct('Nebula Finterest 0.1.35', 'Nebula Finterest')).toBe(true);
     expect(matchesProduct('Nebula Finterest', 'Nebula Finterest')).toBe(true);
     expect(matchesProduct('Nebula FinterestCompanion 2.0', 'Nebula Finterest')).toBe(false);
+    // ADR-033: the business edition is told apart from Finterest.
+    expect(matchesProduct('Nebula Finance Enterprise 0.1.0-beta.1', 'Nebula Finance Enterprise')).toBe(true);
+    expect(matchesProduct('Nebula Finance Enterprise 0.1.0-beta.1', 'Nebula Finterest')).toBe(false);
+    expect(matchesProduct('Nebula Finterest 0.1.39', 'Nebula Finance Enterprise')).toBe(false);
     expect(matchesProduct('nebula finterest 1.0', 'Nebula Finterest')).toBe(false);
   });
 

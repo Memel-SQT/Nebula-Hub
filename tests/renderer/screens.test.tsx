@@ -4,6 +4,7 @@ import type { ComponentType } from 'react';
 import { LanguageContext } from '../../src/renderer/i18n';
 import { AppDetailScreen } from '../../src/renderer/screens/AppDetailScreen';
 import { DiscoverScreen } from '../../src/renderer/screens/DiscoverScreen';
+import { visibleCatalog } from '../../src/renderer/catalog';
 import { DownloadsScreen } from '../../src/renderer/screens/DownloadsScreen';
 import { HomeScreen } from '../../src/renderer/screens/HomeScreen';
 import { IntegrationsScreen } from '../../src/renderer/screens/IntegrationsScreen';
@@ -201,8 +202,18 @@ describe('Discover', () => {
     expect(onNavigate).toHaveBeenCalledWith({ screen: 'app', appId: 'nebula.clock' });
   });
 
+  it('shows an installed-only app only once it is detected (ADR-033)', () => {
+    const hidden = visibleCatalog(catalogView(), installedView());
+    expect(hidden.entries.map((entry) => entry.app.id)).not.toContain('nebula.finance-enterprise');
+    const apps = [...installedView().apps, { appId: 'nebula.finance-enterprise', version: '0.1.0-beta.1', scope: 'user' as const, location: 'C:\Users\<user>\AppData\Local\Programs\nebula-finance-enterprise', exeFound: true, running: false }];
+    const shown = visibleCatalog(catalogView(), installedView({ apps }));
+    expect(shown.entries.map((entry) => entry.app.id)).toContain('nebula.finance-enterprise');
+    renderCatalog(DiscoverScreen, shown);
+    expect(screen.getByRole('button', { name: /Nebula Finance Enterprise/ })).toBeInTheDocument();
+  });
+
   it('filters by category and searches without accents', async () => {
-    renderCatalog(DiscoverScreen, catalogView());
+    renderCatalog(DiscoverScreen, visibleCatalog(catalogView(), installedView()));
     await userEvent.click(screen.getByRole('radio', { name: 'Finance' }));
     expect(screen.getAllByRole('button', { name: /Nebula / })).toHaveLength(1);
     await userEvent.click(screen.getByRole('radio', { name: 'Toutes' }));

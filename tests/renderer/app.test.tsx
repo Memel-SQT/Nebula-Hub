@@ -645,3 +645,19 @@ describe('App: Quit Nebula (ADR-030)', () => {
     expect(bridge.setDockArea).toHaveBeenLastCalledWith(expect.objectContaining({ width: expect.any(Number) }));
   });
 });
+
+describe('App: installed-only apps (ADR-033)', () => {
+  it('keeps Nebula Finance Enterprise out of the Hub until it is detected, then offers to open it', async () => {
+    installBridge();
+    const first = await render(<App />);
+    const launcher = () => within(screen.getByRole('group', { name: 'Lancer une app' }));
+    expect(launcher().queryByRole('button', { name: /Nebula Finance Enterprise/ })).not.toBeInTheDocument();
+    first.unmount();
+
+    const apps = [...installedView().apps, { appId: 'nebula.finance-enterprise', version: '0.1.0-beta.1', scope: 'user' as const, location: 'C:\Users\<user>\AppData\Local\Programs\nebula-finance-enterprise', exeFound: true, running: false }];
+    const { bridge } = installBridge({}, true, installedView({ apps }));
+    await render(<App />);
+    await userEvent.click(launcher().getByRole('button', { name: 'Ouvrir Nebula Finance Enterprise' }));
+    expect(bridge.launchApp).toHaveBeenCalledWith('nebula.finance-enterprise');
+  });
+});

@@ -21,7 +21,9 @@ describe('validateCatalog', () => {
     const result = validateCatalog(SOURCE);
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.catalog.apps.map((app) => app.id)).toEqual(['nebula.finterest', 'nebula.clock', 'nebula.news', 'nebula.hub']);
+      expect(result.catalog.apps.map((app) => app.id)).toEqual(['nebula.finterest', 'nebula.clock', 'nebula.news', 'nebula.finance-enterprise', 'nebula.hub']);
+      expect(result.catalog.apps.find((app) => app.id === 'nebula.finance-enterprise')).toMatchObject({ visibility: 'installed-only', status: 'beta', minHubVersion: '0.2.3' });
+      expect(result.catalog.apps.filter((app) => app.visibility).map((app) => app.id)).toEqual(['nebula.finance-enterprise']);
       expect(result.catalog.apps[0].windows.preOperationBackup?.argument).toBe('--backup-before-uninstall=');
     }
   });
@@ -74,6 +76,13 @@ describe('validateCatalog', () => {
     value.apps[0].windows.preOperationBackup.importArgument = '--import-backup=';
     const result = validateCatalog(value);
     expect(result.ok && result.catalog.apps[0].windows.preOperationBackup?.importArgument).toBe('--import-backup=');
+  });
+
+  it('accepts only "installed-only" as a visibility (ADR-033)', () => {
+    const app = SOURCE.apps.find((candidate: { id: string }) => candidate.id === 'nebula.finance-enterprise');
+    expect(validateCatalog({ ...SOURCE, apps: [{ ...app, visibility: 'hidden' }] }).ok).toBe(false);
+    const without = validateCatalog({ ...SOURCE, apps: [{ ...app, visibility: undefined }] });
+    expect(without.ok && without.catalog.apps[0].visibility).toBe(undefined);
   });
 
   it('rejects non-objects and empty lists', () => {

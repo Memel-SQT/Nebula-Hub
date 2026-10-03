@@ -20,6 +20,14 @@ Technical log, newest session first. Release notes live only in the GitHub relea
   Spec § 17 amended.
 - **Live checks** (throwaway profiles, the installed Clock 1.5.0 binary with `--user-data-dir` pointed at a dev Hub): docking worked in that setup, so the failing sequence could not be reproduced end to end here. The test Hub then launched the user's real Clock once, probably from a click on Clock in its launcher (its parent process was the test Hub); it stayed open and nothing else was touched. Stopped because another session's window ("Nebula Finance Enterprise") covered the screen.
 
+- **Nebula Finance Enterprise in the Hub only when installed** (user request, ADR-033):
+  - new optional catalog field `visibility: "installed-only"`, validated;
+  - `visibleCatalog()` in the renderer hides such an app everywhere until it is detected, while detection in main is unchanged;
+  - catalog entry `nebula.finance-enterprise`: beta, `installScope` user, Link manifest, icon from its repository (checked: no script or link), a `dataNotice` saying an uninstall deletes its data (its installer uses `deleteAppDataOnUninstall`), `minHubVersion` 0.2.3;
+  - its repository is private, so the Hub neither installs nor updates it;
+  - catalog re-signed.
+  Tests cover the catalog (5 apps, visibility values), detection (the name is told apart from Finterest), Discover and the App launcher (hidden, then shown and launchable once detected).
+
 ## [2026-10-03] - Nebula Hub Session #18 — Catalog: Nebula Finterest 0.1.39; verification prompt
 
 - **Catalog, Finterest entry** (Finterest 0.1.38 family shell + 0.1.39 "Learn" card, published): the description mentions the calculator and the "Learn" card fed by Nebula News (`news.finance.today`, asked without any parameter); the two screenshots are replaced by captures of 0.1.39 under new names (`finterest-0139-dashboard.png`, `finterest-0139-calendar.png`, 1 280 px, taken on a throwaway profile against the Link test server with the fake News 0.4.0), and the old files are removed. `generatedAt` bumped, re-signed (`npm run catalog:sign`, verified against the embedded public key). Targeted text edits only, so the signed bytes keep the file's compact formatting.

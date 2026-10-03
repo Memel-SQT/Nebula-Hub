@@ -839,3 +839,24 @@ Les constats qui fondent ces décisions sont détaillés dans [DISCOVERY.md](DIS
   - la colonne de contenu du Hub n'a plus de largeur maximale : elle remplit l'espace à côté de
     la barre latérale, qui reste, et les grilles ajoutent des colonnes. ADR-026 prévoyait une
     colonne centrée ; elle est remplacée.
+
+## ADR-033 — Apps visibles seulement une fois installées (Nebula Finance Enterprise)
+
+- **Statut** : Accepté (demande de l'utilisateur du 2026-10-04 : « Nebula Finance Enterprise doit
+  apparaître dans le Hub, mais seulement si elle est détectée sur le système »).
+- **Décision** :
+  - nouveau champ facultatif du catalogue : `"visibility": "installed-only"`. Une telle app
+    n'apparaît nulle part dans le Hub (Découvrir, lanceur, accueil, Intégrations, premier
+    lancement) tant qu'elle n'est pas détectée sur l'ordinateur. Une fois détectée, elle se
+    comporte comme les autres : lancement, mode Hub et Nebula Link selon son manifeste ;
+  - la détection elle-même ne change pas. Le processus principal connaît toujours l'app, sinon
+    il ne pourrait pas la trouver ;
+  - le filtre est appliqué une seule fois, dans le renderer (`visibleCatalog`).
+- **Nebula Finance Enterprise** (`nebula.finance-enterprise`, bêta) :
+  - son dépôt est privé : le Hub ne lit ni ses releases ni son installeur. Il ne l'installe pas
+    et ne la met pas à jour ; elle se met à jour elle-même ;
+  - `dataNotice` dit qu'une désinstallation supprime ses données
+    (`deleteAppDataOnUninstall: true` dans son installeur). La confirmation de désinstallation
+    (R04) l'affiche ;
+  - `minHubVersion` 0.2.3 : un Hub plus ancien ignore le champ `visibility`. Il montrerait l'app
+    avec la mention « demande une version plus récente du Hub », sans rien d'installable.

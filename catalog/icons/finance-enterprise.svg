@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <!-- Nebula Finance Enterprise mark (static), same drawing as src/renderer/components/NfeMark.tsx. -->
+  <defs>
+    <linearGradient id="g" x1="16" y1="16" x2="112" y2="112" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#4C6EF5"/>
+      <stop offset="1" stop-color="#A855F7"/>
+    </linearGradient>
+    <radialGradient id="h" cx="0.5" cy="0.32" r="0.78">
+      <stop stop-color="#8B5CF6" stop-opacity="0.42"/>
+      <stop offset="1" stop-color="#8B5CF6" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="128" height="128" rx="30" fill="#12121F"/>
+  <rect width="128" height="128" rx="30" fill="url(#h)"/>
+  <path d="M28 100V64a36 36 0 0 1 72 0v36" fill="none" stroke="url(#g)" stroke-width="7" stroke-linecap="round"/>
+  <path d="M48 92V80M64 92V68M80 92V56" fill="none" stroke="url(#g)" stroke-width="10" stroke-linecap="round"/>
+  <circle cx="104" cy="24" r="6" fill="#A855F7"/>
+</svg>

@@ -20,6 +20,15 @@ export function catalogLoadState(view: CatalogView): LoadState {
   return view.state === 'offline' ? 'offline' : 'ready';
 }
 
+/**
+ * The catalog as the Hub shows it (ADR-033): an app marked `installed-only` (a private edition the
+ * Hub cannot install) appears only once it is detected on this computer.
+ */
+export function visibleCatalog(view: CatalogView, installed: InstalledView | undefined): CatalogView {
+  const entries = view.entries.filter((entry) => entry.app.visibility !== 'installed-only' || Boolean(installedOf(installed, entry.app.id)));
+  return entries.length === view.entries.length ? view : { ...view, entries };
+}
+
 export function installedOf(view: InstalledView | undefined, appId: string): InstalledApp | undefined {
   return view?.apps.find((app) => app.appId === appId);
 }

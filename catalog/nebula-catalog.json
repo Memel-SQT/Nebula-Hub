@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "generatedAt": "2026-10-03T17:44:46Z",
+  "generatedAt": "2026-10-04T01:30:00Z",
   "apps": [
     {
       "id": "nebula.finterest",
@@ -95,6 +95,36 @@
       },
       "link": { "manifest": "nebula.app.json", "minProtocol": 1 },
       "minHubVersion": "0.1.0"
+    },
+    {
+      "id": "nebula.finance-enterprise",
+      "name": "Nebula Finance Enterprise",
+      "tagline": { "fr": "La finance de votre entreprise, dans un coffre chiffré", "en": "Your company’s finances, in an encrypted vault" },
+      "description": {
+        "fr": "L’édition entreprise de Nebula Finterest : gestion financière d’une petite entreprise, réservée à son propriétaire et à ses collaborateurs. Toutes les données sont dans un coffre chiffré sur l’ordinateur qui le détient ; aucune donnée envoyée à l’éditeur, aucune télémétrie, aucune connexion bancaire. Distribuée à part : Nebula Hub l’affiche seulement quand elle est installée.",
+        "en": "The business edition of Nebula Finterest: financial management for a small company, for its owner and their staff. All data lives in an encrypted vault on the computer that holds it; nothing is sent to the publisher, no telemetry, no bank connection. Distributed separately: Nebula Hub only shows it when it is installed."
+      },
+      "category": "finance",
+      "status": "beta",
+      "icon": "icons/finance-enterprise.svg",
+      "screenshots": [],
+      "source": { "provider": "github", "owner": "Memel-SQT", "repo": "Nebula-Finance-Enterprise" },
+      "windows": {
+        "productName": "Nebula Finance Enterprise",
+        "appId": "nebula.finance-enterprise",
+        "exeName": "Nebula Finance Enterprise.exe",
+        "installScope": "user",
+        "updateFeed": "latest.yml",
+        "silentArgs": ["/S"],
+        "selfUpdates": true
+      },
+      "dataNotice": {
+        "fr": "Le coffre chiffré de l’entreprise reste sur cet ordinateur. Une désinstallation supprime les données de l’app : faites d’abord une sauvegarde depuis Nebula Finance Enterprise.",
+        "en": "The company’s encrypted vault stays on this computer. Uninstalling deletes the app’s data: make a backup from Nebula Finance Enterprise first."
+      },
+      "link": { "manifest": "nebula.app.json", "minProtocol": 1 },
+      "visibility": "installed-only",
+      "minHubVersion": "0.2.3"
     },
     {
       "id": "nebula.hub",
