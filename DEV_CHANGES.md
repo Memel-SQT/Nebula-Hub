@@ -4,10 +4,10 @@ Technical log, newest session first. Release notes live only in the GitHub relea
 
 ## [2026-10-03] - Nebula Hub Session #18 — Catalog: Nebula Finterest 0.1.39; verification prompt
 
-- **Catalog, Finterest entry** (Finterest 0.1.38 family shell + 0.1.39  card, published): the description mentions the calculator and the  card fed by Nebula News (, asked without any parameter); the two screenshots are replaced by captures of 0.1.39 under new names (, , 1 280 px, taken on a throwaway profile against the Link test server with the fake News 0.4.0), and the old files are removed. generatedAt bumped, re-signed (, verified against the embedded public key). Targeted text edits only, so the signed bytes keep the file's compact formatting.
-- Nothing else in the entry changes: the catalog only names the manifest file (); the Hub reads Finterest's installed , which now consumes  (Finterest 0.1.39). Versions still come from the GitHub releases.
-- : the AppDetail test reads the real catalog and named the old screenshot; updated to the new name.
-- ****: a read-only end-to-end verification prompt for any app of the family (common part: repo health, releases and update feed, Nebula Link against the test Hub, data and backups, family design and Electron security, report then plan; one section per app: Hub, Finterest, Clock, News).
+- **Catalog, Finterest entry** (Finterest 0.1.38 family shell + 0.1.39 "Learn" card, published): the description mentions the calculator and the "Learn" card fed by Nebula News (`news.finance.today`, asked without any parameter); the two screenshots are replaced by captures of 0.1.39 under new names (`finterest-0139-dashboard.png`, `finterest-0139-calendar.png`, 1 280 px, taken on a throwaway profile against the Link test server with the fake News 0.4.0), and the old files are removed. `generatedAt` bumped, re-signed (`npm run catalog:sign`, verified against the embedded public key). Targeted text edits only, so the signed bytes keep the file's compact formatting.
+- Nothing else in the entry changes: the catalog only names the manifest file (`link.manifest`); the Hub reads Finterest's installed `nebula.app.json`, which now consumes `news.finance.today` (Finterest 0.1.39). Versions still come from the GitHub releases.
+- `tests/renderer/screens.test.tsx`: the AppDetail test reads the real catalog and named the old screenshot; updated to the new name.
+- **`docs/PROMPT_VERIFY.md`**: a read-only end-to-end verification prompt for any app of the family (common part: repo health, releases and update feed, Nebula Link against the test Hub, data and backups, family design and Electron security, report then plan; one section per app: Hub, Finterest, Clock, News).
 - Validation: 985 tests (41 suites), typecheck, lint.
 
 ## [2026-10-03] - Nebula Hub Session #17 — Version 0.2.2
