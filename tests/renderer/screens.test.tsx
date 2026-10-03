@@ -225,7 +225,7 @@ describe('AppDetail', () => {
     expect(screen.getByText('Cette app se met aussi à jour d’elle-même.')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Nouveautés' })).toBeInTheDocument();
     await waitFor(() => expect(screen.getAllByRole('img', { name: /Capture/ })).toHaveLength(2));
-    expect(loadAsset).toHaveBeenCalledWith('nebula.finterest', 'screenshots/finterest-dashboard.png');
+    expect(loadAsset).toHaveBeenCalledWith('nebula.finterest', 'screenshots/finterest-0139-dashboard.png');
   });
 
   it('explains release issues in plain words', () => {

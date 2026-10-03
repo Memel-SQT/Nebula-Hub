@@ -1,19 +1,19 @@
 {
   "schema": 1,
-  "generatedAt": "2026-10-03T13:30:00Z",
+  "generatedAt": "2026-10-03T17:44:46Z",
   "apps": [
     {
       "id": "nebula.finterest",
       "name": "Nebula Finterest",
       "tagline": { "fr": "Votre budget, simplement", "en": "Your budget, simply" },
       "description": {
-        "fr": "Budget mensuel personnel, 100 % local et hors ligne : plusieurs comptes protégés par un code, calendrier des prélèvements et des achats, prêts, personnalisation complète et sauvegarde automatique avant désinstallation. Explicitement pas une application bancaire : aucune banque, aucun marché, aucun compte en ligne.",
-        "en": "A personal monthly budget, 100% local and offline: several PIN-protected accounts, a calendar of charges and purchases, loans, full personalization and an automatic backup before uninstalling. Explicitly not a banking app: no bank, no market data, no online account."
+        "fr": "Budget mensuel personnel, 100 % local et hors ligne : plusieurs comptes protégés par un code, calendrier des prélèvements et des achats, prêts, calculatrice, personnalisation complète et sauvegarde automatique avant désinstallation. Avec Nebula News, une carte « Apprendre » propose les articles de finance du jour, sans jamais rien envoyer de votre budget. Explicitement pas une application bancaire : aucune banque, aucun marché, aucun compte en ligne.",
+        "en": "A personal monthly budget, 100% local and offline: several PIN-protected accounts, a calendar of charges and purchases, loans, a calculator, full personalization and an automatic backup before uninstalling. With Nebula News, a “Learn” card shows today’s finance articles, without ever sending anything from your budget. Explicitly not a banking app: no bank, no market data, no online account."
       },
       "category": "finance",
       "status": "stable",
       "icon": "icons/finterest.svg",
-      "screenshots": ["screenshots/finterest-dashboard.png", "screenshots/finterest-calendar.png"],
+      "screenshots": ["screenshots/finterest-0139-dashboard.png", "screenshots/finterest-0139-calendar.png"],
       "source": { "provider": "github", "owner": "Memel-SQT", "repo": "Nebula-Finterest" },
       "windows": {
         "productName": "Nebula Finterest",
