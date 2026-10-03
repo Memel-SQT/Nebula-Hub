@@ -27,6 +27,8 @@ export interface HubSettings {
   autoUpdate: Record<string, boolean>;
   /** Order of the Home widgets (capability ids), set by drag and drop or the move buttons (brief §9.1). */
   widgetOrder: string[];
+  /** Widgets shown on the Home or not, when the user chose (ADR-031); else `HOME_HIDDEN_BY_DEFAULT`. */
+  homeWidgets: Record<string, boolean>;
   /** Relay the activity center to Windows notifications (brief I5), and the apps muted there. */
   windowsNotifications: boolean;
   mutedApps: string[];
@@ -46,6 +48,7 @@ export const DEFAULT_SETTINGS: HubSettings = {
   backupCopyDirectory: null,
   autoUpdate: {},
   widgetOrder: [],
+  homeWidgets: {},
   windowsNotifications: true,
   mutedApps: [],
   activitySeenAt: null,
@@ -78,6 +81,7 @@ export function parseSettings(value: unknown, fallback: HubSettings = DEFAULT_SE
     backupCopyDirectory: record.backupCopyDirectory === null || isSafeInstallDirectory(record.backupCopyDirectory) ? (record.backupCopyDirectory as string | null) ?? null : fallback.backupCopyDirectory,
     autoUpdate: record.autoUpdate === undefined ? fallback.autoUpdate : parseAutoUpdate(record.autoUpdate),
     widgetOrder: record.widgetOrder === undefined ? fallback.widgetOrder : parseIds(record.widgetOrder),
+    homeWidgets: record.homeWidgets === undefined ? fallback.homeWidgets : parseChoices(record.homeWidgets),
     windowsNotifications: bool(record.windowsNotifications, fallback.windowsNotifications),
     mutedApps: record.mutedApps === undefined ? fallback.mutedApps : parseIds(record.mutedApps),
     openInHub: record.openInHub === undefined ? fallback.openInHub : parseIds(record.openInHub),
@@ -102,6 +106,15 @@ function parseAutoUpdate(value: unknown): Record<string, boolean> {
   const result: Record<string, boolean> = {};
   for (const [appId, enabled] of Object.entries(asRecord(value)).slice(0, 50)) {
     if (APP_ID.test(appId) && enabled === true) result[appId] = true;
+  }
+  return result;
+}
+
+/** Capability ids with an explicit true or false (at most 50); anything else is dropped. */
+function parseChoices(value: unknown): Record<string, boolean> {
+  const result: Record<string, boolean> = {};
+  for (const [id, shown] of Object.entries(asRecord(value)).slice(0, 50)) {
+    if (APP_ID.test(id) && typeof shown === 'boolean') result[id] = shown;
   }
   return result;
 }

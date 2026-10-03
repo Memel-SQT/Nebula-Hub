@@ -793,3 +793,28 @@ Les constats qui fondent ces décisions sont détaillés dans [DISCOVERY.md](DIS
 - **Évolution possible** : une demande de fermeture par Nebula Link (événement que les apps
   écouteraient) éviterait l'arrêt forcé des apps réduites dans la zone de notification. Il faudrait
   pour cela une nouvelle version des apps.
+
+## ADR-031 — Les thèmes de Nebula News sur l'accueil du Hub
+
+- **Statut** : Accepté (prompt « thèmes de Nebula News » du 2026-10-03 ; réponses de l'utilisateur :
+  « Tech du jour » remplace « À la une », et les thèmes destinés aux autres apps sont masqués par
+  défaut). Complète ADR-025 (widgets de l'accueil).
+- **Contexte** : News 0.4.0 suit trois thèmes, un par app de la famille, et publie un widget par
+  thème en plus de « À la une ». Le Hub lisait tous les widgets des apps installées : quatre cartes
+  News seraient apparues sur l'accueil.
+- **Décision** :
+  - l'accueil n'affiche par défaut que les widgets faits pour lui. « Tech du jour »
+    (`news.tech.today`) y remplace « À la une » ;
+  - `news.headlines.today`, `news.focus.today` (pour Clock) et `news.finance.today` (pour
+    Finterest) sont masqués par défaut (`HOME_HIDDEN_BY_DEFAULT`) ;
+  - le panneau « Widgets de l'accueil » d'Intégrations permet de tout afficher ou masquer
+    (`settings.homeWidgets`, lu champ par champ). Il indique pour quelle app un widget est fait ;
+  - un widget masqué n'a pas de carte et n'est jamais lu : aucun échange Link, rien au journal ;
+  - les consentements ne changent pas : ce sont deux réglages distincts.
+- **Durcissement** : un widget n'ouvre que son app. Un `deepLink` qui ne vise pas l'hôte du
+  fournisseur (`nebula://news/…` pour `nebula.news`) est retiré de la carte. Le schéma `WidgetV1`
+  reste vérifié par le serveur Link (longueurs, champs, pas de HTML interprété).
+- **Catalogue** : nouvelles accroche et description de News, re-signé. L'entrée ne porte ni
+  version (celle-ci vient de la release GitHub v0.4.0) ni manifeste (le Hub lit `nebula.app.json`
+  dans l'app installée) : il n'y avait rien d'autre à recopier. Le manifeste réel de la 0.4.0 est
+  une copie du banc d'essai (`tests/link-harness/apps/news/`), qui vérifie qu'il est accepté.

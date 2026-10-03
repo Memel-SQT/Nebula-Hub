@@ -1,0 +1,62 @@
+{
+  "schema": 1,
+  "appId": "nebula.news",
+  "provides": [
+    {
+      "id": "news.headlines.today",
+      "kind": "widget",
+      "sensitivity": "public",
+      "title": { "fr": "À la une", "en": "Top stories" },
+      "description": { "fr": "Les trois premiers sujets du briefing du jour (un par thème), avec leur source.", "en": "The first three stories of today's briefing (one per theme), with their source." },
+      "resultSchema": "WidgetV1",
+      "refreshSeconds": 900
+    },
+    {
+      "id": "news.focus.today",
+      "kind": "widget",
+      "sensitivity": "public",
+      "title": { "fr": "Développement personnel du jour", "en": "Today's personal growth" },
+      "description": { "fr": "Trois articles sur l'organisation, les habitudes et la concentration, pour Nebula Clock.", "en": "Three articles on organization, habits and focus, for Nebula Clock." },
+      "resultSchema": "WidgetV1",
+      "refreshSeconds": 900
+    },
+    {
+      "id": "news.finance.today",
+      "kind": "widget",
+      "sensitivity": "public",
+      "title": { "fr": "Finance du jour", "en": "Today's finance" },
+      "description": { "fr": "Trois articles de finance et d'éducation financière, pour Nebula Finterest.", "en": "Three articles on finance and financial literacy, for Nebula Finterest." },
+      "resultSchema": "WidgetV1",
+      "refreshSeconds": 900
+    },
+    {
+      "id": "news.tech.today",
+      "kind": "widget",
+      "sensitivity": "public",
+      "title": { "fr": "Tech du jour", "en": "Today's tech" },
+      "description": { "fr": "Trois articles tech et informatique, pour l'accueil de Nebula Hub.", "en": "Three tech and computing articles, for the Nebula Hub Home." },
+      "resultSchema": "WidgetV1",
+      "refreshSeconds": 900
+    },
+    {
+      "id": "news.open-briefing",
+      "kind": "intent",
+      "sensitivity": "public",
+      "title": { "fr": "Ouvrir le briefing", "en": "Open the briefing" },
+      "description": { "fr": "Ouvre le briefing du jour dans Nebula News.", "en": "Opens today's briefing in Nebula News." },
+      "payloadSchema": "EmptyV1",
+      "path": "/briefing"
+    }
+  ],
+  "consumes": [
+    { "id": "nebula.appearance.changed", "kind": "event" },
+    { "id": "nebula.hub.dock", "kind": "event" }
+  ],
+  "deepLinks": [
+    { "path": "/", "params": {} },
+    { "path": "/briefing", "params": {} },
+    { "path": "/theme/focus", "params": {} },
+    { "path": "/theme/finance", "params": {} },
+    { "path": "/theme/tech", "params": {} }
+  ]
+}

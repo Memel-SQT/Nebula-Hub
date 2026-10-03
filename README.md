@@ -20,6 +20,8 @@ Windows, sans compte et sans télémétrie.
   version est disponible, et à tout moment dans Réglages.
 - **Nebula Link** : les apps se partagent l'apparence, des liens profonds, des widgets et des
   notifications — uniquement ce que vous autorisez, et rien ne quitte votre ordinateur.
+  L'accueil affiche par exemple « Tech du jour » de Nebula News ; vous choisissez les widgets
+  affichés dans Intégrations → « Widgets de l'accueil ».
 - **Vos apps restent autonomes** : chacune s'installe, fonctionne et se met à jour seule. Le Hub
   est un plus, jamais une obligation, et vous pouvez passer de l'un à l'autre sans perdre vos
   données.

@@ -29,6 +29,8 @@ export interface LinkHubDeps {
   record(appId: string): { location: string; exeFound: boolean } | undefined;
   launch(appId: string, args: string[]): Promise<boolean>;
   appearance(): unknown;
+  /** Whether a widget is on the Home (ADR-031); every widget when absent. */
+  showOnHome?(capabilityId: string): boolean;
   navigate(route: Route): void;
   onChange(view: LinkView): void;
   /** The Home widgets changed (values in memory only). */
@@ -71,6 +73,7 @@ export class LinkHub {
       manifests: () => [...this.manifests.values()],
       connected: () => this.server?.connectedApps().map((entry) => entry.appId) ?? [],
       query: (capability) => (this.server ? this.server.queryAs(HUB_ID, capability) : Promise.resolve({ error: 'provider-offline' })),
+      shown: (capability) => this.deps.showOnHome?.(capability) ?? true,
       onChange: (widgets) => this.deps.onWidgets?.(widgets),
       now: deps.now ? () => deps.now!().getTime() : undefined,
     });

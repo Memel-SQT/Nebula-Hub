@@ -18,6 +18,14 @@ describe('parseSettings', () => {
   });
 });
 
+describe('homeWidgets (ADR-031)', () => {
+  it('keeps explicit choices only, field by field', () => {
+    expect(DEFAULT_SETTINGS.homeWidgets).toEqual({});
+    expect(parseSettings({ homeWidgets: { 'news.finance.today': true, 'news.tech.today': false, 'bad id!': true, 'news.focus.today': 'yes' } }).homeWidgets).toEqual({ 'news.finance.today': true, 'news.tech.today': false });
+    expect(parseSettings({ homeWidgets: 'nope', closeToTray: false })).toMatchObject({ homeWidgets: {}, closeToTray: false });
+  });
+});
+
 describe('mergeAppearance', () => {
   it('applies valid fields and keeps the current value for invalid ones', () => {
     const current = { ...DEFAULT_NEBULA_APPEARANCE, background: 'stars' as const, theme: 'nebula-light' as const };

@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "generatedAt": "2026-10-02T12:35:00Z",
+  "generatedAt": "2026-10-03T13:30:00Z",
   "apps": [
     {
       "id": "nebula.finterest",
@@ -70,10 +70,10 @@
     {
       "id": "nebula.news",
       "name": "Nebula News",
-      "tagline": { "fr": "Le briefing du jour", "en": "Today’s briefing" },
+      "tagline": { "fr": "Développement personnel, finance et tech, chaque jour", "en": "Personal growth, finance and tech, every day" },
       "description": {
-        "fr": "Briefing quotidien de l’actualité mondiale, agrégé depuis des flux RSS français et anglais, résumé et classé par importance. Fonctionne sans aucune clé d’API.",
-        "en": "A daily briefing of world news, aggregated from French and English RSS feeds, summarized and ranked by importance. Works without any API key."
+        "fr": "Un briefing quotidien sur trois thèmes : développement personnel et organisation, finance et éducation financière, tech et informatique. Les articles viennent de flux RSS français et anglais, résumés et classés. Chaque thème nourrit une app de la famille : Nebula Clock pendant les pauses, Nebula Finterest et l’accueil de Nebula Hub. Fonctionne sans aucune clé d’API.",
+        "en": "A daily briefing on three themes: personal growth and organization, finance and financial literacy, tech and computing. Articles come from French and English RSS feeds, summarized and ranked. Each theme feeds a family app: Nebula Clock during breaks, Nebula Finterest and the Nebula Hub Home. Works without any API key."
       },
       "category": "info",
       "status": "stable",

@@ -33,6 +33,7 @@ import { createTray, destroyTray, updateTray, type TrayOptions } from './tray';
 import { applyWindowTheme, contentBounds, createMainWindow, getMainWindow, isWindowFocused, onWindowGeometry, onWindowVisibilityChange, setQuitting, showMainWindow } from './window';
 import { isRect } from '../shared/dock';
 import { hubEntry, isHubUpdating } from '../shared/hub-update';
+import { shownOnHome } from '../shared/widgets';
 
 // Pinned explicitly (ADR-007, ADR-013): a future product rename must never orphan the
 // consents and history. NEBULA_HUB_USER_DATA_DIR points manual tests at a throwaway folder; it
@@ -149,6 +150,7 @@ if (!app.requestSingleInstanceLock()) {
       record: (appId) => installed?.record(appId),
       launch: async (appId, args) => (await launchApp(appId, args)) === 'launched',
       appearance: () => settingsStore.get().appearance,
+      showOnHome: (capability) => shownOnHome(capability, settingsStore.get().homeWidgets),
       navigate: (route) => void openWindowOn(route),
       onChange: (view) => getMainWindow()?.webContents.send(CHANNELS.linkChanged, view),
       onWidgets: (widgets) => getMainWindow()?.webContents.send(CHANNELS.widgetsChanged, widgets),
@@ -359,6 +361,10 @@ function registerIpcHandlers(): void {
     }
     if (settings.channel !== before.channel) {
       void catalog?.refresh(true);
+    }
+    // A widget shown or hidden on the Home: the board adds it (read at once) or drops it.
+    if (JSON.stringify(settings.homeWidgets) !== JSON.stringify(before.homeWidgets)) {
+      link?.widgets.sync();
     }
     if (JSON.stringify(settings.autoUpdate) !== JSON.stringify(before.autoUpdate)) {
       scheduleAutoUpdates();

@@ -45,9 +45,39 @@ export interface WidgetView {
 
 export type ReplyLike = { result: unknown } | { error: string };
 
-/** Maps a Link reply of the Hub's `queryAs` to the card's state. */
-export function widgetStateOf(reply: ReplyLike): { state: WidgetState; data: WidgetData | null } {
-  if ('result' in reply) return reply.result === null ? { state: 'empty', data: null } : { state: 'ready', data: reply.result as WidgetData };
+/**
+ * Widgets the Home does not show unless the user turns them on in Integrations (ADR-031): the
+ * News themes meant for another app (Clock during breaks, Finterest), and "Top stories", which
+ * "Today's tech" replaces on the Hub's Home. They are not even read while off.
+ */
+export const HOME_HIDDEN_BY_DEFAULT: readonly string[] = ['news.headlines.today', 'news.focus.today', 'news.finance.today'];
+
+/** Whether a widget is on the Home: the user's choice, else the default. */
+export function shownOnHome(capabilityId: string, choices: Readonly<Record<string, boolean>>): boolean {
+  return choices[capabilityId] ?? !HOME_HIDDEN_BY_DEFAULT.includes(capabilityId);
+}
+
+/**
+ * A widget opens its own app only: its `deepLink` must target the provider (`nebula://news/…`
+ * for `nebula.news`). Anything else is dropped, the card simply does not open.
+ */
+export function ownDeepLink(provider: string, link: string | undefined): boolean {
+  if (link === undefined) return false;
+  const host = provider.replace(/^nebula./, '');
+  return link === `nebula://${host}` || link.startsWith(`nebula://${host}/`) || link.startsWith(`nebula://${host}?`);
+}
+
+/** Maps a Link reply of the Hub's `queryAs` to the card's state (`provider`: who answered). */
+export function widgetStateOf(reply: ReplyLike, provider?: string): { state: WidgetState; data: WidgetData | null } {
+  if ('result' in reply) {
+    if (reply.result === null) return { state: 'empty', data: null };
+    const data = reply.result as WidgetData;
+    if (provider && data.deepLink !== undefined && !ownDeepLink(provider, data.deepLink)) {
+      const { deepLink: _dropped, ...rest } = data;
+      return { state: 'ready', data: rest };
+    }
+    return { state: 'ready', data };
+  }
   switch (reply.error) {
     case 'consent-required':
       return { state: 'consent-required', data: null };

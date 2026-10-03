@@ -2,6 +2,28 @@
 
 Technical log, newest session first. Release notes live only in the GitHub release body.
 
+## [2026-10-03] - Nebula Hub Session #16 — News 0.4.0 themes on the Home (branch feat/news-themes)
+
+- **Applied the "News themes" prompt, Hub part** (ADR-031). User answers: "Today's tech" replaces "Top stories" on the Home; the themes meant for Clock and Finterest are hidden by default.
+- **Catalog**: News tagline "Développement personnel, finance et tech, chaque jour" / "Personal growth, finance and tech, every day", and a new description; generatedAt 2026-10-03; re-signed and verified against the embedded key. Deviations from the prompt:
+  - the catalog has no per-app version (it comes from the GitHub release, v0.4.0 is published);
+  - it has no embedded manifest (`link.manifest` only names the file read from the install).
+  So nothing to copy; the real manifest is tested instead.
+- **Home widgets**:
+  - `shared/widgets.ts`: `HOME_HIDDEN_BY_DEFAULT` (headlines, focus, finance), `shownOnHome`, `ownDeepLink`; `widgetStateOf` drops a deep link that does not target the provider;
+  - `settings.homeWidgets` (explicit choices, parsed field by field);
+  - `WidgetBoard` gets `shown()`: a hidden widget has no slot and is never read; main re-syncs the board when the choice changes.
+- **Integrations**: a "Widgets de l'accueil" panel, one switch per widget, with a "Pour Nebula Clock / Finterest" chip from the consuming apps. Consents are unchanged.
+- **Test bench**: a fake News on the real 0.4.0 manifest (`tests/link-harness/apps/news/`, `news()` in `fake-apps.ts`, `news-themes.test.ts`). It covers:
+  - the manifest is accepted and the theme deep links route;
+  - only "Today's tech" is shown and read by default;
+  - the user's choice is honoured;
+  - null gives an empty card, and a closed News an offline card;
+  - a foreign deep link is dropped;
+  - a non-WidgetV1 payload is refused.
+- Unit tests for the rules, the setting and the panel. The Discover search test now searches the new tagline ("developpement").
+- Docs: NEBULA_LINK.md § 10 (I3), PROMPT_APPS.md (News section), README.
+
 ## [2026-10-03] - Nebula Hub Session #15 — Hub mode fixes, "Quit Nebula"
 
 - **Bug: an app shown inside the Hub disappeared behind it.** The user reported that docked apps broke when switching windows or resizing. `DockController` deduplicated payloads including `raise`: the second time the Hub came back to the front without moving (click in the app, then on the Hub; Alt+Tab), the identical "raise" was dropped, so the Hub covered the app for good. A raise is now an action, sent every time; the stored payload ignores it. A regression test fails on the old code.

@@ -204,6 +204,12 @@ empaquetée pour Windows ; main Electron en CommonJS dans `desktop/main.js` : ut
   - intent `news.open-briefing` (chemin `/briefing`), utilisé par le Hub quand une pause longue
     de Clock commence et que l'utilisateur a activé l'option.
   - notification publique « Votre briefing est prêt ».
+  - depuis la 0.4.0 (trois thèmes, un par app) : `news.focus.today` (Nebula Clock),
+    `news.finance.today` (Nebula Finterest), `news.tech.today` (accueil du Hub), chacun public,
+    `WidgetV1`, `refreshSeconds` 900, `null` si le thème est vide, `deepLink` vers
+    `nebula://news/theme/<thème>` (déclaré dans `deepLinks`). Le Hub affiche « Tech du jour » sur son
+    accueil et masque par défaut les deux autres et « À la une » (ADR-031). Le branchement côté
+    Clock et Finterest est décrit dans `docs/PROMPT_NEWS_THEMES.md`.
 - Données : sauvegarde / import comme plus haut si l'app garde des préférences ou un historique
   (format `news-backup-v1`, dossier racine `Documents\Nebula News\`), à signaler dans le rapport.
 ```

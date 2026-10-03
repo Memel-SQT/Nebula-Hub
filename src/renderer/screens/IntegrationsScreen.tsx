@@ -3,6 +3,7 @@ import { localize } from '@shared/catalog';
 import type { CatalogView } from '@shared/catalog-view';
 import type { ConsentState } from '@shared/consent';
 import type { LinkCapabilityView, LinkPairView, LinkView } from '@shared/link-view';
+import { shownOnHome } from '@shared/widgets';
 import { findEntry } from '../catalog';
 import { AppIcon, Panel, SummaryCard } from '../components/Cards';
 import { EmptyState, StateView } from '../components/ScreenState';
@@ -17,12 +18,15 @@ const HUB_ID = 'nebula.hub';
  * app × capability with the state of each pair and the date of its last exchange. Public
  * capabilities are allowed until turned off, private ones wait for a yes (docs/NEBULA_LINK.md § 6).
  */
-export function IntegrationsScreen({ link, catalog, onNavigate, onSetConsent, onDenyApp }: {
+export function IntegrationsScreen({ link, catalog, homeWidgets = {}, onNavigate, onSetConsent, onDenyApp, onToggleHomeWidget }: {
   link?: LinkView;
   catalog: CatalogView;
   onNavigate: (route: Route) => void;
   onSetConsent?: (consumer: string, capability: string, state: ConsentState | null) => void;
   onDenyApp?: (appId: string) => void;
+  /** Widgets shown on the Home or not (ADR-031), and the switch. */
+  homeWidgets?: Record<string, boolean>;
+  onToggleHomeWidget?: (capabilityId: string, shown: boolean) => void;
 }) {
   const t = useT();
   const language = useLanguage();
@@ -32,6 +36,9 @@ export function IntegrationsScreen({ link, catalog, onNavigate, onSetConsent, on
   const granted = link?.pairs.filter((pair) => pair.state === 'granted').length ?? 0;
   const providers = [...new Set(link?.pairs.map((pair) => pair.provider) ?? [])];
   const connected = new Set(link?.connected.map((entry) => entry.appId) ?? []);
+  const widgets = link?.capabilities.filter((capability) => capability.kind === 'widget' && capability.provider !== HUB_ID) ?? [];
+  // The other apps a widget is made for: those that consume it (e.g. "Today's finance" for Finterest).
+  const madeFor = (capability: string) => [...new Set(link?.pairs.filter((pair) => pair.capability === capability && pair.consumer !== HUB_ID).map((pair) => pair.consumer) ?? [])];
 
   return (
     <ScreenFrame eyebrow={t('integrations.eyebrow')} title={t('integrations.title')} intro={t('integrations.intro')} labelledBy="integrations-title">
@@ -103,6 +110,45 @@ export function IntegrationsScreen({ link, catalog, onNavigate, onSetConsent, on
           </div>
         </StateView>
       </Panel>
+
+      {onToggleHomeWidget && link && link.state !== 'starting' ? (
+        <Panel eyebrow={t('integrations.home.eyebrow')} title={t('integrations.home.title')} badge={String(widgets.filter((capability) => shownOnHome(capability.id, homeWidgets)).length)} labelledBy="integrations-home">
+          <p className="panel-note home-widgets-hint">{t('integrations.home.hint')}</p>
+          {widgets.length === 0 ? <p className="home-widgets-empty">{t('integrations.home.empty')}</p> : (
+            <ul className="integration-pairs home-widgets">
+              {widgets.map((capability) => {
+                const title = localize(capability.title, language);
+                const on = shownOnHome(capability.id, homeWidgets);
+                return (
+                  <li key={capability.id} className="integration-pair home-widget">
+                    <div className="integration-pair-main">
+                      <span className="integration-pair-title">
+                        <AppIcon src={icon(capability.provider)} size={22} />
+                        <strong>{title}</strong>
+                        {madeFor(capability.id).map((consumer) => <span key={consumer} className="category-chip">{t('integrations.home.for', { name: name(consumer) })}</span>)}
+                      </span>
+                      <span className="integration-pair-meta">{name(capability.provider)} · {localize(capability.description, language)}</span>
+                    </div>
+                    <div className="integration-pair-actions">
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={on}
+                        aria-label={t('integrations.home.toggle', { title })}
+                        className={`switch small-switch ${on ? 'on' : ''}`}
+                        data-sound="toggle"
+                        onClick={() => onToggleHomeWidget(capability.id, !on)}
+                      >
+                        <i aria-hidden="true" />
+                      </button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </Panel>
+      ) : null}
     </ScreenFrame>
   );
 }

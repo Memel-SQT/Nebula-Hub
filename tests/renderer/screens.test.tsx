@@ -31,11 +31,14 @@ const LINK: LinkView = {
     { id: 'finterest.budget.remaining', provider: 'nebula.finterest', kind: 'widget', sensitivity: 'private', title: { fr: 'Reste à vivre' }, description: { fr: 'Montant restant ce mois-ci pour le compte ouvert.' } },
     { id: 'nebula.appearance.changed', provider: 'nebula.hub', kind: 'event', sensitivity: 'public', title: { fr: 'Apparence Nebula' }, description: { fr: 'Thème et accent.' } },
     { id: 'finterest.notify', provider: 'nebula.finterest', kind: 'event', sensitivity: 'private', title: { fr: 'Notifications privées' }, description: { fr: 'Vers le centre d’activité.' } },
+    { id: 'news.tech.today', provider: 'nebula.news', kind: 'widget', sensitivity: 'public', title: { fr: 'Tech du jour' }, description: { fr: 'Trois articles tech.' } },
+    { id: 'news.finance.today', provider: 'nebula.news', kind: 'widget', sensitivity: 'public', title: { fr: 'Finance du jour' }, description: { fr: 'Trois articles de finance.' } },
   ],
   pairs: [
     { consumer: 'nebula.hub', capability: 'finterest.budget.remaining', provider: 'nebula.finterest', sensitivity: 'private', state: null, decision: 'ask', lastExchange: null },
     { consumer: 'nebula.finterest', capability: 'nebula.appearance.changed', provider: 'nebula.hub', sensitivity: 'public', state: null, decision: 'allow', lastExchange: '2026-10-02T08:00:00.000Z' },
     { consumer: 'nebula.hub', capability: 'finterest.notify', provider: 'nebula.finterest', sensitivity: 'private', state: 'denied', decision: 'deny', lastExchange: null },
+    { consumer: 'nebula.finterest', capability: 'news.finance.today', provider: 'nebula.news', sensitivity: 'public', state: null, decision: 'allow', lastExchange: null },
   ],
   pending: [{ consumer: 'nebula.hub', capability: 'finterest.budget.remaining', at: '2026-10-02T08:01:00.000Z' }],
 };
@@ -47,6 +50,18 @@ describe('Integrations (Nebula Link)', () => {
     wrap(<IntegrationsScreen link={link ?? undefined} catalog={catalogView()} {...props} />);
     return props;
   }
+
+  it('lets the user choose the Home widgets, with the themes meant for other apps hidden by default (ADR-031)', async () => {
+    const onToggleHomeWidget = jest.fn();
+    wrap(<IntegrationsScreen link={LINK} catalog={catalogView()} onNavigate={jest.fn()} homeWidgets={{}} onToggleHomeWidget={onToggleHomeWidget} />);
+    expect(screen.getByRole('heading', { name: 'Widgets de l’accueil' })).toBeInTheDocument();
+    expect(screen.getByRole('switch', { name: 'Afficher « Tech du jour » sur l’accueil' })).toHaveAttribute('aria-checked', 'true');
+    const finance = screen.getByRole('switch', { name: 'Afficher « Finance du jour » sur l’accueil' });
+    expect(finance).toHaveAttribute('aria-checked', 'false');
+    expect(screen.getByText('Pour Nebula Finterest')).toBeInTheDocument();
+    await userEvent.click(finance);
+    expect(onToggleHomeWidget).toHaveBeenCalledWith('news.finance.today', true);
+  });
 
   it('has a level-1 title and skeletons while Link starts', () => {
     renderIntegrations(null);
@@ -191,7 +206,7 @@ describe('Discover', () => {
     await userEvent.click(screen.getByRole('radio', { name: 'Finance' }));
     expect(screen.getAllByRole('button', { name: /Nebula / })).toHaveLength(1);
     await userEvent.click(screen.getByRole('radio', { name: 'Toutes' }));
-    await userEvent.type(screen.getByRole('searchbox'), 'actualite');
+    await userEvent.type(screen.getByRole('searchbox'), 'developpement');
     expect(screen.getByRole('button', { name: /Nebula News/ })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Nebula Clock/ })).not.toBeInTheDocument();
     await userEvent.clear(screen.getByRole('searchbox'));

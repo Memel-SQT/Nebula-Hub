@@ -17,6 +17,10 @@
 .integration-hub-icon { display: grid; place-items: center; width: 34px; height: 34px; border-radius: var(--radius); background: var(--accent-soft); color: var(--accent-hover); }
 
 .integration-pairs { display: grid; margin: 0; padding: 0; list-style: none; }
+/* Home widgets (ADR-031). */
+.home-widgets-hint { margin: 0 0 0.6rem; }
+.home-widgets-empty { margin: 0; color: var(--muted); font-size: 0.8rem; }
+.home-widget .integration-pair-title .app-icon { box-shadow: none; }
 .integration-pair { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 0.8rem; padding: 0.65rem 0.2rem; border-top: 1px solid var(--line); }
 .integration-pair-main { display: grid; gap: 0.25rem; min-width: 0; }
 .integration-pair-title { display: flex; flex-wrap: wrap; align-items: center; gap: 0.45rem; }

@@ -1,4 +1,4 @@
-import { moveWidget, orderWidgets, placeWidget, refreshInterval, widgetStateOf } from './widgets';
+import { moveWidget, orderWidgets, ownDeepLink, placeWidget, refreshInterval, shownOnHome, widgetStateOf } from './widgets';
 
 const cards = (...ids: string[]) => ids.map((id) => ({ id }));
 
@@ -40,6 +40,25 @@ describe('widgetStateOf', () => {
     expect(widgetStateOf({ error: 'provider-offline' }).state).toBe('offline');
     expect(widgetStateOf({ error: 'timeout' }).state).toBe('error');
     expect(widgetStateOf({ error: 'invalid-result' }).state).toBe('error');
+  });
+});
+
+describe('Home widgets (ADR-031)', () => {
+  it('shows "Today’s tech" and hides the themes meant for other apps and "Top stories", unless the user chose', () => {
+    expect(shownOnHome('news.tech.today', {})).toBe(true);
+    expect(shownOnHome('clock.focus.today', {})).toBe(true);
+    for (const id of ['news.headlines.today', 'news.focus.today', 'news.finance.today']) expect(shownOnHome(id, {})).toBe(false);
+    expect(shownOnHome('news.finance.today', { 'news.finance.today': true })).toBe(true);
+    expect(shownOnHome('news.tech.today', { 'news.tech.today': false })).toBe(false);
+  });
+
+  it('lets a widget open its own app only', () => {
+    expect(ownDeepLink('nebula.news', 'nebula://news/theme/tech')).toBe(true);
+    expect(ownDeepLink('nebula.news', 'nebula://news')).toBe(true);
+    expect(ownDeepLink('nebula.news', 'nebula://newsletter/x')).toBe(false);
+    expect(ownDeepLink('nebula.news', 'nebula://finterest/month')).toBe(false);
+    expect(widgetStateOf({ result: { title: 'T', deepLink: 'nebula://finterest/month', updatedAt: 'x' } }, 'nebula.news').data).toEqual({ title: 'T', updatedAt: 'x' });
+    expect(widgetStateOf({ result: { title: 'T', deepLink: 'nebula://news/theme/tech', updatedAt: 'x' } }, 'nebula.news').data?.deepLink).toBe('nebula://news/theme/tech');
   });
 });
 

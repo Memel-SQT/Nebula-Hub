@@ -16,6 +16,8 @@ export interface WidgetBoardDeps {
   /** App ids with a live, authenticated connection. */
   connected(): string[];
   query(capabilityId: string): Promise<ReplyLike>;
+  /** Whether a widget is on the Home (ADR-031): the others get no card and are never read. */
+  shown?(capabilityId: string): boolean;
   onChange(widgets: WidgetView[]): void;
   now?(): number;
 }
@@ -56,13 +58,16 @@ export class WidgetBoard {
     return [...this.slots.values()].map((slot) => slot.view);
   }
 
-  /** Re-reads the manifests: new widgets appear (read at once), widgets of removed apps go away. */
+  /**
+   * Re-reads the manifests: new widgets appear (read at once), widgets of removed apps go away. Also
+   * called when the user shows or hides a widget on the Home.
+   */
   sync(): void {
     const seen = new Set<string>();
     const connected = new Set(this.deps.connected());
     for (const manifest of this.deps.manifests()) {
       for (const capability of manifest.provides) {
-        if (capability.kind !== 'widget') continue;
+        if (capability.kind !== 'widget' || this.deps.shown?.(capability.id) === false) continue;
         seen.add(capability.id);
         const slot = this.slots.get(capability.id);
         if (slot) {
@@ -144,7 +149,7 @@ export class WidgetBoard {
       const reply = await this.deps.query(capabilityId);
       const current = this.slots.get(capabilityId);
       if (!current) return;
-      const { state, data } = widgetStateOf(reply);
+      const { state, data } = widgetStateOf(reply, current.view.provider);
       // Hidden while the read was in flight: a private value is not kept.
       const keep = this.visible || current.view.sensitivity === 'public';
       current.view = { ...current.view, state: keep ? state : 'loading', data: keep ? data : null, refreshedAt: new Date(this.now()).toISOString() };

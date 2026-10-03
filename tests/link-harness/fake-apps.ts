@@ -36,3 +36,29 @@ export async function eventually(condition: () => boolean, timeoutMs = 3000): Pr
     await new Promise((resolve) => setTimeout(resolve, 10));
   }
 }
+
+/** What the fake News answers for each widget (null: the theme is empty today). */
+export type NewsWidgets = Partial<Record<'news.headlines.today' | 'news.focus.today' | 'news.finance.today' | 'news.tech.today', () => unknown>>;
+
+/**
+ * A fake Nebula News 0.4.0 (ADR-031): the real manifest of News (apps/news/nebula.app.json is a
+ * copy of Nebula-News/nebula.app.json), one widget per theme plus "Top stories".
+ */
+export function news(sessionFile: string, widgets: NewsWidgets = {}): { link: NebulaLink } {
+  const link = NebulaLink.create({ appId: 'nebula.news', appVersion: '0.4.0', manifestPath: manifestOf('news'), sessionFile, minBackoffMs: 50, maxBackoffMs: 200, requestTimeoutMs: 1500 });
+  const theme = (title: string, path: string) => () => ({
+    title,
+    caption: 'Nebula News',
+    items: [
+      { label: 'Un article', value: 'Une source' },
+      { label: 'Un autre article', value: 'Une autre source' },
+    ],
+    deepLink: `nebula://news/theme/${path}`,
+    updatedAt: now(),
+  });
+  link.provide('news.headlines.today', widgets['news.headlines.today'] ?? theme('À la une', 'tech'));
+  link.provide('news.focus.today', widgets['news.focus.today'] ?? theme('Développement personnel du jour', 'focus'));
+  link.provide('news.finance.today', widgets['news.finance.today'] ?? theme('Finance du jour', 'finance'));
+  link.provide('news.tech.today', widgets['news.tech.today'] ?? theme('Tech du jour', 'tech'));
+  return { link };
+}

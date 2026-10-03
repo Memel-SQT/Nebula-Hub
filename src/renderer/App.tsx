@@ -428,6 +428,7 @@ export function App() {
   }, [settings.openInHub, updateSettings]);
 
   const reorderWidgets = useCallback((order: string[]) => updateSettings({ widgetOrder: order }), [updateSettings]);
+  const toggleHomeWidget = useCallback((capability: string, shown: boolean) => updateSettings({ homeWidgets: { ...settings.homeWidgets, [capability]: shown } }), [settings.homeWidgets, updateSettings]);
   const widgetConsent = useCallback((capability: string, state: ConsentState) => setLinkConsent(HUB_ID, capability, state), [setLinkConsent]);
   const markActivityRead = useCallback(() => updateSettings({ activitySeenAt: new Date().toISOString() }), [updateSettings]);
   const openActivity = useCallback((item: ActivityItem) => {
@@ -532,7 +533,7 @@ export function App() {
           {route.screen === 'app' ? <AppDetailScreen key={route.appId} {...catalogProps} appId={route.appId} loadAsset={loadAsset} onOpenLink={openLink} /> : null}
           {route.screen === 'my-apps' ? <MyAppsScreen {...catalogProps} onRefreshInstalled={refreshInstalled} /> : null}
           {route.screen === 'downloads' ? <DownloadsScreen {...catalogProps} onExportHistory={exportHistory} /> : null}
-          {route.screen === 'integrations' ? <IntegrationsScreen link={link} catalog={catalog} onNavigate={setRoute} onSetConsent={setLinkConsent} onDenyApp={denyLinkApp} /> : null}
+          {route.screen === 'integrations' ? <IntegrationsScreen link={link} catalog={catalog} homeWidgets={settings.homeWidgets} onNavigate={setRoute} onSetConsent={setLinkConsent} onDenyApp={denyLinkApp} onToggleHomeWidget={toggleHomeWidget} /> : null}
           {route.screen === 'settings' ? (
             <SettingsScreen
               settings={settings}
