@@ -2,6 +2,24 @@
 
 Technical log, newest session first. Release notes live only in the GitHub release body.
 
+## [2026-10-04] - Nebula Hub Session #19 — Hub mode: apps stayed behind the Hub; full-width layout
+
+- **User report**: an app opened inside the Hub shows "… s'affiche ici" but never appears; force-closing the Hub reveals it, working. It happens with every gesture (resize, switching apps or screens, coming back from another window). The UI did not fit the whole screen either, in the Hub and in the apps. The sidebar must stay.
+- **Diagnosis**:
+  - a copy of the installed Hub's Link journal (no contents) shows every `nebula.hub.dock` message delivered (Finterest 269, Clock 29, News 24), so the apps get their place but their window stays behind the Hub;
+  - Windows refuses `moveTop` to a process without foreground rights, which is the app's case once the Hub is active (e.g. after the Hub launched it and the app swapped its normal window for the docked one).
+- **Hub** (ADR-032):
+  - `DockController` sends `raise` again 0.4 s, 1.5 s and 3.5 s after the app appears, cancelled by the Hub's `blur` (`onWindowBlur` in window.ts);
+  - tests with a fake timer.
+- **Layout**: no more max-width on the content column, Settings or the Discover grid; the Home activity panel grows to 620 px; widget cards fill their panel (auto-fit). Checked at 2752 × 1112 (the user's maximized window): no horizontal scroll.
+- **Apps**: `docs/PROMPT_DOCK_FIX.md`:
+  - raise with `setAlwaysOnTop(true)`, `moveTop()`, `setAlwaysOnTop(false)`, also when hidden → visible;
+  - a dock queue that cannot get stuck;
+  - full width, docked and on large screens;
+  - live check steps.
+  Spec § 17 amended.
+- **Live checks** (throwaway profiles, the installed Clock 1.5.0 binary with `--user-data-dir` pointed at a dev Hub): docking worked in that setup, so the failing sequence could not be reproduced end to end here. The test Hub then launched the user's real Clock once, probably from a click on Clock in its launcher (its parent process was the test Hub); it stayed open and nothing else was touched. Stopped because another session's window ("Nebula Finance Enterprise") covered the screen.
+
 ## [2026-10-03] - Nebula Hub Session #18 — Catalog: Nebula Finterest 0.1.39; verification prompt
 
 - **Catalog, Finterest entry** (Finterest 0.1.38 family shell + 0.1.39 "Learn" card, published): the description mentions the calculator and the "Learn" card fed by Nebula News (`news.finance.today`, asked without any parameter); the two screenshots are replaced by captures of 0.1.39 under new names (`finterest-0139-dashboard.png`, `finterest-0139-calendar.png`, 1 280 px, taken on a throwaway profile against the Link test server with the fake News 0.4.0), and the old files are removed. `generatedAt` bumped, re-signed (`npm run catalog:sign`, verified against the embedded public key). Targeted text edits only, so the signed bytes keep the file's compact formatting.

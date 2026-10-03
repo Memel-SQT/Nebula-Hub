@@ -17,13 +17,10 @@
 .topbar-actions { display: flex; flex: 0 0 auto; flex-wrap: wrap; gap: 0.6rem; max-width: 100%; }
 .eyebrow { margin: 0 0 0.5rem; color: var(--accent-hover); font-size: 0.65rem; font-weight: 800; letter-spacing: 0.17em; text-transform: uppercase; }
 
-/* Centered content column (user feedback: wide and ultrawide screens). It grows with the screen
-   so a 3440 px window is used, but lines never get too long to read. */
-.workspace { --content-max: 1480px; }
-.workspace-inner { width: 100%; max-width: var(--content-max); margin-inline: auto; }
-@media (min-width: 1900px) { .workspace { --content-max: 1680px; } }
-@media (min-width: 2400px) { .workspace { --content-max: 1960px; } }
-@media (min-width: 3000px) { .workspace { --content-max: 2280px; } }
+/* The content uses the whole width next to the sidebar, up to ultrawide screens (user feedback
+   2026-10-04: the UI must fit the whole screen); grids add columns rather than leaving margins.
+   Long texts keep their own max-width (.topbar-intro, notes). */
+.workspace-inner { width: 100%; }
 /* Very large screens at 100 % scaling: text and controls scale up a little, everything in rem follows. */
 @media (min-width: 2400px) { html { font-size: 17px; } }
 @media (min-width: 3000px) { html { font-size: 18px; } }
@@ -51,7 +48,7 @@
 .workspace-column > .error-banner { margin: 1.2rem clamp(1rem, 5vw, 5rem) 0; }
 
 /* Settings */
-.settings-panel { max-width: 1080px; padding: 1.6rem; animation: rise-in var(--motion-slow) var(--ease-out) both; }
+.settings-panel { padding: 1.6rem; animation: rise-in var(--motion-slow) var(--ease-out) both; }
 .settings-section { margin-top: 1.3rem; padding-top: 1.2rem; border-top: 1px solid var(--line); }
 .settings-section:first-child { margin-top: 0; padding-top: 0; border-top: none; }
 .settings-section h2 { display: flex; align-items: center; gap: 0.45rem; margin: 0 0 0.7rem; color: var(--muted); font-size: 0.68rem; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; }

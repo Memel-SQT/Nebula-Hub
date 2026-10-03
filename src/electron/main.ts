@@ -30,7 +30,7 @@ import { showWindowsNotification } from './notifier';
 import { hardenApp, hardenSession, isTrustedSender } from './security';
 import { SettingsStore } from './settings-store';
 import { createTray, destroyTray, updateTray, type TrayOptions } from './tray';
-import { applyWindowTheme, contentBounds, createMainWindow, getMainWindow, isWindowFocused, onWindowGeometry, onWindowVisibilityChange, setQuitting, showMainWindow } from './window';
+import { applyWindowTheme, contentBounds, createMainWindow, getMainWindow, isWindowFocused, onWindowBlur, onWindowGeometry, onWindowVisibilityChange, setQuitting, showMainWindow } from './window';
 import { isRect } from '../shared/dock';
 import { hubEntry, isHubUpdating } from '../shared/hub-update';
 import { shownOnHome } from '../shared/widgets';
@@ -162,6 +162,7 @@ if (!app.requestSingleInstanceLock()) {
     await link.start();
     onWindowVisibilityChange((visible) => link?.widgets.setVisible(visible));
     onWindowGeometry((focused) => link?.dock.windowChanged(focused));
+    onWindowBlur(() => link?.dock.windowBlurred());
     if (startedHidden) link.widgets.setVisible(false);
     installed.onChange((view) => void link?.onInstalledChanged(view));
     if (app.isPackaged) app.setAsDefaultProtocolClient('nebula');

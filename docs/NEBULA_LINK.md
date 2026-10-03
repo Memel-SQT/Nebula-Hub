@@ -428,6 +428,13 @@ le Hub ne charge ni ne voit jamais son interface (R07, R10).
   - `docked` + `visible` : fenêtre sans cadre (créée ou réutilisée), placée exactement sur
     `bounds`, affichée **sans prendre le focus** (`showInactive`), sans icône dans la barre des
     tâches. Si `raise` est vrai, elle repasse au premier plan (`moveTop`) sans voler le focus ;
+    **Amendement 2026-10-04 (ADR-032)** : `moveTop` seul ne suffit pas. Windows refuse de faire
+    passer devant la fenêtre d'un processus qui n'a pas le droit de premier plan, ce qui est le cas
+    de l'app dès que le Hub est actif. L'app reste alors cachée derrière le Hub. Chaque `raise`, et
+    chaque passage de caché à visible, se fait donc en trois appels : `setAlwaysOnTop(true)`,
+    `moveTop()`, puis `setAlwaysOnTop(false)`. La fenêtre passe au-dessus du Hub sans rester
+    « toujours au premier plan ». Le Hub renvoie `raise` après 0,4 s, 1,5 s et 3,5 s quand l'app
+    apparaît, tant qu'il garde le focus ;
   - `docked` + `visible: false` : la fenêtre se cache (le Hub est réduit, caché, ou montre un
     autre écran ou une autre app) ;
   - `released`, ou perte de la connexion au Hub : retour à la fenêtre normale de l'app (cadre,

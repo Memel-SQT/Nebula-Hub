@@ -1,14 +1,14 @@
 /* Home (M7): main column (launcher, widgets) and the activity center as a side panel; widget
    cards; activity list; first-launch dialog. Same grammar as the Finterest dashboard panels. */
 
-.home-grid { display: grid; grid-template-columns: minmax(0, 1fr) clamp(300px, 26vw, 420px); align-items: start; gap: 1rem; }
+.home-grid { display: grid; grid-template-columns: minmax(0, 1fr) clamp(300px, 24vw, 620px); align-items: start; gap: 1rem; }
 .home-main { display: grid; gap: 1rem; min-width: 0; }
 .home-side { position: sticky; top: 2.8rem; min-width: 0; }
 .panel-hint { margin: -0.6rem 0 1rem; color: var(--muted); font-size: 0.74rem; }
 .pill.pill-muted { background: var(--surface-muted); color: var(--muted); }
 
 /* Widgets */
-.widget-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 0.8rem; margin: 0; padding: 0; list-style: none; }
+.widget-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(clamp(240px, 15vw, 380px), 100%), 1fr)); gap: 0.8rem; margin: 0; padding: 0; list-style: none; }
 .widget-card { display: flex; min-width: 0; border-radius: var(--radius); background: var(--surface-muted); cursor: grab; animation: card-fade-in var(--motion-slow) var(--ease-out) both; transition: transform var(--motion-base) var(--ease-out), box-shadow var(--motion-base) var(--ease), border-color var(--motion-base) var(--ease), opacity var(--motion-fast) var(--ease); }
 .widget-card.is-dragged { opacity: 0.85; transform: scale(1.02); box-shadow: var(--shadow-strong); cursor: grabbing; }
 .widget-card.is-drop-target { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }

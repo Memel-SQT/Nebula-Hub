@@ -11,6 +11,8 @@ function harness(options: { dockable?: string[]; launch?: boolean } = {}) {
     sent: [] as Array<{ appId: string; payload: DockPayload }>,
     launches: [] as string[],
     views: [] as DockView[],
+    /** Pending follow-up raises (fake timer). */
+    timers: [] as Array<{ ms: number; run: () => void; cancelled: boolean }>,
   };
   const dock = new DockController({
     dockable: () => options.dockable ?? ['nebula.finterest', 'nebula.clock'],
@@ -26,8 +28,18 @@ function harness(options: { dockable?: string[]; launch?: boolean } = {}) {
       return options.launch ?? true;
     },
     onChange: (view) => state.views.push(view),
+    timer: (run, ms) => {
+      const entry = { ms, run, cancelled: false };
+      state.timers.push(entry);
+      return () => {
+        entry.cancelled = true;
+      };
+    },
   });
-  return { dock, state, last: (appId: string) => [...state.sent].reverse().find((entry) => entry.appId === appId)?.payload };
+  const fire = () => {
+    for (const entry of state.timers.splice(0)) if (!entry.cancelled) entry.run();
+  };
+  return { dock, state, fire, last: (appId: string) => [...state.sent].reverse().find((entry) => entry.appId === appId)?.payload };
 }
 
 const AREA = { x: 236, y: 0, width: 1044, height: 860 };
@@ -81,6 +93,28 @@ describe('DockController (Hub mode)', () => {
     const count = state.sent.length;
     dock.windowChanged();
     expect(state.sent).toHaveLength(count);
+  });
+
+  it('raises the app again shortly after it appears, while the Hub keeps the focus', async () => {
+    const { dock, state, fire } = harness();
+    state.subscribed.add('nebula.finterest');
+    await dock.show('nebula.finterest');
+    dock.setArea(AREA);
+    const raises = () => state.sent.filter((entry) => entry.payload.state === 'docked' && entry.payload.raise).length;
+    expect(raises()).toBe(1);
+    expect(state.timers.map((entry) => entry.ms)).toEqual([400, 1500, 3500]);
+    fire();
+    expect(raises()).toBe(4);
+  });
+
+  it('stops the follow-up raises as soon as the Hub loses the focus', async () => {
+    const { dock, state, fire } = harness();
+    state.subscribed.add('nebula.finterest');
+    await dock.show('nebula.finterest');
+    dock.setArea(AREA);
+    dock.windowBlurred();
+    fire();
+    expect(state.sent.filter((entry) => entry.payload.state === 'docked' && entry.payload.raise)).toHaveLength(1);
   });
 
   it('shows one docked app at a time, like tabs', async () => {

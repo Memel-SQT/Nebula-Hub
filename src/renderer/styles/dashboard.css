@@ -56,7 +56,7 @@ html { scrollbar-color: var(--line-strong) transparent; scrollbar-width: thin; }
 /* App tiles (launcher, catalog): tile-pop-in staggered by 40 ms, capped at five. */
 /* auto-fit: a short row of tiles fills the width instead of leaving empty tracks. */
 .app-tile-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(clamp(190px, 13vw, 280px), 100%), 1fr)); gap: 0.8rem; }
-.catalog-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr)); gap: 1rem; max-width: 1760px; margin-top: 1.2rem; }
+.catalog-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr)); gap: 1rem; margin-top: 1.2rem; }
 .app-tile { display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 0.35rem; min-height: auto; padding: 1.1rem; border-radius: var(--radius); background: var(--surface-muted); color: var(--ink); font-weight: 500; text-align: left; box-shadow: none; animation: tile-pop-in 380ms var(--ease-out) both; transition: transform var(--motion-base) var(--ease-out), border-color var(--motion-base) var(--ease), box-shadow var(--motion-base) var(--ease); }
 .catalog-grid .app-tile { background: var(--surface); }
 .app-tile:nth-child(2) { animation-delay: 40ms; }

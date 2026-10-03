@@ -66,6 +66,13 @@ export function onWindowVisibilityChange(listener: (visible: boolean) => void): 
 }
 
 const geometryListeners = new Set<(focused: boolean) => void>();
+const blurListeners = new Set<() => void>();
+
+/** The Hub window lost the focus (Hub mode: no more follow-up raises of the docked app). */
+export function onWindowBlur(listener: () => void): () => void {
+  blurListeners.add(listener);
+  return () => blurListeners.delete(listener);
+}
 
 /** Moves, resizes, minimize / restore, hide / show and focus of the window (Hub mode, ADR-027). */
 export function onWindowGeometry(listener: (focused: boolean) => void): () => void {
@@ -157,6 +164,7 @@ export async function createMainWindow(options: { settings: () => HubSettings; s
   // The Hub comes (back) to the front: the docked app is raised above it again. 'moved' and
   // 'resized' end a drag of the window's edge or title bar, which brings the Hub over the app.
   window.on('focus', () => geometryListeners.forEach((listener) => listener(true)));
+  window.on('blur', () => blurListeners.forEach((listener) => listener()));
   for (const name of ['show', 'restore', 'maximize', 'unmaximize', 'moved', 'resized'] as const) {
     window.on(name as 'show', () => geometryListeners.forEach((listener) => listener(window.isFocused())));
   }

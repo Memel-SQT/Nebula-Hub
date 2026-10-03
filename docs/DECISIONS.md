@@ -818,3 +818,24 @@ Les constats qui fondent ces décisions sont détaillés dans [DISCOVERY.md](DIS
   version (celle-ci vient de la release GitHub v0.4.0) ni manifeste (le Hub lit `nebula.app.json`
   dans l'app installée) : il n'y avait rien d'autre à recopier. Le manifeste réel de la 0.4.0 est
   une copie du banc d'essai (`tests/link-harness/apps/news/`), qui vérifie qu'il est accepté.
+
+## ADR-032 — Mode Hub : remonter l'app sans droit de premier plan, et pleine largeur
+
+- **Statut** : Accepté (retour de l'utilisateur du 2026-10-04 : « l'app affiche … s'affiche ici
+  mais la page n'apparaît jamais ; quand je ferme le Hub de force, l'app s'ouvre et fonctionne »,
+  avec tous les gestes ; « l'UI ne s'adapte pas à tout l'écran », dans le Hub comme dans les
+  apps ; garder la barre latérale). Amende ADR-027 et docs/NEBULA_LINK.md § 17.
+- **Diagnostic** : le journal Link du Hub installé montre que tous les messages
+  `nebula.hub.dock` sont livrés (Finterest 269, Clock 29, News 24). La fenêtre ancrée existe, mais
+  reste derrière le Hub : Windows refuse `moveTop` à un processus sans droit de premier plan,
+  c'est-à-dire à l'app dès que le Hub est actif. Cela arrive notamment quand le Hub lance l'app,
+  puis que l'app remplace sa fenêtre normale par la fenêtre ancrée et que Windows réactive le Hub.
+- **Décision** :
+  - côté app, chaque `raise`, et chaque passage de caché à visible, se fait en trois appels :
+    `setAlwaysOnTop(true)`, `moveTop()`, `setAlwaysOnTop(false)`. Les apps l'adoptent avec
+    `docs/PROMPT_DOCK_FIX.md` ;
+  - côté Hub, `raise` est renvoyé 0,4 s, 1,5 s et 3,5 s après l'apparition de l'app, tant que le
+    Hub garde le focus. Une perte de focus (`blur`) annule ces relances ;
+  - la colonne de contenu du Hub n'a plus de largeur maximale : elle remplit l'espace à côté de
+    la barre latérale, qui reste, et les grilles ajoutent des colonnes. ADR-026 prévoyait une
+    colonne centrée ; elle est remplacée.
