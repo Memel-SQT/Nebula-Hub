@@ -28,6 +28,8 @@ Technical log, newest session first. Release notes live only in the GitHub relea
   - catalog re-signed.
   Tests cover the catalog (5 apps, visibility values), detection (the name is told apart from Finterest), Discover and the App launcher (hidden, then shown and launchable once detected).
 
+- **Version 0.2.3** (released at the user's request): the Hub-mode follow-up raises, the full-width layout and the installed-only apps. The apps still need `docs/PROMPT_DOCK_FIX.md` for the topmost raise.
+
 ## [2026-10-03] - Nebula Hub Session #18 — Catalog: Nebula Finterest 0.1.39; verification prompt
 
 - **Catalog, Finterest entry** (Finterest 0.1.38 family shell + 0.1.39 "Learn" card, published): the description mentions the calculator and the "Learn" card fed by Nebula News (`news.finance.today`, asked without any parameter); the two screenshots are replaced by captures of 0.1.39 under new names (`finterest-0139-dashboard.png`, `finterest-0139-calendar.png`, 1 280 px, taken on a throwaway profile against the Link test server with the fake News 0.4.0), and the old files are removed. `generatedAt` bumped, re-signed (`npm run catalog:sign`, verified against the embedded public key). Targeted text edits only, so the signed bytes keep the file's compact formatting.
