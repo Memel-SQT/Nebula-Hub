@@ -116,6 +116,8 @@
 .docked-titles { flex: 1 1 auto; min-width: 0; }
 .docked-titles .eyebrow { margin: 0 0 0.15rem; }
 .docked-titles h1 { overflow: hidden; margin: 0; font-size: 1.1rem; letter-spacing: -0.02em; text-overflow: ellipsis; white-space: nowrap; outline: none; }
+/* Focused by script after each navigation (screen readers), not interactive: no ring. */
+.docked-titles h1:focus-visible { outline: none; }
 .docked-actions { display: flex; flex-wrap: wrap; gap: 0.4rem; }
 .dock-area { display: grid; flex: 1 1 auto; min-height: 0; place-items: center; border-radius: var(--radius); }
 .dock-placeholder { display: grid; justify-items: center; gap: 0.8rem; max-width: 520px; padding: 1.5rem; text-align: center; color: var(--muted); font-size: 0.86rem; line-height: 1.6; }

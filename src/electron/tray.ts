@@ -24,6 +24,8 @@ export interface TrayOptions {
   onShowUpdates: () => void;
   onLaunch: (appId: string) => void;
   onQuit: () => void;
+  /** "Quit Nebula": opens the Hub on its confirmation (ADR-030). */
+  onQuitAll: () => void;
 }
 
 const PERSONALIZE_KEY = 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize';
@@ -83,6 +85,7 @@ export function updateTray(options: TrayOptions): void {
       ...(options.updates > 0 ? [{ label: mainString(options.language, 'trayUpdates').replace('{count}', count), click: options.onShowUpdates }] : []),
       { label: mainString(options.language, 'trayCheckUpdates'), click: options.onCheckUpdates },
       { type: 'separator' },
+      { label: mainString(options.language, 'trayQuitAll'), click: options.onQuitAll },
       { label: mainString(options.language, 'trayQuit'), click: options.onQuit },
     ]),
   );

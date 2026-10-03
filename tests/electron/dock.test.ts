@@ -66,6 +66,23 @@ describe('DockController (Hub mode)', () => {
     expect(last('nebula.finterest')).toMatchObject({ visible: false });
   });
 
+  it('raises the app every time the Hub comes back to the front, even when nothing moved', async () => {
+    const { dock, state } = harness();
+    state.subscribed.add('nebula.clock');
+    await dock.show('nebula.clock');
+    dock.setArea(AREA);
+    const raises = () => state.sent.filter((entry) => entry.payload.state === 'docked' && entry.payload.raise).length;
+    expect(raises()).toBe(1);
+    // The user clicks in the app, then on the Hub again, twice: the Hub covers the app each time.
+    dock.windowChanged(true);
+    dock.windowChanged(true);
+    expect(raises()).toBe(3);
+    // A plain geometry event without a move sends nothing.
+    const count = state.sent.length;
+    dock.windowChanged();
+    expect(state.sent).toHaveLength(count);
+  });
+
   it('shows one docked app at a time, like tabs', async () => {
     const { dock, state, last } = harness();
     state.subscribed.add('nebula.finterest').add('nebula.clock');

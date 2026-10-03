@@ -23,7 +23,7 @@ const GROUP_TITLES: Record<Exclude<SectionGroup, 'system'>, TranslationKey> = {
  * local-only footer pinned at the bottom. Below 1100 px it becomes an icon rail (labels stay
  * as tooltips and for screen readers), below 720 px a bar at the top (app.css).
  */
-export function Sidebar({ active, version, launcher, installed, downloads, link, hubUpdate, onNavigate, onLaunch, onHubUpdate, onCancelHubUpdate }: {
+export function Sidebar({ active, version, launcher, installed, downloads, link, hubUpdate, onNavigate, onLaunch, onHubUpdate, onCancelHubUpdate, onQuitNebula }: {
   active: Section;
   version: string;
   launcher: CatalogEntry[];
@@ -35,6 +35,8 @@ export function Sidebar({ active, version, launcher, installed, downloads, link,
   onLaunch?: (appId: string) => void;
   onHubUpdate?: () => void;
   onCancelHubUpdate?: () => void;
+  /** "Quit Nebula": closes every Nebula app, then the Hub, after a confirmation (ADR-030). */
+  onQuitNebula?: () => void;
 }) {
   const t = useT();
   const running = downloads?.operations.filter((operation) => isActive(operation.phase)).length ?? 0;
@@ -111,6 +113,12 @@ export function Sidebar({ active, version, launcher, installed, downloads, link,
 
         <div className="nav-group nav-group-system">
           {SECTIONS.filter((section) => section.group === 'system').map(navItem)}
+          {onQuitNebula ? (
+            <button type="button" className="nav-item nav-quit plain" data-sound="nav" title={t('quit.action')} onClick={onQuitNebula}>
+              <span className="nav-icon"><Icon name="power" size={18} /></span>
+              <span className="nav-label">{t('quit.action')}</span>
+            </button>
+          ) : null}
         </div>
       </nav>
 

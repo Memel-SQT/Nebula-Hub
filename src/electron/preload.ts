@@ -75,6 +75,8 @@ const bridge: NebulaHubBridge = {
   onHubUpdateChanged: (callback) => subscribe<HubUpdateView>(CHANNELS.hubUpdateChanged, callback),
   startHubUpdate: (confirmed) => ipcRenderer.invoke(CHANNELS.hubUpdateStart, confirmed === true),
   cancelHubUpdate: () => ipcRenderer.invoke(CHANNELS.hubUpdateCancel),
+  quitNebula: (confirmed) => ipcRenderer.invoke(CHANNELS.quitNebula, confirmed === true),
+  onQuitNebulaRequest: (callback) => subscribe<null>(CHANNELS.quitNebulaAsk, () => callback()),
 };
 
 contextBridge.exposeInMainWorld('nebulaHub', bridge);

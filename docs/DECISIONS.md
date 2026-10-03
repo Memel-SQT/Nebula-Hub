@@ -769,3 +769,27 @@ Les constats qui fondent ces décisions sont détaillés dans [DISCOVERY.md](DIS
 - **Limite** : la première mise à jour vers 0.2.1 se fait encore à la main, car la 0.2.0 n'a
   pas ce bouton. Le chemin réel complet (installeur qui remplace le Hub en cours puis le
   relance) sera vérifié au passage 0.2.1 → version suivante.
+
+## ADR-030 — « Quitter Nebula » ferme toute la famille
+
+- **Statut** : Accepté (demande de l'utilisateur du 2026-10-03 : un bouton « Quitter Nebula » qui
+  ferme tous les processus Nebula possibles). Précise R08.
+- **Décision** : un bouton dans la barre latérale (sous Réglages) et une entrée du menu de la zone
+  de notification ouvrent une confirmation. Celle-ci nomme les apps ouvertes et dit ce qui va se
+  passer. Après le « oui » :
+  1. chaque app de la famille en cours est invitée à se fermer (`taskkill /IM`, sans `/F` : comme
+     sa croix), pour qu'elle enregistre ses données et se ferme d'elle-même ;
+  2. le Hub attend jusqu'à 6 secondes ;
+  3. celles qui tournent encore (une app réduite dans la zone de notification à la fermeture de sa
+     fenêtre, comme Nebula Clock, ou une app bloquée) sont arrêtées avec leurs processus enfants
+     (`taskkill /F /T /IM`) ;
+  4. le Hub se ferme.
+- **R08** : l'arrêt forcé n'a lieu qu'après cette confirmation explicite, et seulement après
+  l'invitation polie. Seuls les exécutables du catalogue signé sont nommés, jamais celui du Hub,
+  sans shell (R11). C'est refusé pendant une installation ou la mise à jour du Hub, qu'il ne faut
+  pas couper.
+- **Code** : `src/electron/apps/quit-nebula.ts` (testé), `SystemProbe.forceClose`, canaux
+  `hub:quit-nebula` / `hub:quit-nebula-ask`, `trayQuitAll`.
+- **Évolution possible** : une demande de fermeture par Nebula Link (événement que les apps
+  écouteraient) éviterait l'arrêt forcé des apps réduites dans la zone de notification. Il faudrait
+  pour cela une nouvelle version des apps.

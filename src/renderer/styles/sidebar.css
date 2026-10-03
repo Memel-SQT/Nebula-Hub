@@ -79,6 +79,10 @@
 .sidebar .nav-item.active::before { content: ''; position: absolute; top: 50%; left: 0; width: 3px; height: 1.3rem; margin-top: -0.65rem; border-radius: 0 999px 999px 0; background: var(--accent); animation: nav-indicator-in var(--motion-base) var(--ease-spring) both; }
 .sidebar .nav-badge { min-width: 1.35rem; padding: 0.1rem 0.45rem; border-radius: 999px; background: var(--accent-soft); color: var(--accent-hover); font-size: 0.68rem; font-weight: 800; text-align: center; }
 
+/* "Quit Nebula" (ADR-030): a quiet entry that only turns to the danger color on hover. */
+.sidebar .nav-quit:hover, .sidebar .nav-quit:hover .nav-icon { color: var(--danger); }
+.sidebar .nav-quit:hover .nav-icon { background: var(--danger-soft); }
+
 /* Launcher: installed apps read as ready, the others stay quieter. */
 .sidebar .launcher-app .app-icon { border-radius: 26%; box-shadow: none; transition: transform var(--motion-base) var(--ease-spring), opacity var(--motion-fast) var(--ease); }
 .sidebar .launcher-app:hover .app-icon { transform: scale(1.08); }

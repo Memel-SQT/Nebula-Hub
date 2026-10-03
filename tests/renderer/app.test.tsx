@@ -47,6 +47,7 @@ function installBridge(overrides: Partial<HubSettings> = {}, startedHidden = tru
   const listeners: Array<(value: boolean) => void> = [];
   const downloadListeners: Array<(view: DownloadsView) => void> = [];
   const hubUpdateListeners: Array<(view: HubUpdateView) => void> = [];
+  const quitAskListeners: Array<() => void> = [];
   const bridge: NebulaHubBridge = {
     getInitialState: () => ({ settings, appVersion: '0.1.0', startedHidden }),
     updateAppearance: jest.fn(async (patch) => {
@@ -116,6 +117,11 @@ function installBridge(overrides: Partial<HubSettings> = {}, startedHidden = tru
     },
     startHubUpdate: jest.fn(async () => 'started' as const),
     cancelHubUpdate: jest.fn(async () => true),
+    quitNebula: jest.fn(async () => 'quitting' as const),
+    onQuitNebulaRequest: (callback) => {
+      quitAskListeners.push(callback);
+      return () => undefined;
+    },
   };
   window.nebulaHub = bridge;
   return {
@@ -123,6 +129,7 @@ function installBridge(overrides: Partial<HubSettings> = {}, startedHidden = tru
     setVisible: (visible: boolean) => listeners.forEach((listener) => listener(visible)),
     pushDownloads: (view: DownloadsView) => act(() => downloadListeners.forEach((listener) => listener(view))),
     pushHubUpdate: (view: HubUpdateView) => act(() => hubUpdateListeners.forEach((listener) => listener(view))),
+    askQuit: () => act(() => quitAskListeners.forEach((listener) => listener())),
   };
 }
 
@@ -582,5 +589,59 @@ describe('App: Nebula Hub update (ADR-029)', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Réglages' }));
     expect(screen.getByText('Nebula Hub 0.2.1 est disponible.')).toBeInTheDocument();
     expect(screen.getByText(/Version de développement/)).toBeInTheDocument();
+  });
+});
+
+describe('App: Quit Nebula (ADR-030)', () => {
+  it('names the open apps, closes everything only after the confirmation, then says it is closing', async () => {
+    const { bridge } = installBridge();
+    await render(<App />);
+    await userEvent.click(within(sidebar()).getByRole('button', { name: 'Quitter Nebula' }));
+    const dialog = screen.getByRole('alertdialog', { name: 'Quitter Nebula ?' });
+    expect(within(dialog).getByText('Nebula Hub va fermer Nebula Clock, puis se fermer lui-même.')).toBeInTheDocument();
+    expect(within(dialog).getByText(/invitée à se fermer normalement/)).toBeInTheDocument();
+    expect(bridge.quitNebula).not.toHaveBeenCalled();
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Tout fermer' }));
+    expect(bridge.quitNebula).toHaveBeenCalledWith(true);
+    expect(await screen.findByText('Fermeture des apps Nebula…')).toBeInTheDocument();
+  });
+
+  it('cancelling keeps everything open', async () => {
+    const { bridge } = installBridge();
+    await render(<App />);
+    await userEvent.click(within(sidebar()).getByRole('button', { name: 'Quitter Nebula' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Annuler' }));
+    expect(bridge.quitNebula).not.toHaveBeenCalled();
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+  });
+
+  it('says when nothing else is open, and explains a refusal while an operation runs', async () => {
+    const { bridge } = installBridge({}, true, installedView({ apps: [] }));
+    (bridge.quitNebula as jest.Mock).mockResolvedValueOnce('busy');
+    await render(<App />);
+    await userEvent.click(within(sidebar()).getByRole('button', { name: 'Quitter Nebula' }));
+    expect(screen.getByText(/Aucune autre app Nebula n’est ouverte/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Tout fermer' }));
+    expect(await screen.findByText(/attendez qu’elle se termine pour tout quitter/)).toBeInTheDocument();
+    expect(screen.queryByText('Fermeture des apps Nebula…')).not.toBeInTheDocument();
+  });
+
+  it('opens the same confirmation when the tray asks for it', async () => {
+    const { askQuit } = installBridge();
+    await render(<App />);
+    await askQuit();
+    expect(screen.getByRole('alertdialog', { name: 'Quitter Nebula ?' })).toBeInTheDocument();
+  });
+
+  it('hides an app shown inside the Hub while a Hub dialog is open, and shows it again after', async () => {
+    dockView = { dockable: ['nebula.finterest'], open: [{ appId: 'nebula.finterest', connected: true }], active: 'nebula.finterest' };
+    const { bridge } = installBridge({ openInHub: ['nebula.finterest'] });
+    await render(<App />);
+    await userEvent.click(within(screen.getByRole('group', { name: 'Lancer une app' })).getByRole('button', { name: 'Ouvrir Nebula Finterest' }));
+    expect(bridge.setDockArea).toHaveBeenLastCalledWith(expect.objectContaining({ width: expect.any(Number) }));
+    await userEvent.click(within(sidebar()).getByRole('button', { name: 'Quitter Nebula' }));
+    expect(bridge.setDockArea).toHaveBeenLastCalledWith(null);
+    await userEvent.click(screen.getByRole('button', { name: 'Annuler' }));
+    expect(bridge.setDockArea).toHaveBeenLastCalledWith(expect.objectContaining({ width: expect.any(Number) }));
   });
 });

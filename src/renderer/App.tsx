@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { setSoundsSuppressed, type NebulaAppearance } from '@nebula/design';
-import { BackgroundFx, Splash, useAppliedAppearance, useInterfaceEffects, useResolvedTheme } from '@nebula/design/react';
+import { BackgroundFx, Icon, Splash, useAppliedAppearance, useInterfaceEffects, useResolvedTheme } from '@nebula/design/react';
 import { EMPTY_CATALOG_VIEW, type CatalogView } from '@shared/catalog-view';
 import { EMPTY_INSTALLED_VIEW, type InstalledView } from '@shared/installed-view';
 import { needsConfirmation, type DownloadsView, type OperationKind, type OperationPlan, type OperationView } from '@shared/install-state';
@@ -57,6 +57,7 @@ export function App() {
   const [saveProgress, setSaveProgress] = useState<Record<string, InstallerSaveProgress | undefined>>({});
   const [saveResults, setSaveResults] = useState<Record<string, SaveInstallerResult | undefined>>({});
   const [hubUpdate, setHubUpdate] = useState<HubUpdateView>({ ...EMPTY_HUB_UPDATE_VIEW, current: initial.appVersion });
+  const [quitting, setQuitting] = useState(false);
   // Shown once after the splash, until finished or skipped (brief §9.9); "Show again" in Settings.
   const [onboarding, setOnboarding] = useState(!initial.settings.onboardingCompleted && !initial.startedHidden);
   const appearance = settings.appearance;
@@ -274,6 +275,21 @@ export function App() {
     void bridge.cancelHubUpdate();
   }, [bridge]);
 
+  // "Quit Nebula" (ADR-030): always confirmed first, from the sidebar or the tray.
+  const requestQuitNebula = useCallback(() => setDialog({ type: 'quit-nebula' }), []);
+  useEffect(() => bridge.onQuitNebulaRequest(requestQuitNebula), [bridge, requestQuitNebula]);
+
+  const quitNebula = useCallback(() => {
+    void bridge.quitNebula(true).then((result) => {
+      if (result === 'quitting') {
+        setQuitting(true);
+      } else {
+        setLaunchError(translate(language, 'quit.busy'));
+        playSound('error');
+      }
+    }, () => setLaunchError(translate(language, 'install.failure.internal')));
+  }, [bridge, language]);
+
   const openDeepLink = useCallback((url: string) => {
     void bridge.openDeepLink(url);
   }, [bridge]);
@@ -477,6 +493,12 @@ export function App() {
     onHubUpdate: requestHubUpdate,
   };
   const closeDialog = () => setDialog(null);
+  // The family apps that "Quit Nebula" would close (open right now, the Hub itself excluded).
+  const runningNames = installed.apps
+    .filter((record) => record.running)
+    .map((record) => catalog.entries.find((entry) => entry.app.id === record.appId))
+    .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry) && entry?.app.role !== 'hub')
+    .map((entry) => entry.app.name);
   const dialogEntry = (appId: string) => catalog.entries.find((entry) => entry.app.id === appId);
 
   return (
@@ -484,7 +506,7 @@ export function App() {
       {background}
       <div className="titlebar-drag" aria-hidden="true" />
       <main className="app-shell">
-        <Sidebar active={sectionOf(route)} version={initial.appVersion} launcher={familyEntries(catalog)} installed={installed} downloads={downloads} link={link} hubUpdate={hubUpdate} onNavigate={setRoute} onLaunch={launchApp} onHubUpdate={requestHubUpdate} onCancelHubUpdate={cancelHubUpdate} />
+        <Sidebar active={sectionOf(route)} version={initial.appVersion} launcher={familyEntries(catalog)} installed={installed} downloads={downloads} link={link} hubUpdate={hubUpdate} onNavigate={setRoute} onLaunch={launchApp} onHubUpdate={requestHubUpdate} onCancelHubUpdate={cancelHubUpdate} onQuitNebula={requestQuitNebula} />
         <div className="workspace-column">
           {saveError ? <ErrorState message={t('error.saveSettings')} /> : null}
           {launchError ? <ErrorState message={launchError} onRetry={() => setLaunchError(null)} /> : null}
@@ -506,7 +528,7 @@ export function App() {
             />
           ) : null}
           {route.screen === 'discover' ? <DiscoverScreen {...catalogProps} /> : null}
-          {route.screen === 'docked' ? <DockedScreen key={route.appId} appId={route.appId} catalog={catalog} dock={dock} onShow={showDocked} onRelease={releaseDocked} onNavigate={setRoute} onArea={setDockArea} /> : null}
+          {route.screen === 'docked' ? <DockedScreen key={route.appId} appId={route.appId} catalog={catalog} dock={dock} covered={dialog !== null || onboarding || quitting} onShow={showDocked} onRelease={releaseDocked} onNavigate={setRoute} onArea={setDockArea} /> : null}
           {route.screen === 'app' ? <AppDetailScreen key={route.appId} {...catalogProps} appId={route.appId} loadAsset={loadAsset} onOpenLink={openLink} /> : null}
           {route.screen === 'my-apps' ? <MyAppsScreen {...catalogProps} onRefreshInstalled={refreshInstalled} /> : null}
           {route.screen === 'downloads' ? <DownloadsScreen {...catalogProps} onExportHistory={exportHistory} /> : null}
@@ -599,6 +621,33 @@ export function App() {
           <p className="dialog-note">{t('hubUpdate.confirm.wait')}</p>
         </ConfirmDialog>
       ) : null}
+      {dialog?.type === 'quit-nebula' ? (
+        <ConfirmDialog
+          title={t('quit.title')}
+          icon="power"
+          tone="danger"
+          confirmLabel={t('quit.confirm')}
+          onCancel={closeDialog}
+          onConfirm={() => {
+            closeDialog();
+            quitNebula();
+          }}
+        >
+          <p>{runningNames.length > 0 ? t('quit.bodyApps', { names: new Intl.ListFormat(language === 'en' ? 'en-US' : 'fr-FR', { type: 'conjunction' }).format(runningNames) }) : t('quit.bodyNone')}</p>
+          {runningNames.length > 0 ? <p className="dialog-note">{t('quit.polite')}</p> : null}
+        </ConfirmDialog>
+      ) : null}
+      {quitting ? (
+        <div className="dialog-backdrop">
+          <div className="dialog nebula-surface tone-accent" role="status" aria-live="polite">
+            <div className="dialog-head">
+              <span className="dialog-icon" aria-hidden="true"><Icon name="refresh" size={20} className="spin" /></span>
+              <h2>{t('quit.closing')}</h2>
+            </div>
+            <p className="dialog-body">{t('quit.closingHint')}</p>
+          </div>
+        </div>
+      ) : null}
       {dialog?.type === 'no-backup' ? (
         <ConfirmDialog
           title={t('confirm.noBackup.title')}
@@ -623,4 +672,5 @@ type Dialog =
   | { type: 'update-all'; plans: OperationPlan[] }
   | { type: 'auto-update'; appId: string; apply: () => void }
   | { type: 'hub-update' }
+  | { type: 'quit-nebula' }
   | { type: 'no-backup'; operation: OperationView };

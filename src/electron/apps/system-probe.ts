@@ -24,6 +24,11 @@ export interface SystemProbe {
    * called after the user asked for it.
    */
   requestClose(exeName: string): Promise<void>;
+  /**
+   * Stops a program and its child processes (`taskkill /F /T /IM <exe>`). Only for "Quit Nebula"
+   * (ADR-030), after the user confirmed it and the app was first asked to close politely (R08).
+   */
+  forceClose(exeName: string): Promise<void>;
 }
 
 let exportCounter = 0;
@@ -70,6 +75,11 @@ export const windowsProbe: SystemProbe = {
   async requestClose(exeName) {
     // taskkill reports an error when an app has no window to close (tray): nothing else to do.
     await run('taskkill.exe', ['/IM', exeName], { timeout: 10_000 }).catch(() => undefined);
+  },
+
+  async forceClose(exeName) {
+    // An app that exited meanwhile makes taskkill report an error: nothing left to do.
+    await run('taskkill.exe', ['/F', '/T', '/IM', exeName], { timeout: 10_000 }).catch(() => undefined);
   },
 
   start(executable, workingDirectory, args = []) {

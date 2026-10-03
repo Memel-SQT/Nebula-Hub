@@ -2,7 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { app, dialog, ipcMain, nativeTheme, shell } from 'electron';
 import { shouldRelay, toastContent, unreadCount, type ActivityItem } from '../shared/activity';
-import { CHANNELS, type InitialState, type NavigateRequest } from '../shared/bridge';
+import { CHANNELS, type InitialState, type NavigateRequest, type QuitNebulaResult } from '../shared/bridge';
 import { HUB_ID, type ConsentState } from '../shared/consent';
 import type { OperationKind } from '../shared/install-state';
 import { updateAvailable, type LaunchResult } from '../shared/installed-view';
@@ -12,6 +12,7 @@ import { isSafeExternalUrl } from '../shared/url';
 import { backupArgument, MAX_BACKUP_BYTES, validateBackup, type ImportDataResult, type SaveInstallerResult } from '../shared/backup';
 import { InstalledAppsService } from './apps/installed-apps';
 import { windowsProbe } from './apps/system-probe';
+import { closeNebulaApps } from './apps/quit-nebula';
 import { CatalogService } from './catalog/catalog-service';
 import { CATALOG_PUBLIC_KEY } from './catalog-key';
 import { HubDatabase } from './db';
@@ -31,7 +32,7 @@ import { SettingsStore } from './settings-store';
 import { createTray, destroyTray, updateTray, type TrayOptions } from './tray';
 import { applyWindowTheme, contentBounds, createMainWindow, getMainWindow, isWindowFocused, onWindowGeometry, onWindowVisibilityChange, setQuitting, showMainWindow } from './window';
 import { isRect } from '../shared/dock';
-import { hubEntry } from '../shared/hub-update';
+import { hubEntry, isHubUpdating } from '../shared/hub-update';
 
 // Pinned explicitly (ADR-007, ADR-013): a future product rename must never orphan the
 // consents and history. NEBULA_HUB_USER_DATA_DIR points manual tests at a throwaway folder; it
@@ -266,6 +267,29 @@ function quit(): void {
   app.quit();
 }
 
+let quittingAll = false;
+
+/**
+ * "Quit Nebula" (ADR-030), after the user's yes: every running family app is asked to close, the
+ * ones still running a few seconds later are stopped, then the Hub quits. Refused while an install
+ * operation or the Hub's own update runs (cutting them off would break an app).
+ */
+function quitNebula(confirmed: boolean): QuitNebulaResult {
+  if (!confirmed) return 'unconfirmed';
+  if (quittingAll) return 'quitting';
+  if (installs?.isBusy() || (hubUpdater && isHubUpdating(hubUpdater.view().phase))) return 'busy';
+  quittingAll = true;
+  const exeNames = (catalog?.catalogApps() ?? []).filter((candidate) => candidate.role !== 'hub').map((candidate) => candidate.windows.exeName);
+  void closeNebulaApps({
+    exeNames,
+    running: () => windowsProbe.runningProcesses(),
+    requestClose: (exeName) => windowsProbe.requestClose(exeName),
+    forceClose: (exeName) => windowsProbe.forceClose(exeName),
+    sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+  }).catch(() => undefined).finally(quit);
+  return 'quitting';
+}
+
 function trayOptions(): TrayOptions {
   const apps = catalog?.catalogApps() ?? [];
   const launchable = (installed?.getView().apps ?? [])
@@ -290,6 +314,7 @@ function trayOptions(): TrayOptions {
     onShowUpdates: () => void openWindowOn({ screen: 'my-apps' }),
     onLaunch: (appId) => void launchApp(appId),
     onQuit: quit,
+    onQuitAll: () => void openWindow().then(() => getMainWindow()?.webContents.send(CHANNELS.quitNebulaAsk)),
   };
 }
 
@@ -602,6 +627,11 @@ function registerIpcHandlers(): void {
     if (!isTrustedSender(event) || !link || typeof appId !== 'string') return false;
     link.dock.release(appId);
     return true;
+  });
+
+  ipcMain.handle(CHANNELS.quitNebula, (event, confirmed: unknown) => {
+    if (!isTrustedSender(event)) return 'unconfirmed';
+    return quitNebula(confirmed === true);
   });
 
   ipcMain.handle(CHANNELS.hubUpdateGet, (event) => {

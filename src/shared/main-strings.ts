@@ -6,7 +6,8 @@ const STRINGS = {
   fr: {
     trayOpen: 'Ouvrir Nebula Hub',
     trayLaunch: 'Lancer {name}',
-    trayQuit: 'Quitter',
+    trayQuit: 'Quitter Nebula Hub',
+    trayQuitAll: 'Quitter Nebula (toutes les apps)…',
     trayTooltip: 'Nebula Hub',
     trayTooltipUpdates: 'Nebula Hub — {count} mise(s) à jour',
     trayCheckUpdates: 'Rechercher des mises à jour',
@@ -29,7 +30,8 @@ const STRINGS = {
   en: {
     trayOpen: 'Open Nebula Hub',
     trayLaunch: 'Launch {name}',
-    trayQuit: 'Quit',
+    trayQuit: 'Quit Nebula Hub',
+    trayQuitAll: 'Quit Nebula (all apps)…',
     trayTooltip: 'Nebula Hub',
     trayTooltipUpdates: 'Nebula Hub — {count} update(s)',
     trayCheckUpdates: 'Check for updates',

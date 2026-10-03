@@ -13,12 +13,15 @@ const SLOW_MS = 15_000;
  * An app "inside the Hub" (ADR-027). The app draws itself, in its own window laid exactly over
  * `.dock-area`; this screen only reports where that area is (on every layout change) and shows
  * what is going on underneath: starting, too slow (older app), closed. Leaving the screen tells
- * the Hub the area is gone, so the app hides until it is shown again.
+ * the Hub the area is gone, so the app hides until it is shown again. So does a Hub dialog or
+ * overlay (`covered`): the app's window would otherwise sit on top of it.
  */
-export function DockedScreen({ appId, catalog, dock, onShow, onRelease, onNavigate, onArea }: {
+export function DockedScreen({ appId, catalog, dock, covered = false, onShow, onRelease, onNavigate, onArea }: {
   appId: string;
   catalog: CatalogView;
   dock: DockView;
+  /** A Hub dialog or overlay is open: the app hides under it until it closes. */
+  covered?: boolean;
   onShow: (appId: string) => void;
   onRelease: (appId: string) => void;
   onNavigate: (route: Route) => void;
@@ -36,6 +39,10 @@ export function DockedScreen({ appId, catalog, dock, onShow, onRelease, onNaviga
   useLayoutEffect(() => {
     const element = area.current;
     if (!element) return undefined;
+    if (covered) {
+      onArea(null);
+      return undefined;
+    }
     const report = () => {
       const box = element.getBoundingClientRect();
       onArea({ x: box.left, y: box.top, width: box.width, height: box.height });
@@ -50,7 +57,7 @@ export function DockedScreen({ appId, catalog, dock, onShow, onRelease, onNaviga
       window.removeEventListener('resize', report);
       onArea(null);
     };
-  }, [onArea, appId]);
+  }, [onArea, appId, covered]);
 
   useEffect(() => {
     setSlow(false);

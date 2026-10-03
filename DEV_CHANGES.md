@@ -2,6 +2,26 @@
 
 Technical log, newest session first. Release notes live only in the GitHub release body.
 
+## [2026-10-03] - Nebula Hub Session #15 — Hub mode fixes, "Quit Nebula"
+
+- **Bug: an app shown inside the Hub disappeared behind it.** The user reported that docked apps broke when switching windows or resizing. `DockController` deduplicated payloads including `raise`: the second time the Hub came back to the front without moving (click in the app, then on the Hub; Alt+Tab), the identical "raise" was dropped, so the Hub covered the app for good. A raise is now an action, sent every time; the stored payload ignores it. A regression test fails on the old code.
+- **Hub mode, more robust**:
+  - the Hub also raises the app at the end of a drag (`moved`, `resized`) and after `show` / `restore` / `maximize` / `unmaximize` (when it is focused);
+  - a Hub dialog or overlay (confirmation, onboarding, quitting) hides the docked app, which otherwise covered it;
+  - the docked title no longer shows a focus ring.
+- **Checked live** with a dev Hub and Nebula Clock 1.3.0 built from its repository (throwaway profiles, the Clock pointed at the dev Hub by `NEBULA_LINK_SESSION_FILE`, only the test processes closed afterwards):
+  - docking at the exact area;
+  - resize by API and by dragging the edge, maximize / unmaximize, minimize / restore;
+  - a foreign window in front then back to the Hub;
+  - clicks alternating between the app and the Hub.
+  The live check was stopped early because the user was using the machine (synthetic clicks).
+- **"Quit Nebula"** (ADR-030):
+  - a sidebar entry under Settings and a tray entry, both with a confirmation that names the open apps;
+  - the apps are asked to close, the ones still running after 6 s are stopped with their children, then the Hub quits;
+  - refused during an install or the Hub's update;
+  - `apps/quit-nebula.ts` + `SystemProbe.forceClose`.
+- Tests: 975 pass (dock regression, quit module, App: quit dialog, tray request, refusal, docked app hidden under a dialog).
+
 ## [2026-10-02] - Nebula Hub Session #14 — The Hub updates itself; 0.2.1
 
 - **The user asked for a button to update Nebula Hub** (ADR-029, amends ADR-022, which kept the Hub out of every operation). Implementation:

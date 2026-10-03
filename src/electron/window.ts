@@ -151,10 +151,15 @@ export async function createMainWindow(options: { settings: () => HubSettings; s
   for (const name of ['show', 'hide', 'minimize', 'restore'] as const) {
     window.on(name as 'show', () => sendVisibility(window));
   }
-  for (const name of ['move', 'resize', 'show', 'hide', 'minimize', 'restore', 'maximize', 'unmaximize', 'enter-full-screen', 'leave-full-screen'] as const) {
+  for (const name of ['move', 'resize', 'hide', 'minimize', 'enter-full-screen', 'leave-full-screen'] as const) {
     window.on(name as 'move', () => geometryListeners.forEach((listener) => listener(false)));
   }
+  // The Hub comes (back) to the front: the docked app is raised above it again. 'moved' and
+  // 'resized' end a drag of the window's edge or title bar, which brings the Hub over the app.
   window.on('focus', () => geometryListeners.forEach((listener) => listener(true)));
+  for (const name of ['show', 'restore', 'maximize', 'unmaximize', 'moved', 'resized'] as const) {
+    window.on(name as 'show', () => geometryListeners.forEach((listener) => listener(window.isFocused())));
+  }
   window.on('closed', () => geometryListeners.forEach((listener) => listener(false)));
   window.once('ready-to-show', () => {
     if (!options.startHidden) {

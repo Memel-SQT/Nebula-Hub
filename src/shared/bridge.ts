@@ -67,7 +67,12 @@ export const CHANNELS = {
   hubUpdateChanged: 'hub-update:changed',
   hubUpdateStart: 'hub-update:start',
   hubUpdateCancel: 'hub-update:cancel',
+  quitNebula: 'hub:quit-nebula',
+  quitNebulaAsk: 'hub:quit-nebula-ask',
 } as const;
+
+/** "Quit Nebula" (ADR-030): started, refused while an operation runs, or not confirmed. */
+export type QuitNebulaResult = 'quitting' | 'busy' | 'unconfirmed';
 
 /** Screens the main process may ask the renderer to show (tray menu, Nebula Link). */
 export type NavigateRequest = Route;
@@ -183,4 +188,11 @@ export interface NebulaHubBridge {
   startHubUpdate(confirmed: boolean): Promise<HubUpdateStartResult>;
   /** Stops the download (not once the installer runs). */
   cancelHubUpdate(): Promise<boolean>;
+  /**
+   * Closes every running Nebula app (politely first, then the ones still running), then the Hub;
+   * `confirmed` is the user's yes on the confirmation that says so (ADR-030).
+   */
+  quitNebula(confirmed: boolean): Promise<QuitNebulaResult>;
+  /** The tray asks for the "Quit Nebula" confirmation. */
+  onQuitNebulaRequest(callback: () => void): () => void;
 }

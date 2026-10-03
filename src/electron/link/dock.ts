@@ -107,7 +107,12 @@ export class DockController {
     this.changed();
   }
 
-  /** Sends each open app its payload: the active one its place, the others "hidden"; nothing twice. */
+  /**
+   * Sends each open app its payload: the active one its place, the others "hidden"; the same place
+   * is never sent twice. A raise is an action, not a state: it is sent every time it is asked for
+   * (each time the Hub comes back to the front), even when the place did not change. Deduplicating
+   * it hid the app behind the Hub from the second time the user came back to the Hub.
+   */
   private sync(): void {
     const subscribed = new Set(this.deps.subscribed());
     const content = this.deps.content();
@@ -115,9 +120,11 @@ export class DockController {
     for (const appId of this.open) {
       if (!subscribed.has(appId)) continue;
       const payload = appId === this.active ? dockPayload(content, this.area, raise) : dockPayload(null, null, false);
-      if (samePayload(this.sent.get(appId), payload)) continue;
-      if (this.deps.send(appId, payload)) this.sent.set(appId, payload);
+      const raising = payload.state === 'docked' && payload.raise;
+      const settled: DockPayload = payload.state === 'docked' ? { ...payload, raise: false } : payload;
       if (appId === this.active && payload.state === 'docked' && payload.visible) this.raiseNext = false;
+      if (!raising && samePayload(this.sent.get(appId), settled)) continue;
+      if (this.deps.send(appId, payload)) this.sent.set(appId, settled);
     }
   }
 
