@@ -2,6 +2,11 @@
 
 Technical log, newest session first. Release notes live only in the GitHub release body.
 
+## [2026-10-03] - Nebula Hub Session #17 — Version 0.2.2
+
+- Merged `feat/news-themes` into main (fast-forward) with `docs/PROMPT_NEWS_THEMES.md`, the prompt that wires the News themes into the other apps (written in another session, committed at the user's request).
+- Version 0.2.2: the Hub mode fix and "Quit Nebula" (session #15), and the News themes on the Home (session #16). It is the first release a 0.2.1 Hub can install with its own update button (ADR-029).
+
 ## [2026-10-03] - Nebula Hub Session #16 — News 0.4.0 themes on the Home (branch feat/news-themes)
 
 - **Applied the "News themes" prompt, Hub part** (ADR-031). User answers: "Today's tech" replaces "Top stories" on the Home; the themes meant for Clock and Finterest are hidden by default.
