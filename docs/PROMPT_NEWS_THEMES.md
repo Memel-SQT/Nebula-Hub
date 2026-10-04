@@ -13,11 +13,24 @@ l'autre côté : le Hub (catalogue et accueil), Nebula Clock et Nebula Finterest
 `news.headlines.today` reste en place (un sujet par thème) : rien ne casse pour un Hub qui ne
 connaît pas encore les nouveaux widgets.
 
+## État (2026-10-04)
+
+| App | État |
+|---|---|
+| Nebula Hub | Fait en 0.2.2 (commit `9664e65`, ADR-031) |
+| Nebula Clock | Fait en 1.5.0 |
+| Nebula Finterest | Fait en 0.1.39 |
+
+Les prompts ci-dessous servent désormais à vérifier ou à refaire.
+
 ## Mode d'emploi
 
-1. **Le Hub d'abord** : tant que le catalogue signé ne contient pas le nouveau manifeste de
-   News, le Hub refuse les widgets qu'il ne connaît pas (« ce qui n'est pas déclaré est
-   refusé »). Ensuite Clock, puis Finterest, dans l'ordre que tu veux.
+1. **Pas d'ordre imposé** : le catalogue ne contient pas le manifeste Link des apps, seulement
+   le nom du fichier (`"link": { "manifest": "nebula.app.json", "minProtocol": 1 }`). Le Hub lit
+   et valide `nebula.app.json` dans le **dossier d'installation** de chaque app. Les widgets de
+   News sont donc acceptés dès que News 0.4.0 est installée, sans toucher au catalogue. Une app
+   qui affiche un thème doit seulement le déclarer dans son propre `consumes`, et sa carte
+   n'apparaît que si News est ouverte (sinon le Hub répond `provider-offline`).
 2. Ouvre Claude Code dans le dossier de l'app, colle le **prompt commun**, puis, à la suite, la
    **section propre à l'app**.
 3. Chaque session présente d'abord son plan et attend ton accord. Rien n'est fusionné, poussé ni
@@ -83,33 +96,42 @@ et résultats, écarts et questions. Mets à jour README et DEV_CHANGES (ou CHAN
 ## Section Nebula Hub (à coller après le prompt commun)
 
 ```text
-APP : Nebula Hub (dépôt Memel-SQT/Nebula-Hub, dossier local Nebula-Store). Deux parties.
+APP : Nebula Hub (dépôt Memel-SQT/Nebula-Hub, dossier local Nebula-Store). Fait en 0.2.2
+(commit 9664e65, ADR-031) : vérifie chaque point et ne corrige que ce qui manque.
 
 1. CATALOGUE SIGNÉ
-- Dans `catalog/nebula-catalog.json`, entrée `nebula.news` : passe la version publiée à 0.4.0
-  et remplace son manifeste Link (`link`) par le `nebula.app.json` de News 0.4.0, à
-  l'identique (5 capacités : `news.headlines.today`, `news.focus.today`,
-  `news.finance.today`, `news.tech.today`, `news.open-briefing` ; 5 deepLinks : `/`,
-  `/briefing`, `/theme/focus`, `/theme/finance`, `/theme/tech`). Mets à jour la description et
-  l'accroche de News : « Développement personnel, finance et tech, chaque jour » (fr) /
-  « Personal growth, finance and tech, every day » (en). La catégorie reste `info`.
-- Re-signe le catalogue (docs/CATALOG.md : la signature couvre les octets exacts), et vérifie
-  avec les tests du catalogue. Ne touche pas aux autres apps.
+- Le catalogue ne contient ni le manifeste Link des apps ni leur version (docs/CATALOG.md) :
+  l'entrée `nebula.news` garde `"link": { "manifest": "nebula.app.json", "minProtocol": 1 }`,
+  et le Hub lit le manifeste dans le dossier d'installation de News. Les versions viennent de
+  la release GitHub et de son `latest.yml`. Ne recopie donc aucun manifeste, n'ajoute aucun
+  champ de version, et ne change pas `link`.
+- Seuls changent, dans l'entrée `nebula.news` : l'accroche (`tagline`) « Développement
+  personnel, finance et tech, chaque jour » (fr) / « Personal growth, finance and tech, every
+  day » (en), et la description (les trois thèmes et l'app qui affiche chacun). La catégorie
+  reste `info`.
+- Re-signe le catalogue (`npm run catalog:sign`, docs/CATALOG.md : la signature couvre les
+  octets exacts), puis `npm test`. Ne touche pas aux autres apps.
 
 2. ACCUEIL DU HUB
-- Ajoute la carte « Tech du jour » (widget `news.tech.today`) sur l'accueil, dans la grille de
-  widgets existante, à côté de `news.headlines.today` (garde les deux, ou propose-moi de
-  remplacer « À la une » par « Tech du jour » : c'est à moi de choisir).
-- Le Hub consomme les widgets publics par défaut (consentement « autorisé, visible et
-  désactivable » dans Intégrations) : vérifie que les trois nouveaux widgets apparaissent dans la
-  matrice d'Intégrations avec leur titre et leur description, désactivables.
-- Le `deepLink` de la carte ouvre News sur `/theme/tech` (intent vers `nebula.news`).
-- Banc d'essai : tests/link-harness/ (faux News qui fournit les trois widgets, puis `null`,
-  puis hors ligne).
+- Rien à déclarer côté Hub : il lit les widgets publics déclarés dans le manifeste installé de
+  News, donc les quatre widgets de News 0.4.0 sont disponibles dès son installation.
+- « Tech du jour » (`news.tech.today`) remplace « À la une » sur l'accueil (choix fait,
+  ADR-031). `news.headlines.today`, `news.focus.today` et `news.finance.today` sont masqués par
+  défaut sur l'accueil (`HOME_HIDDEN_BY_DEFAULT`, src/shared/widgets.ts) : les deux derniers
+  sont faits pour Clock et Finterest.
+- Intégrations → « Widgets de l'accueil » : chaque widget s'affiche ou se masque, et un
+  widget masqué n'est jamais lu.
+- Vérifie aussi que les paires « Nebula Clock ↔ news.focus.today » et « Nebula Finterest ↔
+  news.finance.today » apparaissent dans la matrice d'Intégrations, avec titre et
+  description, et qu'elles sont désactivables : c'est ce qui coupe la carte côté app.
+- Le `deepLink` de la carte ouvre News sur `/theme/tech`. Un `deepLink` vers un autre hôte que
+  l'app qui fournit le widget est retiré.
+- Banc d'essai : tests/link-harness/news-themes.test.ts (faux News avec le vrai manifeste
+  0.4.0 : les widgets, puis `null`, puis hors ligne).
 
 3. DOCUMENTATION
-- docs/NEBULA_LINK.md § 10 (I3) : ajoute les trois widgets et l'app qui les consomme.
-- docs/PROMPT_APPS.md : section News à jour (thèmes, widgets).
+- docs/NEBULA_LINK.md § 10 (I3) et docs/PROMPT_APPS.md (section News) : déjà à jour ;
+  vérifie-les.
 ```
 
 ## Section Nebula Clock (à coller après le prompt commun)
