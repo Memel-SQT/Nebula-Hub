@@ -107,6 +107,22 @@ describe('DockController (Hub mode)', () => {
     expect(raises()).toBe(4);
   });
 
+  it('repeats the raise after the Hub comes back to the front (end of a resize, focus)', async () => {
+    const { dock, state, fire } = harness();
+    state.subscribed.add('nebula.finterest');
+    await dock.show('nebula.finterest');
+    dock.setArea(AREA);
+    fire();
+    const raises = () => state.sent.filter((entry) => entry.payload.state === 'docked' && entry.payload.raise).length;
+    const before = raises();
+    state.content = { x: 10, y: 10, width: 1400, height: 900 };
+    dock.windowChanged(true);
+    expect(raises()).toBe(before + 1);
+    expect(state.timers.map((entry) => entry.ms)).toEqual([400, 1500, 3500]);
+    fire();
+    expect(raises()).toBe(before + 4);
+  });
+
   it('stops the follow-up raises as soon as the Hub loses the focus', async () => {
     const { dock, state, fire } = harness();
     state.subscribed.add('nebula.finterest');

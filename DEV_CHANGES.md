@@ -2,6 +2,18 @@
 
 Technical log, newest session first. Release notes live only in the GitHub release body.
 
+## [2026-10-04] - Nebula Hub Session #20 — The apps adopt the raise fix; 0.2.4
+
+- **User report after 0.2.3**: better, but sometimes, when resizing, the app inside the Hub no longer shows.
+- **Hub**: `windowChanged(true)` (focus, end of a resize or move, restore, maximize) now also schedules the follow-up raises (0.4 / 1.5 / 3.5 s, cancelled on blur), not only the app appearing. A test covers the resize case.
+- **The three apps** got `docs/PROMPT_DOCK_FIX.md` applied by this session, each on `fix/hub-mode-raise` in a separate git worktree (Finterest's own checkout was on another session's `feat/budgets`):
+  - the raise is a brief always-on-top (`setAlwaysOnTop(true)`, `moveTop()`, `setAlwaysOnTop(false)`), also when the window reappears and once its page is shown;
+  - a pure, tested `dockedWindowSteps` decides it;
+  - Finterest and Clock no longer let a page that never loads hold back the dock queue (8 s);
+  - the content column loses its max width.
+- **Live check**: a test Hub and the fixed Clock built from its worktree, on throwaway profiles. The Hub was moved over the docked Clock, which reproduced the "… s'affiche ici" symptom. The raise sent on focus brought Clock back, as did the raise after a resize. Clock never stayed always-on-top.
+- Version 0.2.4.
+
 ## [2026-10-04] - Nebula Hub Session #19 — Hub mode: apps stayed behind the Hub; full-width layout
 
 - **User report**: an app opened inside the Hub shows "… s'affiche ici" but never appears; force-closing the Hub reveals it, working. It happens with every gesture (resize, switching apps or screens, coming back from another window). The UI did not fit the whole screen either, in the Hub and in the apps. The sidebar must stay.

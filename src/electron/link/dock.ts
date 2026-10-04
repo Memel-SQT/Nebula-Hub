@@ -80,6 +80,14 @@ export class DockController {
   windowChanged(focused = false): void {
     if (focused) this.raiseNext = true;
     this.sync();
+    // The Hub came to the front (focus, end of a resize or move, restore): Windows may bring it over
+    // the app once more right after, so the raise is repeated as after the app appeared.
+    if (focused && this.activeShown()) this.scheduleFollowUps();
+  }
+
+  private activeShown(): boolean {
+    const sent = this.active ? this.sent.get(this.active) : undefined;
+    return sent?.state === 'docked' && sent.visible;
   }
 
   /** The Hub lost the focus (another window, or the docked app itself): no more follow-up raises. */
