@@ -179,6 +179,12 @@ Le Hub a ses propres capacités, sans manifeste sur disque (elles font partie de
 | `nebula.hub.present` | event | public | I6 — présence et version du Hub |
 | `hub.open` | intent | public | I2 — ouvrir le Hub (`/`, `/app/<appId>`, `/my-apps`, `/downloads`, `/integrations`) |
 
+**Amendement 2026-10-05 (ADR-034).** Nouvelle route `/docked?id=<appId>` (lien
+`nebula://hub/docked?id=…`) : le Hub s'ouvre sur l'app affichée dans le Hub (mode Hub, § 17).
+Une app ne peut la demander que pour elle-même (`id` = son propre appId), sinon `invalid-params`.
+C'est par elle qu'une **extension** (Nebula News) demande à s'afficher, puisqu'elle n'ouvre
+jamais sa propre fenêtre tant que le Hub est là.
+
 ### 5.3 Le Hub comme consommateur
 
 Les widgets et le centre d'activité sont des usages **du Hub** : le consentement porte alors sur la

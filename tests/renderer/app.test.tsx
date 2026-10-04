@@ -661,3 +661,17 @@ describe('App: installed-only apps (ADR-033)', () => {
     expect(bridge.launchApp).toHaveBeenCalledWith('nebula.finance-enterprise');
   });
 });
+
+describe('App: Nebula News as an extension (ADR-034)', () => {
+  it('opens News inside the Hub, never in its own window, without "Detach"', async () => {
+    dockView = { dockable: ['nebula.news'], open: [{ appId: 'nebula.news', connected: true }], active: 'nebula.news' };
+    const apps = installedView().apps.map((app) => (app.appId === 'nebula.news' ? { ...app, version: '0.5.0', exeFound: true, running: true } : app));
+    const { bridge } = installBridge({}, true, installedView({ apps }));
+    await render(<App />);
+    await userEvent.click(within(screen.getByRole('group', { name: 'Lancer une app' })).getByRole('button', { name: 'Ouvrir Nebula News' }));
+    expect(bridge.showDocked).toHaveBeenCalledWith('nebula.news');
+    expect(bridge.launchApp).not.toHaveBeenCalled();
+    expect(screen.getByRole('heading', { level: 1, name: 'Nebula News' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Détacher dans sa propre fenêtre/ })).not.toBeInTheDocument();
+  });
+});

@@ -68,6 +68,8 @@ export const settings: Record<keyof typeof fr, string> = {
   'settings.refreshNow': 'Refresh now',
   'settings.launchAtLogin': 'Start with Windows, quietly in the notification area',
   'settings.launchAtLoginHint': 'Only the installed Hub can register itself to start with Windows.',
+  'settings.keepExtensions': 'Keep Nebula News running in the background',
+  'settings.keepExtensionsHint': 'Nebula News runs without a window while the Hub is open, so its articles show up in your apps: Today’s tech on the Home, Today’s finance in Finterest, Today’s personal growth in Clock during breaks. It opens inside the Hub.',
   'settings.notifications': 'Notifications',
   'settings.windowsNotifications': 'Relay the activity center to Windows notifications',
   'settings.notificationsHint': 'Only when the Hub is not in front. A private notification never shows its content in Windows.',

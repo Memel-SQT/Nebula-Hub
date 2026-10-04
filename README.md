@@ -22,6 +22,9 @@ Windows, sans compte et sans télémétrie.
   notifications — uniquement ce que vous autorisez, et rien ne quitte votre ordinateur.
   L'accueil affiche par exemple « Tech du jour » de Nebula News ; vous choisissez les widgets
   affichés dans Intégrations → « Widgets de l'accueil ».
+- **Nebula News, extension de vos apps** : tant que le Hub est ouvert, Nebula News tourne en
+  arrière-plan, sans fenêtre (réglage dans Réglages → Comportement), pour que ses articles
+  apparaissent dans le Hub, Nebula Finterest et Nebula Clock. L'ouvrir l'affiche dans le Hub.
 - **Vos apps restent autonomes** : chacune s'installe, fonctionne et se met à jour seule. Le Hub
   est un plus, jamais une obligation, et vous pouvez passer de l'un à l'autre sans perdre vos
   données.

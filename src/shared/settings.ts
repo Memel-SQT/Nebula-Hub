@@ -36,6 +36,8 @@ export interface HubSettings {
   activitySeenAt: string | null;
   /** Apps opened inside the Hub rather than in their own window (ADR-027); off by default. */
   openInHub: string[];
+  /** Keep the extensions (Nebula News) running in the background while the Hub runs (ADR-034). */
+  keepExtensionsRunning: boolean;
 }
 
 export const DEFAULT_SETTINGS: HubSettings = {
@@ -53,6 +55,7 @@ export const DEFAULT_SETTINGS: HubSettings = {
   mutedApps: [],
   activitySeenAt: null,
   openInHub: [],
+  keepExtensionsRunning: true,
 };
 
 export type SettingsPatch = Partial<Omit<HubSettings, 'appearance'>>;
@@ -85,6 +88,7 @@ export function parseSettings(value: unknown, fallback: HubSettings = DEFAULT_SE
     windowsNotifications: bool(record.windowsNotifications, fallback.windowsNotifications),
     mutedApps: record.mutedApps === undefined ? fallback.mutedApps : parseIds(record.mutedApps),
     openInHub: record.openInHub === undefined ? fallback.openInHub : parseIds(record.openInHub),
+    keepExtensionsRunning: bool(record.keepExtensionsRunning, fallback.keepExtensionsRunning),
     activitySeenAt: record.activitySeenAt === null || isIsoTime(record.activitySeenAt) ? (record.activitySeenAt as string | null) : fallback.activitySeenAt,
   };
 }

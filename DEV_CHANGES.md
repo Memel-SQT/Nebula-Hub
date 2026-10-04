@@ -2,6 +2,41 @@
 
 Technical log, newest session first. Release notes live only in the GitHub release body.
 
+## [2026-10-05] - Nebula Hub Session #21 — Nebula News as an extension of the other apps; 0.2.5
+
+- **User request**:
+  - Nebula News runs in the background systematically;
+  - it opens outside the Hub only when standalone;
+  - its articles appear in the apps they are meant for;
+  - it is an extension of the other apps rather than an app of its own.
+  The user's Link journal explained the need: Finterest's only request had gone unanswered because News was closed, and Clock had never received anything.
+- **Catalog**:
+  - `extension: { backgroundArgument, minVersion }` (validated; not a `--delete…` switch);
+  - News carries `--background` and 0.5.0;
+  - re-signed.
+- **`apps/extension-keeper.ts`** with the pure rule `shared/extensions.ts`:
+  - starts extensions in the background after each detection;
+  - a drop in Link connections requests a detection, so a stopped News is restarted;
+  - never during an operation on the app or after "Quit Nebula"; at most 3 starts in 10 min; only from `minVersion`;
+  - setting `keepExtensionsRunning` (default on, Settings → Behaviour).
+- **Opening an extension**:
+  - always inside the Hub: renderer launcher, tiles and app page, and the tray;
+  - the docked screen has no "Detach" for it;
+  - when the Hub mode launches it, it is started in the background.
+- **Link**: Hub route `/docked?id=` (`nebula://hub/docked`), allowed for the requesting app's own id only; `openHub` then shows the app docked.
+- **Nebula News 0.5.0** (released this session):
+  - `--background`, no window;
+  - window requests go to `/docked` while the Hub is connected;
+  - quits with the Hub when started in the background; back to the background when released;
+  - normal app without the Hub or with an older Hub;
+  - Detach band removed.
+- **Live check** (throwaway profiles; the user's News 0.4.0 is too old to be started by the keeper):
+  - News 0.5.0 from `win-unpacked` started with `--background` had no window and was connected;
+  - opening it again showed it inside the Hub (full width, no Detach);
+  - Home hid it while it kept running;
+  - quitting the Hub quit it.
+- Tests: rules, keeper, catalog validation, `/docked` self-only over real pipes, App (News opens docked without Detach). Version 0.2.5.
+
 ## [2026-10-04] - Nebula Hub Session #20 — The apps adopt the raise fix; 0.2.4
 
 - **User report after 0.2.3**: better, but sometimes, when resizing, the app inside the Hub no longer shows.

@@ -92,6 +92,8 @@ export const HUB_MANIFEST: Manifest = {
     { path: '/integrations', params: {} },
     { path: '/settings', params: {} },
     { path: '/app', params: { id: 'text' } },
+    // ADR-034: an app asks to be shown inside the Hub (an extension never opens its own window).
+    { path: '/docked', params: { id: 'text' } },
   ],
 };
 
@@ -593,6 +595,8 @@ export class LinkServer {
     const manifest = await this.manifestOf(target);
     if (target === HUB_ID) {
       if (!isDeclaredIntent(HUB_MANIFEST, path, params)) return { error: 'invalid-params' };
+      // An app may ask to be shown inside the Hub, never another app.
+      if (path === '/docked' && params.id !== source) return { error: 'invalid-params' };
       this.audit(source, HUB_ID, 'hub.open', 'intent', 'delivered', bytes(params));
       return { result: { delivered: this.deps.openHub(path, params) ? 'link' : 'store' } };
     }

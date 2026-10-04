@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Icon } from '@nebula/design/react';
 import type { CatalogView } from '@shared/catalog-view';
 import type { DockView, Rect } from '@shared/dock';
+import { isExtension } from '@shared/extensions';
 import { AppIcon } from '../components/Cards';
 import { useT } from '../i18n';
 import type { Route } from '../navigation';
@@ -75,7 +76,8 @@ export function DockedScreen({ appId, catalog, dock, covered = false, onShow, on
           <h1 id="docked-title" tabIndex={-1}>{name}</h1>
         </div>
         <div className="docked-actions">
-          {open ? (
+          {/* An extension (Nebula News) never leaves the Hub for its own window (ADR-034). */}
+          {open && !isExtension(entry?.app) ? (
             <button type="button" className="ghost small" onClick={() => onRelease(appId)}>
               <Icon name="external" size={15} />{t('dock.release')}
             </button>

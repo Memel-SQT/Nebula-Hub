@@ -860,3 +860,36 @@ Les constats qui fondent ces décisions sont détaillés dans [DISCOVERY.md](DIS
     (R04) l'affiche ;
   - `minHubVersion` 0.2.3 : un Hub plus ancien ignore le champ `visibility`. Il montrerait l'app
     avec la mention « demande une version plus récente du Hub », sans rien d'installable.
+
+## ADR-034 — Nebula News, extension des autres apps
+
+- **Statut** : Accepté (demande de l'utilisateur du 2026-10-04 : « lance Nebula News en
+  arrière-plan systématiquement, rends-la ouvrable hors du Hub uniquement en standalone, fais
+  apparaître les articles dans les apps où ils doivent être ; Nebula News doit être une extension
+  des autres apps plus qu'une app à part entière »).
+- **Constat** : les widgets de News n'existent que si News tourne. Dans le journal Link de
+  l'utilisateur, la seule demande de Finterest est restée sans réponse (News fermée), et Clock
+  n'avait jamais rien reçu.
+- **Décision** :
+  - nouveau champ de catalogue `extension: { backgroundArgument, minVersion }` (validé ;
+    l'argument est un interrupteur `--…` et ne peut pas être `--delete…`). News le porte avec
+    `--background` et 0.5.0 ;
+  - le Hub garde les extensions en marche (`apps/extension-keeper.ts`, règle pure
+    `shared/extensions.ts`) : il les démarre en arrière-plan quand il se lance, quand elles sont
+    installées et si elles s'arrêtent (une app qui quitte Link déclenche une détection). Il ne
+    le fait jamais pendant une opération sur l'app ni après « Quitter Nebula », au plus 3 fois
+    en 10 minutes, et seulement à partir de `minVersion`, car une version plus ancienne
+    ouvrirait sa fenêtre. Un réglage permet de couper ce maintien (« Garder Nebula News active
+    en arrière-plan », activé par défaut) ;
+  - une extension s'ouvre toujours dans le Hub : lanceur, tuiles, fiche, menu de la zone de
+    notification. Le bouton « Détacher » est absent. Quand le mode Hub lance une extension,
+    il la démarre en arrière-plan ;
+  - nouvelle route du Hub `/docked?id=` (`nebula://hub/docked`), qu'une app ne peut demander
+    que pour elle-même : News 0.5.0 l'utilise pour toute demande de fenêtre quand le Hub est
+    connecté ;
+  - côté News (0.5.0) : pas de fenêtre en arrière-plan. News quitte si le Hub disparaît alors
+    qu'elle a été lancée en arrière-plan, et revient en arrière-plan quand le Hub la relâche.
+    Sans le Hub, ou avec un Hub plus ancien qui refuse la route, c'est une app normale.
+- **Conséquence** : les cartes d'articles de l'accueil, de Finterest et de Clock ont toujours une
+  source tant que le Hub tourne. News consomme de la mémoire en permanence, comme l'utilisateur
+  l'a accepté.

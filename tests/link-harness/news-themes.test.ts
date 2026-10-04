@@ -126,4 +126,14 @@ describe('News 0.4.0 themes on the Hub (ADR-031)', () => {
     await eventually(() => home.views()[0]?.state === 'error');
     expect(home.views()[0].data).toBeNull();
   });
+
+  it('lets News ask to be shown inside the Hub, for itself only (ADR-034)', async () => {
+    await connectNews();
+    const link = links[links.length - 1];
+    expect(await link.intent('nebula.hub', '/docked', { id: 'nebula.news' })).toMatchObject({ ok: true });
+    expect(hub.hubOpens).toContainEqual({ path: '/docked', params: { id: 'nebula.news' } });
+    const other = await link.intent('nebula.hub', '/docked', { id: 'nebula.clock' });
+    expect(other.ok).toBe(false);
+    expect(hub.hubOpens.filter((entry) => entry.params.id === 'nebula.clock')).toEqual([]);
+  });
 });

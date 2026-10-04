@@ -45,6 +45,8 @@ export const settings = {
   'settings.closeToTray': 'Fermer la fenêtre garde le Hub dans la zone de notification',
   'settings.launchAtLogin': 'Démarrer avec Windows, discrètement dans la zone de notification',
   'settings.launchAtLoginHint': 'Seule la version installée du Hub peut s’inscrire au démarrage de Windows.',
+  'settings.keepExtensions': 'Garder Nebula News active en arrière-plan',
+  'settings.keepExtensionsHint': 'Nebula News tourne sans fenêtre tant que le Hub est ouvert, pour que ses articles apparaissent dans vos apps : Tech du jour sur l’accueil, Finance du jour dans Finterest, Développement personnel du jour dans Clock pendant les pauses. Elle s’ouvre dans le Hub.',
   'settings.installDir': 'Dossier d’installation',
   'settings.installDir.default': 'Dossier proposé par chaque app (recommandé)',
   'settings.installDir.choose': 'Choisir un dossier',

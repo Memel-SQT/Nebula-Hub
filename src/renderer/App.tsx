@@ -21,6 +21,7 @@ import type { DataActions, InstallerSaves } from './components/AppData';
 import type { InstallerSaveProgress, SaveInstallerResult } from '@shared/backup';
 import { ConfirmDialog, OperationConfirmation } from './components/ConfirmDialog';
 import { EMPTY_HUB_UPDATE_VIEW, type HubUpdateView } from '@shared/hub-update';
+import { isExtension } from '@shared/extensions';
 import { ErrorState } from './components/ScreenState';
 import { Sidebar } from './components/Sidebar';
 import { formatBytes, LanguageContext, translate } from './i18n';
@@ -142,8 +143,10 @@ export function App() {
 
   const launchApp = useCallback((appId: string) => {
     const name = catalog.entries.find((entry) => entry.app.id === appId)?.app.name ?? appId;
-    // Opened inside the Hub when the user chose it and the app supports it; its own window otherwise.
-    if (settings.openInHub.includes(appId) && dock.dockable.includes(appId)) {
+    // Opened inside the Hub when the user chose it and the app supports it, and always for an
+    // extension such as Nebula News (ADR-034); its own window otherwise.
+    const extension = isExtension(catalog.entries.find((entry) => entry.app.id === appId)?.app);
+    if ((extension || settings.openInHub.includes(appId)) && dock.dockable.includes(appId)) {
       showDocked(appId);
       return;
     }

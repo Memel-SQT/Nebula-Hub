@@ -128,6 +128,7 @@ export class LinkHub {
       openAppPage: (appId) => this.deps.navigate({ screen: 'app', appId }),
       openHub: (path, params) => {
         const route = routeOf(path, params, this.deps.catalogApps());
+        if (route?.screen === 'docked') void this.dock.show(route.appId);
         if (route) this.deps.navigate(route);
         return Boolean(route);
       },
@@ -294,6 +295,8 @@ export function routeOf(path: string, params: Record<string, string>, apps: Cata
       return { screen: 'settings' };
     case '/app':
       return apps.some((app) => app.id === params.id) ? { screen: 'app', appId: params.id } : null;
+    case '/docked':
+      return apps.some((app) => app.id === params.id && app.role !== 'hub') ? { screen: 'docked', appId: params.id } : null;
     default:
       return null;
   }

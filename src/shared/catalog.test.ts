@@ -78,6 +78,15 @@ describe('validateCatalog', () => {
     expect(result.ok && result.catalog.apps[0].windows.preOperationBackup?.importArgument).toBe('--import-backup=');
   });
 
+  it('validates an extension: a background switch and a minimum version (ADR-034)', () => {
+    const news = SOURCE.apps.find((candidate: { id: string }) => candidate.id === 'nebula.news');
+    for (const extension of [{ backgroundArgument: 'background', minVersion: '0.5.0' }, { backgroundArgument: '--delete-app-data', minVersion: '0.5.0' }, { backgroundArgument: '--background', minVersion: 'soon' }, 'yes']) {
+      expect(validateCatalog({ ...SOURCE, apps: [{ ...news, extension }] }).ok).toBe(false);
+    }
+    const ok = validateCatalog({ ...SOURCE, apps: [news] });
+    expect(ok.ok && ok.catalog.apps[0].extension).toEqual({ backgroundArgument: '--background', minVersion: '0.5.0' });
+  });
+
   it('accepts only "installed-only" as a visibility (ADR-033)', () => {
     const app = SOURCE.apps.find((candidate: { id: string }) => candidate.id === 'nebula.finance-enterprise');
     expect(validateCatalog({ ...SOURCE, apps: [{ ...app, visibility: 'hidden' }] }).ok).toBe(false);

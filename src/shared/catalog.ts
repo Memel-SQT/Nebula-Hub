@@ -62,6 +62,12 @@ export interface CatalogApp {
    * is detected on this computer, e.g. a private edition the Hub cannot install. Absent: always shown.
    */
   visibility?: 'installed-only';
+  /**
+   * An extension of the other apps (ADR-034), e.g. Nebula News feeding their article cards: the Hub
+   * keeps it running in the background (started with `backgroundArgument`, from `minVersion` on)
+   * and opens it inside the Hub, never in its own window, while the Hub runs.
+   */
+  extension?: { backgroundArgument: string; minVersion: string };
   minHubVersion: string;
 }
 
@@ -216,6 +222,10 @@ function validateApp(value: unknown, path: string, check: Checker): CatalogApp |
   }
   if (!isSemver(app.minHubVersion)) check.fail(`${path}.minHubVersion`, 'expected a semantic version');
   if (app.visibility !== undefined && app.visibility !== 'installed-only') check.fail(`${path}.visibility`, 'expected "installed-only" or nothing');
+  const extension = app.extension === undefined ? null : asRecord(app.extension);
+  if (app.extension !== undefined && (!extension || typeof extension.backgroundArgument !== 'string' || !/^--[a-z][a-z-]{1,30}$/.test(extension.backgroundArgument) || !isSemver(extension.minVersion) || extension.backgroundArgument.startsWith('--delete'))) {
+    check.fail(`${path}.extension`, 'expected { backgroundArgument: "--switch", minVersion: semver }');
+  }
 
   if (check.errors.length > before || !windows || !source) {
     return null;
@@ -244,6 +254,7 @@ function validateApp(value: unknown, path: string, check: Checker): CatalogApp |
     ...(app.dataNotice !== undefined ? { dataNotice: pickLocalized(app.dataNotice) } : {}),
     ...(link ? { link: { manifest: String(link.manifest), minProtocol: Number(link.minProtocol) } } : {}),
     ...(app.visibility === 'installed-only' ? { visibility: 'installed-only' as const } : {}),
+    ...(extension ? { extension: { backgroundArgument: String(extension.backgroundArgument), minVersion: String(extension.minVersion) } } : {}),
     minHubVersion: String(app.minHubVersion),
   };
 }

@@ -13,6 +13,8 @@ import { backupArgument, MAX_BACKUP_BYTES, validateBackup, type ImportDataResult
 import { InstalledAppsService } from './apps/installed-apps';
 import { windowsProbe } from './apps/system-probe';
 import { closeNebulaApps } from './apps/quit-nebula';
+import { ExtensionKeeper } from './apps/extension-keeper';
+import { isExtension } from '../shared/extensions';
 import { CatalogService } from './catalog/catalog-service';
 import { CATALOG_PUBLIC_KEY } from './catalog-key';
 import { HubDatabase } from './db';
@@ -50,6 +52,7 @@ let installed: InstalledAppsService | null = null;
 let installs: InstallManager | null = null;
 let link: LinkHub | null = null;
 let hubUpdater: HubUpdater | null = null;
+let extensions: ExtensionKeeper | null = null;
 
 /**
  * Installers are downloaded to %LOCALAPPDATA%\Nebula Hub\downloads (brief §5.3): local, never
@@ -148,11 +151,18 @@ if (!app.requestSingleInstanceLock()) {
       catalogApps: () => catalog?.catalogApps() ?? [],
       installedView: () => installed?.getView() ?? { state: 'loading', apps: [], detectedAt: null },
       record: (appId) => installed?.record(appId),
-      launch: async (appId, args) => (await launchApp(appId, args)) === 'launched',
+      // An extension the Hub mode opens is started hidden: it shows itself inside the Hub (ADR-034).
+      launch: async (appId, args) => (await launchApp(appId, args.length ? args : backgroundArgs(appId))) === 'launched',
       appearance: () => settingsStore.get().appearance,
       showOnHome: (capability) => shownOnHome(capability, settingsStore.get().homeWidgets),
       navigate: (route) => void openWindowOn(route),
-      onChange: (view) => getMainWindow()?.webContents.send(CHANNELS.linkChanged, view),
+      onChange: (view) => {
+        getMainWindow()?.webContents.send(CHANNELS.linkChanged, view);
+        // An app left Link (closed, crashed): the process list tells whether an extension must restart.
+        const connected = view.connected.map((entry) => entry.appId).sort().join(',');
+        if (connected !== lastConnected && connected.length < lastConnected.length) installed?.requestDetect();
+        lastConnected = connected;
+      },
       onWidgets: (widgets) => getMainWindow()?.webContents.send(CHANNELS.widgetsChanged, widgets),
       onActivity: (item) => activityAdded(item),
       onConsentRequest: (consumer, capability) => consentRequested(consumer, capability),
@@ -165,6 +175,15 @@ if (!app.requestSingleInstanceLock()) {
     onWindowBlur(() => link?.dock.windowBlurred());
     if (startedHidden) link.widgets.setVisible(false);
     installed.onChange((view) => void link?.onInstalledChanged(view));
+    // ADR-034: the extensions (Nebula News) keep running in the background while the Hub runs.
+    extensions = new ExtensionKeeper({
+      apps: () => catalog?.catalogApps() ?? [],
+      installedView: () => installed?.getView() ?? { state: 'loading', apps: [], detectedAt: null },
+      busy: (appId) => installs?.isBusy(appId) ?? false,
+      enabled: () => settingsStore.get().keepExtensionsRunning,
+      launch: async (appId, args) => (await launchApp(appId, [...args])) === 'launched',
+    });
+    installed.onChange(() => void extensions?.check());
     if (app.isPackaged) app.setAsDefaultProtocolClient('nebula');
     // A new catalog may list new apps: detect again.
     catalog.onChange(() => installed?.requestDetect());
@@ -237,6 +256,20 @@ async function launchApp(appId: string, args: string[] = []): Promise<LaunchResu
   return installed.launch(appId, args);
 }
 
+let lastConnected = '';
+
+/** The background switch of an extension (ADR-034), or no argument for any other app. */
+function backgroundArgs(appId: string): string[] {
+  const app = catalog?.catalogApps().find((candidate) => candidate.id === appId);
+  return app?.extension ? [app.extension.backgroundArgument] : [];
+}
+
+/** An extension opens inside the Hub (tray menu, Link), never in its own window. */
+function openInHub(appId: string): void {
+  void openWindowOn({ screen: 'docked', appId });
+  void link?.dock.show(appId);
+}
+
 function appName(appId: string): string {
   return catalog?.catalogApps().find((candidate) => candidate.id === appId)?.name ?? appId;
 }
@@ -282,6 +315,7 @@ function quitNebula(confirmed: boolean): QuitNebulaResult {
   if (quittingAll) return 'quitting';
   if (installs?.isBusy() || (hubUpdater && isHubUpdating(hubUpdater.view().phase))) return 'busy';
   quittingAll = true;
+  extensions?.suspend();
   const exeNames = (catalog?.catalogApps() ?? []).filter((candidate) => candidate.role !== 'hub').map((candidate) => candidate.windows.exeName);
   void closeNebulaApps({
     exeNames,
@@ -315,7 +349,7 @@ function trayOptions(): TrayOptions {
     onShowActivity: () => void openWindowOn({ screen: 'home' }),
     onCheckUpdates: () => void catalog?.refresh(true).then(() => installed?.detect()),
     onShowUpdates: () => void openWindowOn({ screen: 'my-apps' }),
-    onLaunch: (appId) => void launchApp(appId),
+    onLaunch: (appId) => (isExtension(catalog?.catalogApps().find((candidate) => candidate.id === appId)) ? openInHub(appId) : void launchApp(appId)),
     onQuit: quit,
     onQuitAll: () => void openWindow().then(() => getMainWindow()?.webContents.send(CHANNELS.quitNebulaAsk)),
   };
@@ -360,6 +394,7 @@ function registerIpcHandlers(): void {
     if (settings.launchAtLogin !== before.launchAtLogin) {
       applyLaunchAtLogin(settings.launchAtLogin);
     }
+    if (settings.keepExtensionsRunning && !before.keepExtensionsRunning) void extensions?.check();
     if (settings.channel !== before.channel) {
       void catalog?.refresh(true);
     }

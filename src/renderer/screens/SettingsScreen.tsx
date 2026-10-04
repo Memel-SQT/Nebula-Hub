@@ -249,6 +249,19 @@ export function SettingsScreen({ settings, resolvedTheme, version, catalog, acti
             <span>{t('settings.launchAtLogin')}</span>
           </button>
           <small className="path-note" id="settings-login-hint">{t('settings.launchAtLoginHint')}</small>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={settings.keepExtensionsRunning}
+            aria-describedby="settings-extensions-hint"
+            className={`switch ${settings.keepExtensionsRunning ? 'on' : ''}`}
+            data-sound="toggle"
+            onClick={() => onSettingsChange({ keepExtensionsRunning: !settings.keepExtensionsRunning })}
+          >
+            <i aria-hidden="true" />
+            <span>{t('settings.keepExtensions')}</span>
+          </button>
+          <small className="path-note" id="settings-extensions-hint">{t('settings.keepExtensionsHint')}</small>
 
           <p className="settings-label" id="settings-install-dir-label">{t('settings.installDir')}</p>
           <div className="install-dir" aria-labelledby="settings-install-dir-label" role="group">
