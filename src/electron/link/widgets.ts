@@ -1,5 +1,5 @@
 import type { Manifest } from '@nebula/link';
-import { refreshInterval, widgetStateOf, type ReplyLike, type WidgetView } from '../../shared/widgets';
+import { graceLeft, refreshInterval, widgetStateOf, type ReplyLike, type WidgetView } from '../../shared/widgets';
 
 /**
  * The Home widgets (brief I3, docs/NEBULA_LINK.md § 10): the Hub reads every `widget` capability
@@ -16,6 +16,8 @@ export interface WidgetBoardDeps {
   /** App ids with a live, authenticated connection. */
   connected(): string[];
   query(capabilityId: string): Promise<ReplyLike>;
+  /** When an app connected (epoch ms): its widgets are read 25 s later at the earliest. */
+  connectedSince?(appId: string): number | undefined;
   /** Whether a widget is on the Home (ADR-031): the others get no card and are never read. */
   shown?(capabilityId: string): boolean;
   onChange(widgets: WidgetView[]): void;
@@ -36,6 +38,8 @@ export class WidgetBoard {
   private readonly inFlight = new Set<string>();
   private visible = true;
   private timer: ReturnType<typeof setInterval> | null = null;
+  /** Wakes the board when the start grace of a just connected app ends. */
+  private graceTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(private readonly deps: WidgetBoardDeps) {}
 
@@ -52,6 +56,23 @@ export class WidgetBoard {
   stop(): void {
     if (this.timer) clearInterval(this.timer);
     this.timer = null;
+    if (this.graceTimer) clearTimeout(this.graceTimer);
+    this.graceTimer = null;
+  }
+
+  /** Milliseconds before this app's widgets may be read (its start grace), 0 when they may be now. */
+  private wait(provider: string): number {
+    return graceLeft(this.deps.connectedSince?.(provider), this.now());
+  }
+
+  /** Reads again exactly when the shortest pending grace ends. */
+  private wakeAfter(ms: number): void {
+    if (this.graceTimer) clearTimeout(this.graceTimer);
+    this.graceTimer = setTimeout(() => {
+      this.graceTimer = null;
+      void this.tick();
+    }, ms + 50);
+    this.graceTimer.unref?.();
   }
 
   views(): WidgetView[] {
@@ -132,7 +153,10 @@ export class WidgetBoard {
     const now = this.now();
     const connected = new Set(this.deps.connected());
     const due = [...this.slots.values()].filter((slot) => slot.nextAt <= now && connected.has(slot.view.provider));
-    await Promise.all(due.map((slot) => this.refresh(slot.view.id)));
+    // A just started app is left alone during its start grace; the board wakes up when it ends.
+    const waits = due.map((slot) => this.wait(slot.view.provider)).filter((ms) => ms > 0);
+    if (waits.length) this.wakeAfter(Math.min(...waits));
+    await Promise.all(due.filter((slot) => this.wait(slot.view.provider) === 0).map((slot) => this.refresh(slot.view.id)));
   }
 
   /** Reads one widget now (the card's refresh button, or a consent change). */
@@ -142,6 +166,12 @@ export class WidgetBoard {
     if (!this.deps.connected().includes(slot.view.provider)) {
       slot.view = { ...slot.view, state: 'offline', data: null };
       this.emit();
+      return;
+    }
+    // Still starting: the card stays "loading" and is read when the grace ends.
+    const wait = this.wait(slot.view.provider);
+    if (wait > 0) {
+      this.wakeAfter(wait);
       return;
     }
     this.inFlight.add(capabilityId);

@@ -2,6 +2,18 @@
 
 Technical log, newest session first. Release notes live only in the GitHub release body.
 
+## [2026-10-05] - Nebula Hub Session #22 — Widgets: 25 s start grace
+
+- **User report**: the user's journal showed the Hub's first reads of the News widgets timing out right after start: News was still starting its server. The cards then stayed empty until the next refresh, 15 minutes later. The user asked the Hub to wait 25 s after an app starts before reading its widgets.
+- `shared/widgets.ts`: `APP_START_GRACE_MS` (25 s) and `graceLeft(since, now)`.
+- `WidgetBoard`:
+  - a new `connectedSince` dependency (LinkHub: the connection time from `connectedApps()`);
+  - during the grace, `tick` and `refresh` (the card's button) do not read, and the card stays "loading";
+  - one timer wakes the board when the shortest grace ends.
+  Bench boards without the dependency are unchanged.
+- Tests: `tests/electron/widget-board.test.ts` (fake timers): nothing read before 25 s, read on its own at the end of the grace, the button quiet too, an app connected long ago read at once. 1007 tests pass.
+- Spec: NEBULA_LINK.md § 10 (I3).
+
 ## [2026-10-05] - Nebula Hub Session #21 — Nebula News as an extension of the other apps; 0.2.5
 
 - **User request**:

@@ -74,6 +74,10 @@ export class LinkHub {
       connected: () => this.server?.connectedApps().map((entry) => entry.appId) ?? [],
       query: (capability) => (this.server ? this.server.queryAs(HUB_ID, capability) : Promise.resolve({ error: 'provider-offline' })),
       shown: (capability) => this.deps.showOnHome?.(capability) ?? true,
+      connectedSince: (appId) => {
+        const entry = this.server?.connectedApps().find((candidate) => candidate.appId === appId);
+        return entry ? Date.parse(entry.since) : undefined;
+      },
       onChange: (widgets) => this.deps.onWidgets?.(widgets),
       now: deps.now ? () => deps.now!().getTime() : undefined,
     });

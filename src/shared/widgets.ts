@@ -90,6 +90,19 @@ export function widgetStateOf(reply: ReplyLike, provider?: string): { state: Wid
   }
 }
 
+/**
+ * A freshly started app is read only this long after it connected (user request 2026-10-05): during
+ * its first seconds its data is not ready (Nebula News still starts its server) and a read would
+ * only time out, leaving the card empty until the next refresh.
+ */
+export const APP_START_GRACE_MS = 25_000;
+
+/** Milliseconds left before an app connected at `since` (epoch ms) may be read; 0 = now. */
+export function graceLeft(since: number | undefined, now: number): number {
+  if (since === undefined || !Number.isFinite(since)) return 0;
+  return Math.max(0, since + APP_START_GRACE_MS - now);
+}
+
 /** Seconds between two reads: what the app declares, never under 30 s, 5 min by default. */
 export function refreshInterval(refreshSeconds: number | undefined): number {
   return Math.max(30, refreshSeconds ?? 300);
