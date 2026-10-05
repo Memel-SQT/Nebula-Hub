@@ -5,7 +5,7 @@ import { isActive, type DownloadsView } from '@shared/install-state';
 import type { HubUpdateView } from '@shared/hub-update';
 import type { LinkView } from '@shared/link-view';
 import { installedOf } from '../catalog';
-import { HubMark } from '../brand/HubMark';
+import { HubLogo } from '../brand/HubMark';
 import { useT, type TranslationKey } from '../i18n';
 import { SECTIONS, type Route, type Section, type SectionGroup } from '../navigation';
 import { AppIcon } from './Cards';
@@ -71,7 +71,7 @@ export function Sidebar({ active, version, launcher, installed, downloads, link,
   return (
     <aside className="sidebar nebula-surface nebula-sidebar">
       <div className="brand-lockup">
-        <HubMark size={40} />
+        <HubLogo size={40} />
         <div>
           <strong>{t('app.name')}</strong>
           <span>{t('app.tagline')}</span>
@@ -104,7 +104,7 @@ export function Sidebar({ active, version, launcher, installed, downloads, link,
                 onClick={() => (launchable ? onLaunch!(entry.app.id) : onNavigate({ screen: 'app', appId: entry.app.id }))}
               >
                 <span className="nav-icon"><AppIcon src={entry.icon} size={26} /></span>
-                <span className="nav-label">{entry.app.name.replace(/^Nebula /, '')}</span>
+                <span className="nav-label">{entry.app.name.replace(/^Nebula /, '').replace(/ by Nebula$/, '')}</span>
                 {app?.running ? <i className="status-dot" aria-hidden="true" /> : null}
               </button>
             );

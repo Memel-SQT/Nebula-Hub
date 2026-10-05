@@ -1,5 +1,7 @@
 import { createContext, useContext } from 'react';
 import type { Language } from '@nebula/design';
+import { renameIn } from '@shared/packs';
+import { usePackBrand } from '../brand/pack-brand';
 import { activity as frActivity } from './fr/activity';
 import { catalog as frCatalog } from './fr/catalog';
 import { data as frData } from './fr/data';
@@ -76,7 +78,8 @@ export function useLanguage(): Language {
 
 export function useT(): Translate {
   const language = useLanguage();
-  return (key, params) => translate(language, key, params);
+  const { pairs } = usePackBrand();
+  return (key, params) => renameIn(translate(language, key, params), pairs);
 }
 
 /** A short duration for "time left": seconds under a minute, then minutes, then hours. */

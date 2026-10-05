@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
+import type { PackView } from '../shared/packs';
 import { CHANNELS, type InitialState, type NavigateRequest, type NebulaHubBridge } from '../shared/bridge';
 import type { ActivityItem } from '../shared/activity';
 import type { InstallerSaveProgress } from '../shared/backup';
@@ -35,6 +36,7 @@ const bridge: NebulaHubBridge = {
   getInstalled: () => ipcRenderer.invoke(CHANNELS.installedGet),
   refreshInstalled: () => ipcRenderer.invoke(CHANNELS.installedRefresh),
   onInstalledChanged: (callback) => subscribe<InstalledView>(CHANNELS.installedChanged, callback),
+  onPacksChanged: (callback) => subscribe<PackView[]>(CHANNELS.packsChanged, callback),
   launchApp: (appId) => ipcRenderer.invoke(CHANNELS.appLaunch, appId),
   showAppFolder: (appId) => ipcRenderer.invoke(CHANNELS.appShowFolder, appId),
   installApp: (appId) => ipcRenderer.invoke(CHANNELS.appInstall, appId),

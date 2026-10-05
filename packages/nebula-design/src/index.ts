@@ -3,3 +3,4 @@
 export * from './theme';
 export * from './appearance';
 export * from './sound';
+export * from './pack-theme';

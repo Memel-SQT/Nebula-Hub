@@ -13,6 +13,7 @@ export const settings: Record<keyof typeof fr, string> = {
   'theme.glass-light': 'Glass light',
   'theme.system': 'System',
   'settings.glassHint': 'Tip: liquid glass looks its best with the “Aurora” background.',
+  'settings.packAccentHint': 'This theme has its own colors: accent colors do not apply to it.',
   'settings.accent': 'Accent colors',
   'accent.nebula': 'Nebula',
   'accent.aurora': 'Aurora',

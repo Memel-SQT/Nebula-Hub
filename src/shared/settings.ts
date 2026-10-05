@@ -38,6 +38,11 @@ export interface HubSettings {
   openInHub: string[];
   /** Keep the extensions (Nebula News) running in the background while the Hub runs (ADR-034). */
   keepExtensionsRunning: boolean;
+  /**
+   * A theme from an appearance pack (docs/NEBULA_LINK.md § 18), applied over `appearance.theme`
+   * while its pack is there; `appearance.theme` stays the fallback. null = a built-in theme.
+   */
+  packTheme: string | null;
 }
 
 export const DEFAULT_SETTINGS: HubSettings = {
@@ -56,6 +61,7 @@ export const DEFAULT_SETTINGS: HubSettings = {
   activitySeenAt: null,
   openInHub: [],
   keepExtensionsRunning: true,
+  packTheme: null,
 };
 
 export type SettingsPatch = Partial<Omit<HubSettings, 'appearance'>>;
@@ -89,10 +95,12 @@ export function parseSettings(value: unknown, fallback: HubSettings = DEFAULT_SE
     mutedApps: record.mutedApps === undefined ? fallback.mutedApps : parseIds(record.mutedApps),
     openInHub: record.openInHub === undefined ? fallback.openInHub : parseIds(record.openInHub),
     keepExtensionsRunning: bool(record.keepExtensionsRunning, fallback.keepExtensionsRunning),
+    packTheme: record.packTheme === null || (typeof record.packTheme === 'string' && PACK_THEME_ID.test(record.packTheme)) ? (record.packTheme as string | null) : fallback.packTheme,
     activitySeenAt: record.activitySeenAt === null || isIsoTime(record.activitySeenAt) ? (record.activitySeenAt as string | null) : fallback.activitySeenAt,
   };
 }
 
+const PACK_THEME_ID = /^[a-z][a-z0-9]{1,20}-[a-z][a-z0-9-]{0,20}$/;
 const APP_ID = /^[a-z0-9]+(\.[a-z0-9-]+){1,5}$/;
 
 /** Distinct app or capability ids (`finterest.budget.remaining` has the shape of an app id), at most 50. */

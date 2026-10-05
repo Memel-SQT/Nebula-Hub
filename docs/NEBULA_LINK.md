@@ -459,3 +459,42 @@ le Hub ne charge ni ne voit jamais son interface (R07, R10).
 - **Choix de l'utilisateur** : par app, « Ouvrir dans le Hub plutôt que dans sa propre fenêtre »
   (désactivé par défaut), sur la fiche de l'app. Le lanceur (barre latérale, accueil, zone de
   notification) suit ce choix.
+
+## 18. Packs d'apparence (amendement, ADR-035)
+
+Une app de la famille installée peut partager des **thèmes supplémentaires** avec les autres apps
+et le Hub. Rien ne passe par le tube : c'est un fichier déposé par l'app propriétaire, lu par les
+autres, avec ou sans le Hub (une app standalone les voit aussi).
+
+- **Emplacement** : `%LOCALAPPDATA%\Nebula Link\appearance\<id>.json`, à côté du fichier de
+  session. L'app propriétaire l'écrit à chaque démarrage (`writeAppearancePack`, écriture
+  atomique) et le retire à sa désinstallation (`removeAppearancePack`, ou son désinstalleur).
+- **Contenu** (`AppearancePack`, schéma 1, 256 Kio au plus) :
+  - `id` (minuscules et chiffres) et `owner: { appId, exe }`, l'exécutable de l'app propriétaire ;
+  - `themes` (1 à 4) : `id` préfixé par celui du pack (`<id>-…`, jamais un thème intégré),
+    `scheme` (`dark` ou `light`), `label` (fr, en), `tokens` (propriétés CSS `--…` → valeur) et
+    `chrome: { page, ink }` (couleurs hexadécimales de la barre de titre native) ;
+  - `names` (facultatif) : nom affiché de chaque app de la famille (par identifiant) tant qu'un
+    thème du pack est actif ;
+  - `mark` et `marks` (facultatifs) : la marque du pack et un logo SVG par app (par identifiant).
+- **Validation stricte** (`parseAppearancePack`, partagée par le Hub et le SDK) : un champ connu
+  invalide rejette tout le pack. Les valeurs des jetons n'acceptent que des couleurs, longueurs,
+  durées et les fonctions `var`, `calc`, `color-mix`, `rgb(a)`, `hsl(a)`, `linear-gradient`,
+  `radial-gradient` : pas de `url()`, de guillemets, de point-virgule, d'accolade ni d'échappement.
+  Les SVG sont affichés **comme images** (`<img src="data:image/svg+xml;base64,…">`), jamais
+  insérés dans la page ; ceux qui contiennent `<script>`, `<foreignObject>`, un attribut `on…` ou
+  `javascript:` sont refusés.
+- **Disponibilité** : un pack n'est proposé que si son propriétaire est installé (son exécutable
+  existe ; le Hub exige en plus que sa détection le voie). Sans le pack, ses thèmes n'apparaissent
+  nulle part.
+- **Application** : le thème du pack se pose **par-dessus** le thème intégré du même `scheme` :
+  `data-theme` garde `nebula-dark` ou `nebula-light` (tous les sélecteurs communs continuent de
+  s'appliquer), `data-pack-theme` porte l'identifiant du thème du pack, et ses jetons deviennent
+  des propriétés en ligne sur la racine (`applyPackTheme` de `@nebula/design`). Les couleurs
+  d'accent ne s'y appliquent pas. Les noms et logos du pack ne changent que l'affichage, jamais les
+  noms d'installation.
+- **Repli** : le choix est enregistré à part du thème intégré (`packTheme` dans le Hub). Si le pack
+  disparaît, l'app revient au thème intégré enregistré, sans rien perdre.
+- **Diffusion** : I1 (`nebula.appearance.changed`) envoie l'identifiant du thème du pack dans
+  `theme`. Une app qui le connaît par le dossier l'applique ; une app qui ne le connaît pas garde
+  sa règle habituelle (thème inconnu → défaut).

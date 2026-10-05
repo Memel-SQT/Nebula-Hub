@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useState } from 'react';
 import { applyAppearance, type Appearance } from './appearance';
+import { applyPackTheme, type PackThemeTokens } from './pack-theme';
 import { configureSounds } from './sound';
 import { DARK_QUERY, resolveTheme, type ResolvedTheme, type Theme } from './theme';
 
@@ -40,4 +41,14 @@ export function useAppliedAppearance(appearance: Appearance, theme: ResolvedThem
   useEffect(() => {
     configureSounds({ enabled: appearance.soundEnabled, volume: appearance.soundVolume });
   }, [appearance.soundEnabled, appearance.soundVolume]);
+}
+
+/**
+ * Applies a pack theme over the built-in one (`pack-theme.ts`). Declared after
+ * `useAppliedAppearance` and re-run with the appearance, so an accent change never clears it.
+ */
+export function usePackTheme(theme: PackThemeTokens | null, appearance: Appearance): void {
+  useLayoutEffect(() => {
+    applyPackTheme(document.documentElement, theme);
+  }, [theme, appearance]);
 }

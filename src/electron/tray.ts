@@ -26,6 +26,8 @@ export interface TrayOptions {
   onQuit: () => void;
   /** "Quit Nebula": opens the Hub on its confirmation (ADR-030). */
   onQuitAll: () => void;
+  /** Renames the apps inside the menu texts while an appearance pack is active (docs/NEBULA_LINK.md § 18). */
+  rename?: (text: string) => string;
 }
 
 const PERSONALIZE_KEY = 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize';
@@ -75,10 +77,11 @@ export function updateTray(options: TrayOptions): void {
     click: () => options.onLaunch(app.id),
   }));
   const count = String(options.updates);
-  tray.setToolTip(options.updates > 0 ? mainString(options.language, 'trayTooltipUpdates').replace('{count}', count) : mainString(options.language, 'trayTooltip'));
+  const text = (value: string) => options.rename?.(value) ?? value;
+  tray.setToolTip(text(options.updates > 0 ? mainString(options.language, 'trayTooltipUpdates').replace('{count}', count) : mainString(options.language, 'trayTooltip')));
   tray.setContextMenu(
     Menu.buildFromTemplate([
-      { label: mainString(options.language, 'trayOpen'), click: options.onOpen },
+      { label: text(mainString(options.language, 'trayOpen')), click: options.onOpen },
       ...(launchers.length ? [{ type: 'separator' as const }, ...launchers] : []),
       { type: 'separator' },
       ...(options.unread > 0 ? [{ label: mainString(options.language, 'trayActivity', { count: String(options.unread) }), click: options.onShowActivity }] : []),
@@ -86,7 +89,7 @@ export function updateTray(options: TrayOptions): void {
       { label: mainString(options.language, 'trayCheckUpdates'), click: options.onCheckUpdates },
       { type: 'separator' },
       { label: mainString(options.language, 'trayQuitAll'), click: options.onQuitAll },
-      { label: mainString(options.language, 'trayQuit'), click: options.onQuit },
+      { label: text(mainString(options.language, 'trayQuit')), click: options.onQuit },
     ]),
   );
 }

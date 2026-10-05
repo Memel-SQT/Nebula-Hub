@@ -47,3 +47,18 @@ if (intent) router.open(intent.path, intent.params);
 
 Une donnée `private` n'est transmise qu'avec l'accord de l'utilisateur, donné dans le Hub
 (centre « Intégrations »). Le contenu des échanges n'est jamais journalisé.
+
+## Packs d'apparence (1.1.0)
+
+Une app peut proposer les thèmes qu'une autre app installée partage (spécification § 18). Le SDK
+lit et valide le dossier commun, sans jamais lever d'erreur :
+
+```ts
+import { findPackTheme, readAppearancePacks } from '@nebula/link';
+
+const packs = readAppearancePacks();                    // packs valides dont le propriétaire est installé
+const chosen = findPackTheme(packs, appearance.theme);  // thème du pack reçu du Hub ou choisi dans l'app
+```
+
+L'app propriétaire publie le sien avec `writeAppearancePack(pack)` à chaque démarrage et le
+retire avec `removeAppearancePack(id)`.

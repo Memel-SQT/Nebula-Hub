@@ -1,4 +1,5 @@
 import { createElement, useId } from 'react';
+import { usePackBrand } from './pack-brand';
 import { CURRENT_MARK, MARK_COLORS, resolveShapes, type MarkVariant } from './marks';
 
 /** SVG attribute names → React prop names (only those used by the marks). */
@@ -52,4 +53,13 @@ export function HubMark({ variant = CURRENT_MARK, animated = false, size, title,
       })}
     </svg>
   );
+}
+
+/** The Hub's mark, or the active appearance pack's (an image, never inlined SVG). */
+export function HubLogo({ animated = false, size, title, className }: { animated?: boolean; size?: number; title?: string; className?: string }) {
+  const { markUrl } = usePackBrand();
+  if (markUrl) {
+    return <img className={[animated ? 'splash-mark' : 'hub-mark', className].filter(Boolean).join(' ')} src={markUrl} width={size} height={size} alt={title ?? ''} aria-hidden={title ? undefined : true} />;
+  }
+  return <HubMark animated={animated} size={size} title={title} className={className} />;
 }

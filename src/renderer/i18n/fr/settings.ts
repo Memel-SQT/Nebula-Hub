@@ -12,6 +12,7 @@ export const settings = {
   'theme.glass-light': 'Verre clair',
   'theme.system': 'Système',
   'settings.glassHint': 'Astuce : le verre liquide est à son meilleur avec l’arrière-plan « Aurore boréale ».',
+  'settings.packAccentHint': 'Ce thème a ses propres couleurs : les couleurs d’accent ne s’y appliquent pas.',
   'settings.accent': 'Couleurs d’accent',
   'accent.nebula': 'Nebula',
   'accent.aurora': 'Aurore',

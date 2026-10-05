@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { setSoundsSuppressed, type NebulaAppearance } from '@nebula/design';
-import { BackgroundFx, Icon, Splash, useAppliedAppearance, useInterfaceEffects, useResolvedTheme } from '@nebula/design/react';
+import { BackgroundFx, Icon, Splash, useAppliedAppearance, useInterfaceEffects, usePackTheme, useResolvedTheme } from '@nebula/design/react';
+import { packBaseTheme } from '@nebula/design';
+import { activePack, namedCatalog, renameIn, renamePairs, type PackView } from '@shared/packs';
+import { PackBrandContext, type PackBrand } from './brand/pack-brand';
 import { EMPTY_CATALOG_VIEW, type CatalogView } from '@shared/catalog-view';
 import { EMPTY_INSTALLED_VIEW, type InstalledView } from '@shared/installed-view';
 import { needsConfirmation, type DownloadsView, type OperationKind, type OperationPlan, type OperationView } from '@shared/install-state';
@@ -15,7 +18,7 @@ import { playSound } from '@nebula/design';
 import type { HubSettings, SettingsPatch } from '@shared/settings';
 import { localize } from '@shared/catalog';
 import { familyEntries, visibleCatalog } from './catalog';
-import { HubMark } from './brand/HubMark';
+import { HubLogo } from './brand/HubMark';
 import { Onboarding } from './components/Onboarding';
 import type { DataActions, InstallerSaves } from './components/AppData';
 import type { InstallerSaveProgress, SaveInstallerResult } from '@shared/backup';
@@ -48,6 +51,7 @@ export function App() {
   const [saveError, setSaveError] = useState(false);
   const [catalog, setCatalog] = useState<CatalogView>(EMPTY_CATALOG_VIEW);
   const [installed, setInstalled] = useState<InstalledView>(EMPTY_INSTALLED_VIEW);
+  const [packs, setPacks] = useState<PackView[]>(initial.packs ?? []);
   const [launchError, setLaunchError] = useState<string | null>(null);
   const [downloads, setDownloads] = useState<DownloadsView | undefined>(undefined);
   const [dialog, setDialog] = useState<Dialog | null>(null);
@@ -63,16 +67,30 @@ export function App() {
   const [onboarding, setOnboarding] = useState(!initial.settings.onboardingCompleted && !initial.startedHidden);
   const appearance = settings.appearance;
   // Apps marked installed-only appear once detected (ADR-033); everything shown uses this view.
-  const shownCatalog = useMemo(() => visibleCatalog(catalog, installed), [catalog, installed]);
+  // An appearance pack theme (docs/NEBULA_LINK.md § 18) is drawn over the built-in theme of its
+  // scheme, with the pack's app names and mark; the built-in theme returns as soon as the pack goes.
+  const active = useMemo(() => activePack(packs, settings.packTheme), [packs, settings.packTheme]);
+  const named = useMemo(() => namedCatalog(catalog, active), [catalog, active]);
+  const shownCatalog = useMemo(() => visibleCatalog(named, installed), [named, installed]);
+  const brand = useMemo<PackBrand>(() => ({
+    pairs: renamePairs([{ id: HUB_ID, name: 'Nebula Hub' }, ...catalog.entries.map((entry) => entry.app)], active),
+    markUrl: active?.pack.markUrl ?? null,
+  }), [catalog.entries, active]);
   const language = appearance.language;
 
-  const resolvedTheme = useResolvedTheme(appearance.theme);
+  const resolvedTheme = useResolvedTheme(active ? packBaseTheme(active.theme.scheme) : appearance.theme);
   useAppliedAppearance(appearance, resolvedTheme);
+  usePackTheme(active?.theme ?? null, appearance);
   useInterfaceEffects(appearance.motion, resolvedTheme, GLASS_SURFACES);
 
   useLayoutEffect(() => {
     document.documentElement.lang = language;
   }, [language]);
+
+  // The window title (taskbar, Alt+Tab) follows the pack's name for the Hub.
+  useLayoutEffect(() => {
+    document.title = renameIn(translate(language, 'app.name'), brand.pairs);
+  }, [language, brand]);
 
   useEffect(() => bridge.onSettingsChanged(setSettings), [bridge]);
 
@@ -100,9 +118,11 @@ export function App() {
     let active = true;
     void bridge.getInstalled().then((view) => active && setInstalled(view));
     const unsubscribe = bridge.onInstalledChanged(setInstalled);
+    const unsubscribePacks = bridge.onPacksChanged(setPacks);
     return () => {
       active = false;
       unsubscribe();
+      unsubscribePacks();
     };
   }, [bridge]);
 
@@ -130,11 +150,11 @@ export function App() {
         setLaunchError(null);
         playSound('open');
       } else {
-        setLaunchError(translate(language, 'dock.failed', { name: catalog.entries.find((entry) => entry.app.id === appId)?.app.name ?? appId }));
+        setLaunchError(translate(language, 'dock.failed', { name: named.entries.find((entry) => entry.app.id === appId)?.app.name ?? appId }));
         playSound('error');
       }
     }, () => undefined);
-  }, [bridge, catalog.entries, language]);
+  }, [bridge, named.entries, language]);
 
   const releaseDocked = useCallback((appId: string) => {
     void bridge.releaseDocked(appId);
@@ -142,10 +162,10 @@ export function App() {
   }, [bridge]);
 
   const launchApp = useCallback((appId: string) => {
-    const name = catalog.entries.find((entry) => entry.app.id === appId)?.app.name ?? appId;
+    const name = named.entries.find((entry) => entry.app.id === appId)?.app.name ?? appId;
     // Opened inside the Hub when the user chose it and the app supports it, and always for an
     // extension such as Nebula News (ADR-034); its own window otherwise.
-    const extension = isExtension(catalog.entries.find((entry) => entry.app.id === appId)?.app);
+    const extension = isExtension(named.entries.find((entry) => entry.app.id === appId)?.app);
     if ((extension || settings.openInHub.includes(appId)) && dock.dockable.includes(appId)) {
       showDocked(appId);
       return;
@@ -162,7 +182,7 @@ export function App() {
       },
       () => setLaunchError(translate(language, 'launch.failed', { name })),
     );
-  }, [bridge, catalog.entries, language, settings.openInHub, dock.dockable, showDocked]);
+  }, [bridge, named.entries, language, settings.openInHub, dock.dockable, showDocked]);
 
   // Install queue and history (M4), then every change pushed by the main process.
   useEffect(() => {
@@ -176,7 +196,7 @@ export function App() {
   }, [bridge]);
 
   const installApp = useCallback((appId: string) => {
-    const name = catalog.entries.find((entry) => entry.app.id === appId)?.app.name ?? appId;
+    const name = named.entries.find((entry) => entry.app.id === appId)?.app.name ?? appId;
     void bridge.installApp(appId).then(
       (result) => {
         if (result === 'queued') {
@@ -188,7 +208,7 @@ export function App() {
       },
       () => setLaunchError(translate(language, 'install.failure.internal')),
     );
-  }, [bridge, catalog.entries, language]);
+  }, [bridge, named.entries, language]);
 
   // Nebula Link: connected apps, capabilities, consents (M6), then every change from the main process.
   useEffect(() => {
@@ -307,7 +327,7 @@ export function App() {
     void bridge.clearActivity(appId).then(setActivity, () => undefined);
   }, [bridge]);
 
-  const appName = useCallback((appId: string) => catalog.entries.find((entry) => entry.app.id === appId)?.app.name ?? appId, [catalog.entries]);
+  const appName = useCallback((appId: string) => named.entries.find((entry) => entry.app.id === appId)?.app.name ?? appId, [named.entries]);
 
   const startOperation = useCallback((appId: string, kind: OperationKind, confirmed: boolean, skipBackup = false) => {
     void (skipBackup ? bridge.startOperation(appId, kind, confirmed, { skipBackup }) : bridge.startOperation(appId, kind, confirmed)).then(
@@ -347,7 +367,7 @@ export function App() {
   const updateAll = useCallback(() => {
     const appIds = installed.apps
       .filter((app) => {
-        const entry = catalog.entries.find((candidate) => candidate.app.id === app.appId);
+        const entry = named.entries.find((candidate) => candidate.app.id === app.appId);
         return entry?.app.role !== 'hub' && updateAvailable(entry, app);
       })
       .map((app) => app.appId);
@@ -357,7 +377,7 @@ export function App() {
       if (ready.some((plan) => plan.needsConfirmation)) setDialog({ type: 'update-all', plans: ready });
       else ready.forEach((plan) => startOperation(plan.appId, 'update', false));
     });
-  }, [bridge, installed.apps, catalog.entries, startOperation]);
+  }, [bridge, installed.apps, named.entries, startOperation]);
 
   const requestClose = useCallback((operationId: string) => {
     void bridge.requestAppClose(operationId);
@@ -411,11 +431,11 @@ export function App() {
 
   /** Brief 7.5: off by default; turning it on for an app that backs up its data is confirmed (R04). */
   const toggleAutoUpdate = useCallback((appId: string, enabled: boolean) => {
-    const entry = catalog.entries.find((candidate) => candidate.app.id === appId);
+    const entry = named.entries.find((candidate) => candidate.app.id === appId);
     const apply = () => updateSettings({ autoUpdate: { ...settings.autoUpdate, [appId]: enabled } });
     if (enabled && entry && needsConfirmation('update', entry)) setDialog({ type: 'auto-update', appId, apply });
     else apply();
-  }, [catalog.entries, settings.autoUpdate, updateSettings]);
+  }, [named.entries, settings.autoUpdate, updateSettings]);
 
   const pickBackupCopyDirectory = useCallback(() => {
     void bridge.pickBackupCopyDirectory().then((fresh) => fresh && handleSaved(fresh), () => setSaveError(true));
@@ -459,15 +479,17 @@ export function App() {
   }, [route]);
 
   const finishSplash = useCallback(() => setSplashDone(true), []);
-  const t = (key: Parameters<typeof translate>[1], params?: Record<string, string>) => translate(language, key, params);
+  const t = (key: Parameters<typeof translate>[1], params?: Record<string, string>) => renameIn(translate(language, key, params), brand.pairs);
   const background = <BackgroundFx effect={appearance.background} motion={appearance.motion} paused={!visible} />;
 
   if (!splashDone) {
     return (
       <LanguageContext.Provider value={language}>
-        {background}
-        <div className="titlebar-drag" aria-hidden="true" />
-        <Splash title={t('app.name')} tagline={t('app.tagline')} mark={<HubMark animated title={t('app.name')} />} motion={appearance.motion} onFinish={finishSplash} />
+        <PackBrandContext.Provider value={brand}>
+          {background}
+          <div className="titlebar-drag" aria-hidden="true" />
+          <Splash title={t('app.name')} tagline={t('app.tagline')} mark={<HubLogo animated title={t('app.name')} />} motion={appearance.motion} onFinish={finishSplash} />
+        </PackBrandContext.Provider>
       </LanguageContext.Provider>
     );
   }
@@ -502,13 +524,14 @@ export function App() {
   // The family apps that "Quit Nebula" would close (open right now, the Hub itself excluded).
   const runningNames = installed.apps
     .filter((record) => record.running)
-    .map((record) => catalog.entries.find((entry) => entry.app.id === record.appId))
+    .map((record) => named.entries.find((entry) => entry.app.id === record.appId))
     .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry) && entry?.app.role !== 'hub')
     .map((entry) => entry.app.name);
-  const dialogEntry = (appId: string) => catalog.entries.find((entry) => entry.app.id === appId);
+  const dialogEntry = (appId: string) => named.entries.find((entry) => entry.app.id === appId);
 
   return (
     <LanguageContext.Provider value={language}>
+      <PackBrandContext.Provider value={brand}>
       {background}
       <div className="titlebar-drag" aria-hidden="true" />
       <main className="app-shell">
@@ -534,7 +557,7 @@ export function App() {
             />
           ) : null}
           {route.screen === 'discover' ? <DiscoverScreen {...catalogProps} /> : null}
-          {route.screen === 'docked' ? <DockedScreen key={route.appId} appId={route.appId} catalog={catalog} dock={dock} covered={dialog !== null || onboarding || quitting} onShow={showDocked} onRelease={releaseDocked} onNavigate={setRoute} onArea={setDockArea} /> : null}
+          {route.screen === 'docked' ? <DockedScreen key={route.appId} appId={route.appId} catalog={named} dock={dock} covered={dialog !== null || onboarding || quitting} onShow={showDocked} onRelease={releaseDocked} onNavigate={setRoute} onArea={setDockArea} /> : null}
           {route.screen === 'app' ? <AppDetailScreen key={route.appId} {...catalogProps} appId={route.appId} loadAsset={loadAsset} onOpenLink={openLink} /> : null}
           {route.screen === 'my-apps' ? <MyAppsScreen {...catalogProps} onRefreshInstalled={refreshInstalled} /> : null}
           {route.screen === 'downloads' ? <DownloadsScreen {...catalogProps} onExportHistory={exportHistory} /> : null}
@@ -556,6 +579,7 @@ export function App() {
               hubUpdate={hubUpdate}
               onHubUpdate={requestHubUpdate}
               onCancelHubUpdate={cancelHubUpdate}
+              packs={packs}
             />
           ) : null}
         </div>
@@ -669,6 +693,7 @@ export function App() {
           {dialogEntry(dialog.operation.appId)?.app.dataNotice ? <p className="dialog-note warning">{localize(dialogEntry(dialog.operation.appId)!.app.dataNotice!, language)}</p> : null}
         </ConfirmDialog>
       ) : null}
+      </PackBrandContext.Provider>
     </LanguageContext.Provider>
   );
 }

@@ -2,6 +2,7 @@ import { act, render as rtlRender, screen, within } from '@testing-library/react
 import userEvent from '@testing-library/user-event';
 import { DEFAULT_SETTINGS, type HubSettings } from '../../src/shared/settings';
 import type { NebulaHubBridge } from '../../src/shared/bridge';
+import type { PackView } from '../../src/shared/packs';
 import type { Route } from '../../src/shared/route';
 import type { DownloadsView } from '../../src/shared/install-state';
 import { EMPTY_LINK_VIEW } from '../../src/shared/link-view';
@@ -42,14 +43,14 @@ function entry(overrides: Partial<ActivityItem> = {}): ActivityItem {
   return { id: 1, appId: 'nebula.clock', receivedAt: '2026-10-02T09:00:00.000Z', title: 'Session terminée', body: '4 pomodoros aujourd’hui', sensitivity: 'public', deepLink: null, category: null, ...overrides };
 }
 
-function installBridge(overrides: Partial<HubSettings> = {}, startedHidden = true, installed = installedView()) {
+function installBridge(overrides: Partial<HubSettings> = {}, startedHidden = true, installed = installedView(), packs: PackView[] = []) {
   let settings: HubSettings = { ...DEFAULT_SETTINGS, ...overrides };
   const listeners: Array<(value: boolean) => void> = [];
   const downloadListeners: Array<(view: DownloadsView) => void> = [];
   const hubUpdateListeners: Array<(view: HubUpdateView) => void> = [];
   const quitAskListeners: Array<() => void> = [];
   const bridge: NebulaHubBridge = {
-    getInitialState: () => ({ settings, appVersion: '0.1.0', startedHidden }),
+    getInitialState: () => ({ settings, appVersion: '0.1.0', startedHidden, packs }),
     updateAppearance: jest.fn(async (patch) => {
       settings = { ...settings, appearance: { ...settings.appearance, ...patch } };
       return settings;
@@ -71,6 +72,7 @@ function installBridge(overrides: Partial<HubSettings> = {}, startedHidden = tru
     getInstalled: jest.fn(async () => installed),
     refreshInstalled: jest.fn(async () => installedView()),
     onInstalledChanged: () => () => undefined,
+    onPacksChanged: () => () => undefined,
     launchApp: jest.fn(async () => 'launched' as const),
     showAppFolder: jest.fn(async () => true),
     installApp: jest.fn(async () => 'queued' as const),
@@ -191,6 +193,47 @@ describe('App', () => {
     await userEvent.click(screen.getByRole('button', { name: /Réinitialiser l’apparence/ }));
     expect(bridge.updateAppearance).toHaveBeenLastCalledWith(expect.objectContaining({ theme: 'nebula-dark', accentPreset: 'nebula', background: 'glow', motion: 'full' }));
     expect(document.documentElement.dataset.background).toBe('glow');
+  });
+
+  it('offers the themes of an appearance pack only when one is there, with its names and back again (spec § 18)', async () => {
+    const pack: PackView = {
+      id: 'sample',
+      ownerAppId: 'nebula.finterest',
+      themes: [{ id: 'sample-dark', scheme: 'dark', label: { fr: 'Exemple nuit' }, tokens: { '--page': '#101010' }, chrome: { page: '#101010', ink: '#f0f0f0' } }],
+      names: { 'nebula.hub': 'Sample Hub', 'nebula.clock': 'Sample Clock' },
+      markUrl: 'data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=',
+      iconUrls: { 'nebula.clock': 'data:image/svg+xml;base64,PHN2Zz5jPC9zdmc+' },
+    };
+    const { bridge } = installBridge({}, true, installedView(), [pack]);
+    await render(<App />);
+    await userEvent.click(screen.getByRole('button', { name: 'Réglages' }));
+    await userEvent.click(screen.getByRole('radio', { name: 'Exemple nuit' }));
+    expect(bridge.updateSettings).toHaveBeenCalledWith({ packTheme: 'sample-dark' });
+    expect(document.documentElement.dataset.packTheme).toBe('sample-dark');
+    expect(document.documentElement.dataset.theme).toBe('nebula-dark');
+    expect(document.documentElement.style.getPropertyValue('--page')).toBe('#101010');
+    expect(screen.getAllByText('Sample Hub').length).toBeGreaterThan(0);
+    expect(document.title).toBe('Sample Hub');
+    expect(screen.getAllByText('Sample Clock').length).toBeGreaterThan(0);
+    expect(document.querySelector('.brand-lockup img')).toHaveAttribute('src', pack.markUrl);
+    expect(document.querySelector(`img[src="${pack.iconUrls['nebula.clock']}"]`)).not.toBeNull();
+
+    await userEvent.click(screen.getByRole('radio', { name: 'Verre clair' }));
+    expect(bridge.updateSettings).toHaveBeenLastCalledWith({ packTheme: null });
+    expect(document.documentElement.dataset.packTheme).toBeUndefined();
+    expect(document.documentElement.style.getPropertyValue('--page')).toBe('');
+    expect(document.documentElement.dataset.theme).toBe('glass-light');
+    expect(screen.queryByText('Sample Hub')).not.toBeInTheDocument();
+  });
+
+  it('shows no extra theme without a pack, and ignores a saved pack theme whose pack is gone', async () => {
+    installBridge({ packTheme: 'sample-dark' });
+    await render(<App />);
+    await userEvent.click(screen.getByRole('button', { name: 'Réglages' }));
+    expect(screen.getAllByRole('radio', { name: /nuit|jour|Verre|Nebula|Système|clair|sombre/i }).length).toBeGreaterThan(0);
+    expect(screen.queryByRole('radio', { name: 'Exemple nuit' })).not.toBeInTheDocument();
+    expect(document.documentElement.dataset.packTheme).toBeUndefined();
+    expect(document.documentElement.dataset.theme).toBe('nebula-dark');
   });
 
   it('launches an installed app from the sidebar launcher', async () => {

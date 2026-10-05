@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Icon } from '@nebula/design/react';
 import { isHubEntry, unreadCount, type ActivityItem } from '@shared/activity';
 import { formatDateTime, useLanguage, useT } from '../i18n';
-import { HubMark } from '../brand/HubMark';
+import { HubLogo } from '../brand/HubMark';
 import { AppIcon } from './Cards';
 
 /**
@@ -43,7 +43,7 @@ export function ActivityPanel({ items, seenAt, appName, appIcon, onMarkRead, onO
               const name = isHubEntry(item) ? t('app.name') : appName(item.appId);
               return (
                 <li key={item.id} className={`activity-item ${isNew ? 'is-new' : ''}`}>
-                  <span className="activity-icon" aria-hidden="true">{isHubEntry(item) ? <HubMark size={28} /> : <AppIcon src={appIcon(item.appId)} size={28} />}</span>
+                  <span className="activity-icon" aria-hidden="true">{isHubEntry(item) ? <HubLogo size={28} /> : <AppIcon src={appIcon(item.appId)} size={28} />}</span>
                   <div className="activity-text">
                     <p className="activity-meta">
                       <strong>{name}</strong>

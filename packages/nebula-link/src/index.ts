@@ -2,6 +2,17 @@
  * @nebula/link — Nebula Link client SDK and shared protocol (docs/NEBULA_LINK.md).
  * Zero runtime dependency: node:net, node:crypto and node:fs only. Runs in an app's main process.
  */
+export {
+  defaultAppearancePackDir,
+  findPackTheme,
+  parseAppearancePack,
+  parseAppearancePackBytes,
+  readAppearancePacks,
+  removeAppearancePack,
+  writeAppearancePack,
+  MAX_PACK_BYTES,
+} from './appearance-pack';
+export type { AppearancePack, PackLabel, PackTheme, ReadPacksOptions } from './appearance-pack';
 export { NebulaLink, defaultSessionFile } from './client';
 export type { CreateOptions, LinkResult, LinkStatus, NotificationInput, QueryContext } from './client';
 export { encodeIntentArg, intentFromArgv, isDeclaredIntent, parseDeepLink, INTENT_ARG, MAX_LINK_LENGTH } from './deeplink';

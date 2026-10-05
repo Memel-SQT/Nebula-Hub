@@ -24,6 +24,7 @@ import { familyEntries } from '../catalog';
 import { HubUpdatePanel } from '../components/HubUpdate';
 import type { HubUpdateView } from '@shared/hub-update';
 import type { HubSettings, SettingsPatch } from '@shared/settings';
+import { activePack, packLabel, type PackView } from '@shared/packs';
 
 const BACKGROUND_ICONS: Record<BackgroundEffect, IconName> = {
   glow: 'sparkles',
@@ -45,7 +46,7 @@ const LANGUAGE_LABELS: Record<Language, string> = { fr: 'Français', en: 'Englis
  * fingerprint) arrives with M2; start with Windows, notifications and the Advanced section
  * (erase the activity history, ADR-023; show the welcome screens again) with M7.
  */
-export function SettingsScreen({ settings, resolvedTheme, version, catalog, activity = [], onAppearanceChange, onSettingsChange, onRefreshCatalog, onPickInstallDirectory, onPickBackupCopyDirectory, onClearActivity, onReplayOnboarding, hubUpdate, onHubUpdate, onCancelHubUpdate }: {
+export function SettingsScreen({ settings, resolvedTheme, version, catalog, activity = [], onAppearanceChange, onSettingsChange, onRefreshCatalog, onPickInstallDirectory, onPickBackupCopyDirectory, onClearActivity, onReplayOnboarding, hubUpdate, onHubUpdate, onCancelHubUpdate, packs = [] }: {
   settings: HubSettings;
   resolvedTheme: ResolvedTheme;
   version: string;
@@ -58,6 +59,8 @@ export function SettingsScreen({ settings, resolvedTheme, version, catalog, acti
   onPickBackupCopyDirectory?: () => void;
   onClearActivity?: (appId: string | null) => void;
   onReplayOnboarding?: () => void;
+  /** Themes shared by installed family apps (docs/NEBULA_LINK.md § 18), listed after the built-in ones. */
+  packs?: PackView[];
   /** The Hub's own update (ADR-029): first section, so the button is always at hand. */
   hubUpdate?: HubUpdateView;
   onHubUpdate?: () => void;
@@ -66,6 +69,12 @@ export function SettingsScreen({ settings, resolvedTheme, version, catalog, acti
   const t = useT();
   const language = useLanguage();
   const appearance = settings.appearance;
+  // The pack theme in use, if its pack is still installed; otherwise the built-in theme is shown.
+  const packTheme = activePack(packs, settings.packTheme)?.theme.id ?? null;
+  const chooseTheme = (theme: (typeof THEMES)[number]) => {
+    onAppearanceChange({ theme });
+    if (settings.packTheme) onSettingsChange({ packTheme: null });
+  };
   // Erasing the history is confirmed (R04 spirit): undefined = no dialog, null = everything.
   const [clearing, setClearing] = useState<string | null | undefined>(undefined);
   const nameOf = (appId: string) => (appId === HUB_ID ? t('app.name') : catalog.entries.find((entry) => entry.app.id === appId)?.app.name ?? appId);
@@ -85,8 +94,13 @@ export function SettingsScreen({ settings, resolvedTheme, version, catalog, acti
           <p className="settings-label" id="settings-theme-label">{t('settings.theme')}</p>
           <div className="segmented" role="radiogroup" aria-labelledby="settings-theme-label">
             {THEMES.map((theme) => (
-              <button key={theme} type="button" role="radio" aria-checked={appearance.theme === theme} className={appearance.theme === theme ? 'active' : ''} data-sound="toggle" onClick={() => onAppearanceChange({ theme })}>
+              <button key={theme} type="button" role="radio" aria-checked={!packTheme && appearance.theme === theme} className={!packTheme && appearance.theme === theme ? 'active' : ''} data-sound="toggle" onClick={() => chooseTheme(theme)}>
                 {t(`theme.${theme}`)}
+              </button>
+            ))}
+            {packs.flatMap((pack) => pack.themes).map((theme) => (
+              <button key={theme.id} type="button" role="radio" aria-checked={packTheme === theme.id} className={packTheme === theme.id ? 'active' : ''} data-sound="toggle" onClick={() => onSettingsChange({ packTheme: theme.id })}>
+                {packLabel(theme.label, language)}
               </button>
             ))}
           </div>
@@ -103,48 +117,57 @@ export function SettingsScreen({ settings, resolvedTheme, version, catalog, acti
             ))}
           </div>
 
-          <p className="settings-label" id="settings-accent-label">{t('settings.accent')}</p>
-          <div className="swatch-row" role="radiogroup" aria-labelledby="settings-accent-label">
-            {ACCENT_PRESETS.map((preset) => (
-              <button
-                key={preset.id}
-                type="button"
-                role="radio"
-                aria-checked={appearance.accentPreset === preset.id}
-                className={`swatch ${appearance.accentPreset === preset.id ? 'active' : ''}`}
-                style={{ '--swatch-a': preset.secondary, '--swatch-b': preset.primary } as CSSProperties}
-                onClick={() => onAppearanceChange({ accentPreset: preset.id })}
-                data-sound="toggle"
-              >
-                <i aria-hidden="true" />
-                <span>{t(`accent.${preset.id}`)}</span>
-              </button>
-            ))}
-            <button
-              type="button"
-              role="radio"
-              aria-checked={appearance.accentPreset === 'custom'}
-              className={`swatch ${appearance.accentPreset === 'custom' ? 'active' : ''}`}
-              style={{ '--swatch-a': appearance.customSecondary, '--swatch-b': appearance.customPrimary } as CSSProperties}
-              onClick={() => onAppearanceChange({ accentPreset: 'custom' })}
-              data-sound="toggle"
-            >
-              <i aria-hidden="true" />
-              <span>{t('accent.custom')}</span>
-            </button>
-          </div>
-          {appearance.accentPreset === 'custom' ? (
-            <div className="settings-fields color-fields">
-              <label className="color-field">
-                <input type="color" value={appearance.customPrimary} onChange={(event) => onAppearanceChange({ customPrimary: event.target.value })} />
-                {t('settings.accentPrimary')}
-              </label>
-              <label className="color-field">
-                <input type="color" value={appearance.customSecondary} onChange={(event) => onAppearanceChange({ customSecondary: event.target.value })} />
-                {t('settings.accentSecondary')}
-              </label>
-            </div>
-          ) : null}
+          {packTheme ? (
+            <>
+              <p className="settings-label">{t('settings.accent')}</p>
+              <small className="path-note settings-hint"><Icon name="info" size={14} />{t('settings.packAccentHint')}</small>
+            </>
+          ) : (
+            <>
+              <p className="settings-label" id="settings-accent-label">{t('settings.accent')}</p>
+              <div className="swatch-row" role="radiogroup" aria-labelledby="settings-accent-label">
+                {ACCENT_PRESETS.map((preset) => (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={appearance.accentPreset === preset.id}
+                    className={`swatch ${appearance.accentPreset === preset.id ? 'active' : ''}`}
+                    style={{ '--swatch-a': preset.secondary, '--swatch-b': preset.primary } as CSSProperties}
+                    onClick={() => onAppearanceChange({ accentPreset: preset.id })}
+                    data-sound="toggle"
+                  >
+                    <i aria-hidden="true" />
+                    <span>{t(`accent.${preset.id}`)}</span>
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={appearance.accentPreset === 'custom'}
+                  className={`swatch ${appearance.accentPreset === 'custom' ? 'active' : ''}`}
+                  style={{ '--swatch-a': appearance.customSecondary, '--swatch-b': appearance.customPrimary } as CSSProperties}
+                  onClick={() => onAppearanceChange({ accentPreset: 'custom' })}
+                  data-sound="toggle"
+                >
+                  <i aria-hidden="true" />
+                  <span>{t('accent.custom')}</span>
+                </button>
+              </div>
+              {appearance.accentPreset === 'custom' ? (
+                <div className="settings-fields color-fields">
+                  <label className="color-field">
+                    <input type="color" value={appearance.customPrimary} onChange={(event) => onAppearanceChange({ customPrimary: event.target.value })} />
+                    {t('settings.accentPrimary')}
+                  </label>
+                  <label className="color-field">
+                    <input type="color" value={appearance.customSecondary} onChange={(event) => onAppearanceChange({ customSecondary: event.target.value })} />
+                    {t('settings.accentSecondary')}
+                  </label>
+                </div>
+              ) : null}
+            </>
+          )}
         </div>
 
         <div className="settings-section">
@@ -216,7 +239,10 @@ export function SettingsScreen({ settings, resolvedTheme, version, catalog, acti
               type="button"
               className="ghost small"
               data-sound="none"
-              onClick={() => onAppearanceChange({ ...DEFAULT_NEBULA_APPEARANCE, theme: 'nebula-dark', language: appearance.language })}
+              onClick={() => {
+                onAppearanceChange({ ...DEFAULT_NEBULA_APPEARANCE, theme: 'nebula-dark', language: appearance.language });
+                if (settings.packTheme) onSettingsChange({ packTheme: null });
+              }}
             >
               <Icon name="refresh" size={15} />{t('settings.reset')}
             </button>

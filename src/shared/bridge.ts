@@ -1,4 +1,5 @@
 import type { NebulaAppearance } from '@nebula/design';
+import type { PackView } from './packs';
 import type { CatalogView } from './catalog-view';
 import type { DownloadsView, EnqueueResult, OperationKind, OperationPlan } from './install-state';
 import type { InstalledView, LaunchResult } from './installed-view';
@@ -27,6 +28,7 @@ export const CHANNELS = {
   installedGet: 'installed:get',
   installedRefresh: 'installed:refresh',
   installedChanged: 'installed:changed',
+  packsChanged: 'packs:changed',
   appLaunch: 'apps:launch',
   appShowFolder: 'apps:show-folder',
   appInstall: 'apps:install',
@@ -86,6 +88,8 @@ export interface InitialState {
   appVersion: string;
   /** Started hidden in the tray (launch at login): no splash, no sound. */
   startedHidden: boolean;
+  /** Appearance packs of installed family apps (docs/NEBULA_LINK.md § 18). */
+  packs: PackView[];
 }
 
 /**
@@ -113,6 +117,7 @@ export interface NebulaHubBridge {
   /** Runs a detection now. */
   refreshInstalled(): Promise<InstalledView>;
   onInstalledChanged(callback: (view: InstalledView) => void): () => void;
+  onPacksChanged(callback: (packs: PackView[]) => void): () => void;
   /** Starts an installed app (its catalog executable, inside its registered folder). */
   launchApp(appId: string): Promise<LaunchResult>;
   /** Shows the app's executable in File Explorer. */

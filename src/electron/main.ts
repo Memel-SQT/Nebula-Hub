@@ -32,10 +32,13 @@ import { showWindowsNotification } from './notifier';
 import { hardenApp, hardenSession, isTrustedSender } from './security';
 import { SettingsStore } from './settings-store';
 import { createTray, destroyTray, updateTray, type TrayOptions } from './tray';
-import { applyWindowTheme, contentBounds, createMainWindow, getMainWindow, isWindowFocused, onWindowBlur, onWindowGeometry, onWindowVisibilityChange, setQuitting, showMainWindow } from './window';
+import { applyWindowTheme, setPackChrome, contentBounds, createMainWindow, getMainWindow, isWindowFocused, onWindowBlur, onWindowGeometry, onWindowVisibilityChange, setQuitting, showMainWindow } from './window';
 import { isRect } from '../shared/dock';
 import { hubEntry, isHubUpdating } from '../shared/hub-update';
 import { shownOnHome } from '../shared/widgets';
+import { readAppearancePacks } from '@nebula/link';
+import { activePack, displayName, renameIn, renamePairs } from '../shared/packs';
+import { AppearancePacks } from './appearance-packs';
 
 // Pinned explicitly (ADR-007, ADR-013): a future product rename must never orphan the
 // consents and history. NEBULA_HUB_USER_DATA_DIR points manual tests at a throwaway folder; it
@@ -53,6 +56,12 @@ let installs: InstallManager | null = null;
 let link: LinkHub | null = null;
 let hubUpdater: HubUpdater | null = null;
 let extensions: ExtensionKeeper | null = null;
+// Appearance packs shared by installed family apps (docs/NEBULA_LINK.md § 18); a throwaway data
+// folder reads its own folder, like its session file.
+const packs = new AppearancePacks({
+  read: () => readAppearancePacks(process.env.NEBULA_HUB_USER_DATA_DIR ? { directory: path.join(app.getPath('userData'), 'link', 'appearance') } : {}),
+  installedView: () => installed?.getView() ?? { state: 'loading', apps: [], detectedAt: null },
+});
 
 /**
  * Installers are downloaded to %LOCALAPPDATA%\Nebula Hub\downloads (brief §5.3): local, never
@@ -94,7 +103,14 @@ if (!app.requestSingleInstanceLock()) {
     catalog.onChange((view) => getMainWindow()?.webContents.send(CHANNELS.catalogChanged, view));
     await catalog.loadLocal();
     installed = new InstalledAppsService({ probe: windowsProbe, apps: () => catalog?.catalogApps() ?? [], env: process.env });
+    packs.reload();
+    setPackChrome(activePack(packs.view(), settingsStore.get().packTheme)?.theme.chrome ?? null);
+    packs.onChange((view) => {
+      getMainWindow()?.webContents.send(CHANNELS.packsChanged, view);
+      broadcastSettings(settingsStore.get());
+    });
     installed.onChange((view) => {
+      packs.reload();
       getMainWindow()?.webContents.send(CHANNELS.installedChanged, view);
       updateTray(trayOptions());
       scheduleAutoUpdates();
@@ -153,7 +169,7 @@ if (!app.requestSingleInstanceLock()) {
       record: (appId) => installed?.record(appId),
       // An extension the Hub mode opens is started hidden: it shows itself inside the Hub (ADR-034).
       launch: async (appId, args) => (await launchApp(appId, args.length ? args : backgroundArgs(appId))) === 'launched',
-      appearance: () => settingsStore.get().appearance,
+      appearance: () => linkAppearance(settingsStore.get()),
       showOnHome: (capability) => shownOnHome(capability, settingsStore.get().homeWidgets),
       navigate: (route) => void openWindowOn(route),
       onChange: (view) => {
@@ -271,7 +287,20 @@ function openInHub(appId: string): void {
 }
 
 function appName(appId: string): string {
-  return catalog?.catalogApps().find((candidate) => candidate.id === appId)?.name ?? appId;
+  const name = catalog?.catalogApps().find((candidate) => candidate.id === appId)?.name ?? (appId === HUB_ID ? 'Nebula Hub' : appId);
+  return displayName(appId, name, activePack(packs.view(), settingsStore.get().packTheme));
+}
+
+/** The appearance the apps receive: the active pack theme's id in place of the built-in theme. */
+function linkAppearance(settings: HubSettings): HubSettings['appearance'] {
+  const active = activePack(packs.view(), settings.packTheme);
+  return active ? { ...settings.appearance, theme: active.theme.id as HubSettings['appearance']['theme'] } : settings.appearance;
+}
+
+/** Renames the family apps inside a sentence while a pack is active. */
+function renameApps(text: string): string {
+  const pairs = renamePairs([{ id: HUB_ID, name: 'Nebula Hub' }, ...(catalog?.catalogApps() ?? [])], activePack(packs.view(), settingsStore.get().packTheme));
+  return renameIn(text, pairs);
 }
 
 /** A new activity entry: pushed to the window, counted in the tray, relayed to Windows if needed. */
@@ -294,7 +323,7 @@ function consentRequested(consumer: string, capability: string): void {
   if (!settings.windowsNotifications || isWindowFocused()) return;
   const title = link?.view().capabilities.find((candidate) => candidate.id === capability)?.title;
   const language = settings.appearance.language;
-  const body = mainString(language, 'consentBody', { name: consumer === HUB_ID ? 'Nebula Hub' : appName(consumer), capability: (language === 'en' ? title?.en : undefined) ?? title?.fr ?? capability });
+  const body = mainString(language, 'consentBody', { name: appName(consumer), capability: (language === 'en' ? title?.en : undefined) ?? title?.fr ?? capability });
   showWindowsNotification({ title: mainString(language, 'consentTitle'), body }, () => void openWindowOn({ screen: 'integrations' }));
 }
 
@@ -333,7 +362,7 @@ function trayOptions(): TrayOptions {
     .filter((record) => record.exeFound)
     .map((record) => apps.find((candidate) => candidate.id === record.appId))
     .filter((candidate): candidate is NonNullable<typeof candidate> => Boolean(candidate) && candidate?.role !== 'hub')
-    .map((candidate) => ({ id: candidate.id, name: candidate.name }));
+    .map((candidate) => ({ id: candidate.id, name: appName(candidate.id) }));
   const entries = catalog?.getView().entries ?? [];
   const updates = (installed?.getView().apps ?? []).filter((record) => {
     const entry = entries.find((candidate) => candidate.app.id === record.appId);
@@ -352,11 +381,13 @@ function trayOptions(): TrayOptions {
     onLaunch: (appId) => (isExtension(catalog?.catalogApps().find((candidate) => candidate.id === appId)) ? openInHub(appId) : void launchApp(appId)),
     onQuit: quit,
     onQuitAll: () => void openWindow().then(() => getMainWindow()?.webContents.send(CHANNELS.quitNebulaAsk)),
+    rename: renameApps,
   };
 }
 
 function broadcastSettings(settings: HubSettings): void {
-  link?.broadcastAppearance(settings.appearance);
+  link?.broadcastAppearance(linkAppearance(settings));
+  setPackChrome(activePack(packs.view(), settings.packTheme)?.theme.chrome ?? null);
   getMainWindow()?.webContents.send(CHANNELS.settingsChanged, settings);
   applyWindowTheme(settings);
   updateTray(trayOptions());
@@ -376,7 +407,7 @@ function registerIpcHandlers(): void {
       event.returnValue = null;
       return;
     }
-    const state: InitialState = { settings: settingsStore.get(), appVersion: app.getVersion(), startedHidden };
+    const state: InitialState = { settings: settingsStore.get(), appVersion: app.getVersion(), startedHidden, packs: packs.view() };
     event.returnValue = state;
   });
 

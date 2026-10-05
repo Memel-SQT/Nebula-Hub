@@ -2,6 +2,19 @@
 
 Technical log, newest session first. Release notes live only in the GitHub release body.
 
+## [2026-10-05] - Nebula Hub Session #23 — Appearance packs (ADR-035)
+
+- **User request**: an installed family app can bring extra themes, display names and logos to the whole family, only while it is installed.
+- **SDK `@nebula/link` 1.1.0** (`appearance-pack.ts`): `AppearancePack` format, strict `parseAppearancePack` (CSS function allowlist, SVG marks without script or handlers), `readAppearancePacks` (owner's executable must exist), `writeAppearancePack` / `removeAppearancePack` for the owner, `findPackTheme`.
+- **`@nebula/design`**: `applyPackTheme` / `packBaseTheme` and the `usePackTheme` hook: the pack theme is drawn over the built-in theme of its scheme (`data-theme` unchanged, `data-pack-theme`, inline tokens).
+- **Hub**:
+  - `settings.packTheme` (separate from the built-in theme, which stays the fallback);
+  - `electron/appearance-packs.ts` reads the folder at startup and after each detection, keeps a pack only while its owner is detected installed, pushes `packs:changed`;
+  - window chrome, Link I1 broadcast (pack theme id), tray texts and notification names follow the active pack;
+  - renderer: pack themes listed after the built-in ones in Settings (accent colors hidden with a note), names and logos through the named catalog, `PackBrandContext` renames the apps inside every translated sentence, `HubLogo` shows the pack's mark, the window title follows.
+- Tests: SDK pack parser and folder round trip, `shared/packs`, `AppearancePacks`, App (offered only with a pack, applied, names and logos, back to a built-in theme, saved pack theme ignored when the pack is gone). 1021 tests pass. Checked live on a throwaway profile.
+- Spec: NEBULA_LINK.md § 18.
+
 ## [2026-10-05] - Nebula Hub Session #22 — Widgets: 25 s start grace
 
 - **User report**: the user's journal showed the Hub's first reads of the News widgets timing out right after start: News was still starting its server. The cards then stayed empty until the next refresh, 15 minutes later. The user asked the Hub to wait 25 s after an app starts before reading its widgets.

@@ -36,8 +36,15 @@ const CHROME: Record<ResolvedTheme, { page: string; ink: string }> = {
   'glass-light': { page: '#e9ebf8', ink: '#17162a' },
 };
 
+/** The active appearance pack theme's chrome (docs/NEBULA_LINK.md § 18), over the built-in one. */
+let packChrome: { page: string; ink: string } | null = null;
+
+export function setPackChrome(value: { page: string; ink: string } | null): void {
+  packChrome = value;
+}
+
 function chrome(settings: HubSettings): { page: string; ink: string } {
-  return CHROME[resolveTheme(settings.appearance.theme, nativeTheme.shouldUseDarkColors)];
+  return packChrome ?? CHROME[resolveTheme(settings.appearance.theme, nativeTheme.shouldUseDarkColors)];
 }
 
 /** Height of the drag strip (.titlebar-drag in dashboard.css) and of the window controls. */

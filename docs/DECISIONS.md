@@ -893,3 +893,22 @@ Les constats qui fondent ces décisions sont détaillés dans [DISCOVERY.md](DIS
 - **Conséquence** : les cartes d'articles de l'accueil, de Finterest et de Clock ont toujours une
   source tant que le Hub tourne. News consomme de la mémoire en permanence, comme l'utilisateur
   l'a accepté.
+
+## ADR-035 — Packs d'apparence partagés par une app installée
+
+- **Statut** : Accepté (demande de l'utilisateur du 2026-10-05).
+- **Contexte** : une app de la famille doit pouvoir apporter ses propres thèmes, noms affichés et
+  logos à toute la famille, seulement tant qu'elle est installée, en standalone comme avec le Hub.
+- **Décision** :
+  - un format de données strict, `AppearancePack` (`@nebula/link` 1.1.0, NEBULA_LINK.md § 18),
+    déposé par l'app propriétaire dans `%LOCALAPPDATA%\Nebula Link\appearance\` et lu par les
+    autres apps et le Hub ;
+  - aucune logique ni aucun contenu propre à un pack dans le Hub ou dans les apps : seulement le
+    mécanisme générique (lecture, validation, application par-dessus un thème intégré, noms et
+    logos d'affichage) ;
+  - dans le Hub : réglage `packTheme` séparé du thème intégré (repli automatique),
+    `AppearancePacks` relit le dossier à chaque détection, les thèmes des packs apparaissent après
+    les thèmes intégrés dans Réglages, et la diffusion I1 transmet l'identifiant du thème du pack.
+- **Sécurité** : données seulement (jetons CSS filtrés, SVG affichés comme images), propriétaire
+  vérifié, aucune lecture réseau. Le Hub ne lit toujours aucune donnée d'une autre app (R07) : le
+  pack est un fichier que l'app publie elle-même pour les autres.

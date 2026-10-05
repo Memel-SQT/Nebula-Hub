@@ -3,7 +3,7 @@ import { Icon, type IconName } from '@nebula/design/react';
 import type { CatalogView } from '@shared/catalog-view';
 import type { InstalledView } from '@shared/installed-view';
 import type { HubSettings, SettingsPatch } from '@shared/settings';
-import { HubMark } from '../brand/HubMark';
+import { HubLogo } from '../brand/HubMark';
 import { useT } from '../i18n';
 import { AppIcon } from './Cards';
 
@@ -66,7 +66,7 @@ export function Onboarding({ catalog, installed, settings, onSettingsChange, onF
 
         {step === 1 ? (
           <div className="onboarding-step" key="welcome">
-            <HubMark size={72} className="onboarding-mark" />
+            <HubLogo size={72} className="onboarding-mark" />
             <h2 id="onboarding-title" ref={heading} tabIndex={-1}>{t('onboarding.welcome.title')}</h2>
             <p>{t('onboarding.welcome.body')}</p>
             <ul className="onboarding-points">
