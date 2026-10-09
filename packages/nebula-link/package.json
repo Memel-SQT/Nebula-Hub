@@ -1,6 +1,6 @@
 {
   "name": "@nebula/link",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Nebula Link client SDK: local, consented integrations between the Nebula apps through Nebula Hub (protocol nebula-link/1).",
   "license": "MIT",
   "main": "dist/index.cjs",

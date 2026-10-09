@@ -3,6 +3,8 @@ import userEvent from '@testing-library/user-event';
 import { DEFAULT_SETTINGS, type HubSettings } from '../../src/shared/settings';
 import type { NebulaHubBridge } from '../../src/shared/bridge';
 import type { PackView } from '../../src/shared/packs';
+import type { NewsTabView } from '../../src/shared/news-tab';
+import type { InstalledView } from '../../src/shared/installed-view';
 import type { Route } from '../../src/shared/route';
 import type { DownloadsView } from '../../src/shared/install-state';
 import { EMPTY_LINK_VIEW } from '../../src/shared/link-view';
@@ -43,7 +45,24 @@ function entry(overrides: Partial<ActivityItem> = {}): ActivityItem {
   return { id: 1, appId: 'nebula.clock', receivedAt: '2026-10-02T09:00:00.000Z', title: 'Session terminée', body: '4 pomodoros aujourd’hui', sensitivity: 'public', deepLink: null, category: null, ...overrides };
 }
 
-function installBridge(overrides: Partial<HubSettings> = {}, startedHidden = true, installed = installedView(), packs: PackView[] = []) {
+const ARTICLES: NewsTabView = {
+  state: 'ready',
+  articles: {
+    title: 'Tech du jour',
+    updatedAt: '2026-10-09T08:00:00Z',
+    items: [
+      { title: 'Un nouveau processeur', source: 'Numerama', publishedAt: '2026-10-09T07:00:00Z', summary: 'Résumé court.', deepLink: 'nebula://news/article?id=a1' },
+      { title: 'Rust dans le noyau', source: 'LWN', publishedAt: '2026-10-09T06:00:00Z', deepLink: 'nebula://news/article?id=a2' },
+    ],
+  },
+};
+
+function withNews(): InstalledView {
+  const view = installedView();
+  return { ...view, apps: view.apps.map((app) => (app.appId === 'nebula.news' ? { ...app, exeFound: true, version: '0.6.0' } : app)) };
+}
+
+function installBridge(overrides: Partial<HubSettings> = {}, startedHidden = true, installed = installedView(), packs: PackView[] = [], news: NewsTabView = ARTICLES) {
   let settings: HubSettings = { ...DEFAULT_SETTINGS, ...overrides };
   const listeners: Array<(value: boolean) => void> = [];
   const downloadListeners: Array<(view: DownloadsView) => void> = [];
@@ -73,6 +92,7 @@ function installBridge(overrides: Partial<HubSettings> = {}, startedHidden = tru
     refreshInstalled: jest.fn(async () => installedView()),
     onInstalledChanged: () => () => undefined,
     onPacksChanged: () => () => undefined,
+    getNewsArticles: jest.fn(async () => news),
     launchApp: jest.fn(async () => 'launched' as const),
     showAppFolder: jest.fn(async () => true),
     installApp: jest.fn(async () => 'queued' as const),
@@ -234,6 +254,30 @@ describe('App', () => {
     expect(screen.queryByRole('radio', { name: 'Exemple nuit' })).not.toBeInTheDocument();
     expect(document.documentElement.dataset.packTheme).toBeUndefined();
     expect(document.documentElement.dataset.theme).toBe('nebula-dark');
+  });
+
+  it('hides the "Nebula News" tab while Nebula News is not installed (ADR-036)', async () => {
+    installBridge();
+    await render(<App />);
+    expect(screen.queryByRole('button', { name: 'Nebula News' })).not.toBeInTheDocument();
+  });
+
+  it('shows the tech articles of the day in the "Nebula News" tab', async () => {
+    const { bridge } = installBridge({}, true, withNews());
+    await render(<App />);
+    await userEvent.click(screen.getByRole('button', { name: 'Nebula News' }));
+    expect(screen.getByRole('heading', { level: 1, name: 'Actus tech' })).toBeInTheDocument();
+    expect(await screen.findByText('Un nouveau processeur')).toBeInTheDocument();
+    expect(screen.getByText('Résumé court.')).toBeInTheDocument();
+    await userEvent.click(screen.getByText('Rust dans le noyau'));
+    expect(bridge.openDeepLink).toHaveBeenCalledWith('nebula://news/article?id=a2');
+  });
+
+  it('says when Nebula News is not ready yet in the "Nebula News" tab', async () => {
+    installBridge({}, true, withNews(), [], { state: 'unavailable', articles: null });
+    await render(<App />);
+    await userEvent.click(screen.getByRole('button', { name: 'Nebula News' }));
+    expect(await screen.findByText('Nebula News se prépare')).toBeInTheDocument();
   });
 
   it('launches an installed app from the sidebar launcher', async () => {

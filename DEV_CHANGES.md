@@ -2,6 +2,14 @@
 
 Technical log, newest session first. Release notes live only in the GitHub release body.
 
+## [2026-10-09] - Nebula Hub Session #24 — "Nebula News" tab in each app (ADR-036)
+
+- **User request**: a "Nebula News" tab in each app showing that app's news.
+- **SDK `@nebula/link` 1.2.0**: schema `ArticlesV1` (title, updatedAt, up to 20 items: title, source, publishedAt, optional summary, `nebula://` link; nothing else). Tests: valid lists, web link, extra field (image), too many items, summary too long.
+- **Hub**: `shared/news-tab.ts` (`newsTabOf`: ready / empty / unavailable, only links into Nebula News kept), `LinkHub.newsArticles()` (`queryAs(nebula.hub, news.tech.articles)`), IPC `news:articles`, bridge `getNewsArticles`; route `news`, sidebar section "Nebula News" (group "Votre espace", icon `newspaper` added to `@nebula/design`), hidden while Nebula News is not installed; `NewsScreen` asks on open, every minute and when the window comes back; an article opens through `openDeepLink` (News, docked). Styles in `styles/news.css` (tokens only, transform/opacity, reduced motion).
+- Tests: `shared/news-tab.test.ts`, App (tab hidden without News, articles listed, click opens the article, "not ready" state). 1032 tests pass.
+- Spec: NEBULA_LINK.md § 8 (schema) and § 10 (I3b).
+
 ## [2026-10-05] - Nebula Hub Session #23 — Appearance packs (ADR-035)
 
 - **User request**: an installed family app can bring extra themes, display names and logos to the whole family, only while it is installed.

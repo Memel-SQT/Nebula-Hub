@@ -1,4 +1,5 @@
 import { encodeIntentArg, shortName, type Capability, type Manifest } from '@nebula/link';
+import { newsTabOf, NEWS_TAB_CAPABILITY, type NewsTabView } from '../../shared/news-tab';
 import type { ActivityItem } from '../../shared/activity';
 import type { CatalogApp } from '../../shared/catalog';
 import { decide, HUB_ID, hubConsumes, notifyCapability, pairKey, type ConsentState } from '../../shared/consent';
@@ -189,6 +190,12 @@ export class LinkHub {
 
   broadcastAppearance(appearance: unknown): void {
     this.server?.broadcast('nebula.appearance.changed', appearance);
+  }
+
+  /** The "Nebula News" tab (ADR-036): today's tech articles, read as `nebula.hub`. */
+  async newsArticles(): Promise<NewsTabView> {
+    if (!this.server) return { state: 'unavailable', articles: null };
+    return newsTabOf(await this.server.queryAs(HUB_ID, NEWS_TAB_CAPABILITY).catch(() => ({ error: 'internal' })));
   }
 
   routeDeepLink(url: string): Promise<string> {

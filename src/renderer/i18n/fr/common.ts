@@ -2,6 +2,7 @@ export const common = {
   'app.name': 'Nebula Hub',
   'app.tagline': 'Toutes vos apps Nebula, au même endroit',
   'nav.home': 'Accueil',
+  'nav.news': 'Nebula News',
   'nav.discover': 'Découvrir',
   'nav.myApps': 'Mes apps',
   'nav.downloads': 'Téléchargements',

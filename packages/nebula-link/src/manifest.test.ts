@@ -113,6 +113,7 @@ describe('schemas', () => {
     expect(validateSchema('FocusTodayV1', { date: '2026-10-02', done: 3, goal: 8, streak: 12 })).toBe(true);
     expect(validateSchema('BreakStartedV1', { kind: 'long', durationMin: 15 })).toBe(true);
     expect(validateSchema('EmptyV1', {})).toBe(true);
+    expect(validateSchema('ArticlesV1', { title: 'Finance', updatedAt: '2026-10-09T08:00:00Z', items: [{ title: 'Comprendre le taux d’usure', source: 'Le Monde', publishedAt: '2026-10-09T06:00:00Z', summary: 'Résumé court.', deepLink: 'nebula://news/article?id=abc' }, { title: 'Sans résumé', source: 'Les Échos', publishedAt: '2026-10-08T06:00:00Z', deepLink: 'nebula://news/article?id=def' }] })).toBe(true);
     expect(validateSchema('AppearanceV1', { theme: 'nebula-dark', accentPreset: 'nebula', customPrimary: '#7c5cff', customSecondary: '#38bdf8', background: 'nebula', motion: 'full', soundEnabled: true, soundVolume: 45, language: 'fr' })).toBe(true);
   });
 
@@ -123,6 +124,10 @@ describe('schemas', () => {
     ['a link that is not nebula://', 'NotificationV1', { title: 'x', body: 'y', sensitivity: 'public', deepLink: 'https://evil.example' }],
     ['a control character', 'NotificationV1', { title: 'x\u0007', body: 'y', sensitivity: 'public' }],
     ['a bad date', 'FocusTodayV1', { date: 'today', done: 1, goal: 2, streak: 0 }],
+    ['an article with a web link', 'ArticlesV1', { title: 'x', updatedAt: '2026-10-09T08:00:00Z', items: [{ title: 'a', source: 'b', publishedAt: '2026-10-09T06:00:00Z', deepLink: 'https://evil.example' }] }],
+    ['an article with an image', 'ArticlesV1', { title: 'x', updatedAt: '2026-10-09T08:00:00Z', items: [{ title: 'a', source: 'b', publishedAt: '2026-10-09T06:00:00Z', deepLink: 'nebula://news/article?id=a', imageUrl: 'https://x/y.png' }] }],
+    ['too many articles', 'ArticlesV1', { title: 'x', updatedAt: '2026-10-09T08:00:00Z', items: Array.from({ length: 21 }, () => ({ title: 'a', source: 'b', publishedAt: '2026-10-09T06:00:00Z', deepLink: 'nebula://news/article?id=a' })) }],
+    ['a summary too long', 'ArticlesV1', { title: 'x', updatedAt: '2026-10-09T08:00:00Z', items: [{ title: 'a', source: 'b', publishedAt: '2026-10-09T06:00:00Z', summary: 's'.repeat(401), deepLink: 'nebula://news/article?id=a' }] }],
     ['a missing field', 'AppearanceV1', { theme: 'nebula-dark' }],
   ])('refuses %s', (_label, name, value) => {
     expect(validateSchema(name as never, value)).toBe(false);

@@ -1,0 +1,12 @@
+/* The "Nebula News" tab (ADR-036): one article per card, full width, tokens only. */
+.news-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 0.9rem; margin: 0; padding: 0; list-style: none; }
+.news-item { display: grid; align-content: start; gap: 0.5rem; width: 100%; height: 100%; padding: 1.1rem 1.2rem; border-radius: var(--radius-lg, 20px); text-align: left; color: var(--ink); transition: transform var(--motion-fast) var(--ease-out), opacity var(--motion-fast) var(--ease-out); }
+.news-item:hover { transform: translateY(-2px); }
+.news-item:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.news-meta { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.4rem; color: var(--muted); font-size: 0.78rem; }
+.news-meta strong { color: var(--accent-hover); font-weight: 600; }
+.news-title { font-size: 1rem; font-weight: 650; line-height: 1.4; }
+.news-summary { color: var(--muted); font-size: 0.85rem; line-height: 1.55; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+.news-open { display: inline-flex; align-items: center; gap: 0.35rem; margin-top: 0.2rem; color: var(--accent-hover); font-size: 0.8rem; font-weight: 600; }
+@media (prefers-reduced-motion: reduce) { .news-item, .news-item:hover { transition: none; transform: none; } }
+:root[data-motion='off'] .news-item:hover { transform: none; }

@@ -59,6 +59,7 @@ const bridge: NebulaHubBridge = {
   getWidgets: () => ipcRenderer.invoke(CHANNELS.widgetsGet),
   onWidgetsChanged: (callback) => subscribe<WidgetView[]>(CHANNELS.widgetsChanged, callback),
   refreshWidget: (capabilityId) => ipcRenderer.invoke(CHANNELS.widgetRefresh, capabilityId),
+  getNewsArticles: () => ipcRenderer.invoke(CHANNELS.newsArticles),
   getActivity: () => ipcRenderer.invoke(CHANNELS.activityGet),
   onActivityChanged: (callback) => subscribe<ActivityItem[]>(CHANNELS.activityChanged, callback),
   clearActivity: (appId) => ipcRenderer.invoke(CHANNELS.activityClear, appId),

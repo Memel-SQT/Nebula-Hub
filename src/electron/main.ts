@@ -663,6 +663,11 @@ function registerIpcHandlers(): void {
     return link.widgets.views();
   });
 
+  ipcMain.handle(CHANNELS.newsArticles, async (event) => {
+    if (!isTrustedSender(event)) throw new Error('ERR_UNTRUSTED_SENDER');
+    return link ? link.newsArticles() : { state: 'unavailable', articles: null };
+  });
+
   ipcMain.handle(CHANNELS.widgetRefresh, async (event, capabilityId: unknown) => {
     if (!isTrustedSender(event) || !link || typeof capabilityId !== 'string') return false;
     await link.widgets.refresh(capabilityId);

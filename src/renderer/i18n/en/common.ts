@@ -4,6 +4,7 @@ export const common: Record<keyof typeof fr, string> = {
   'app.name': 'Nebula Hub',
   'app.tagline': 'All your Nebula apps, in one place',
   'nav.home': 'Home',
+  'nav.news': 'Nebula News',
   'nav.discover': 'Discover',
   'nav.myApps': 'My apps',
   'nav.downloads': 'Downloads',

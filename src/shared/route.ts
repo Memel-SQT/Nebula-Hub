@@ -4,6 +4,8 @@
  */
 export type Route =
   | { screen: 'home' }
+  /** Today's tech articles from Nebula News (ADR-036). */
+  | { screen: 'news' }
   | { screen: 'discover' }
   | { screen: 'app'; appId: string }
   | { screen: 'my-apps' }

@@ -912,3 +912,14 @@ Les constats qui fondent ces décisions sont détaillés dans [DISCOVERY.md](DIS
 - **Sécurité** : données seulement (jetons CSS filtrés, SVG affichés comme images), propriétaire
   vérifié, aucune lecture réseau. Le Hub ne lit toujours aucune donnée d'une autre app (R07) : le
   pack est un fichier que l'app publie elle-même pour les autres.
+
+## ADR-036 — Un onglet « Nebula News » dans chaque app
+
+- **Statut** : Accepté (demande de l'utilisateur du 2026-10-09 : « j'aimerais vraiment que l'app ait son intégration dans chaque app, un onglet "Nebula News" qui permet de voir les infos par app »). Prolonge ADR-034 (News, extension des autres apps).
+- **Constat** : les widgets ne portent que trois articles (5 lignes au plus en `WidgetV1`), ce qui ne suffit pas pour lire l'actualité d'une app.
+- **Décision** :
+  - nouveau schéma `ArticlesV1` (SDK 1.2.0) : 20 articles au plus, titre, source, date, résumé facultatif et un lien `nebula://news/article?id=…` ; aucune URL, aucun HTML, aucune image ;
+  - Nebula News 0.6.0 fournit une requête publique par thème : `news.finance.articles` (Finterest), `news.focus.articles` (Clock), `news.tech.articles` (Hub), et le lien profond `/article?id=` ;
+  - chaque app a un onglet « Nebula News » qui affiche les articles de son thème ; un clic ouvre l'article dans Nebula News, donc dans le Hub (ADR-034) ;
+  - dans le Hub, l'onglet n'apparaît que si Nebula News est installée ; il lit comme `nebula.hub`, comme les widgets, et ne garde que les liens vers Nebula News.
+- **Ordre de publication** : le SDK 1.2.0 et le Hub 0.2.7 d'abord (le Hub doit connaître `ArticlesV1` pour accepter le manifeste de News 0.6.0), puis News 0.6.0, puis les apps.

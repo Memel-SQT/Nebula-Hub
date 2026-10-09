@@ -12,6 +12,7 @@ export type SectionGroup = 'space' | 'manage' | 'system';
 
 export const SECTIONS: ReadonlyArray<{ id: Section; icon: IconName; labelKey: TranslationKey; group: SectionGroup }> = [
   { id: 'home', icon: 'navHome', labelKey: 'nav.home', group: 'space' },
+  { id: 'news', icon: 'newspaper', labelKey: 'nav.news', group: 'space' },
   { id: 'discover', icon: 'compass', labelKey: 'nav.discover', group: 'space' },
   { id: 'my-apps', icon: 'apps', labelKey: 'nav.myApps', group: 'space' },
   { id: 'downloads', icon: 'downloadTray', labelKey: 'nav.downloads', group: 'manage' },

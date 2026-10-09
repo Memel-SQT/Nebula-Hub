@@ -23,7 +23,7 @@ const GROUP_TITLES: Record<Exclude<SectionGroup, 'system'>, TranslationKey> = {
  * local-only footer pinned at the bottom. Below 1100 px it becomes an icon rail (labels stay
  * as tooltips and for screen readers), below 720 px a bar at the top (app.css).
  */
-export function Sidebar({ active, version, launcher, installed, downloads, link, hubUpdate, onNavigate, onLaunch, onHubUpdate, onCancelHubUpdate, onQuitNebula }: {
+export function Sidebar({ active, version, launcher, installed, downloads, link, hubUpdate, onNavigate, onLaunch, onHubUpdate, onCancelHubUpdate, onQuitNebula, hiddenSections = [] }: {
   active: Section;
   version: string;
   launcher: CatalogEntry[];
@@ -37,6 +37,8 @@ export function Sidebar({ active, version, launcher, installed, downloads, link,
   onCancelHubUpdate?: () => void;
   /** "Quit Nebula": closes every Nebula app, then the Hub, after a confirmation (ADR-030). */
   onQuitNebula?: () => void;
+  /** Sections not offered here (the "Nebula News" tab without Nebula News installed). */
+  hiddenSections?: Section[];
 }) {
   const t = useT();
   const running = downloads?.operations.filter((operation) => isActive(operation.phase)).length ?? 0;
@@ -82,7 +84,7 @@ export function Sidebar({ active, version, launcher, installed, downloads, link,
         {(Object.keys(GROUP_TITLES) as Array<keyof typeof GROUP_TITLES>).map((group) => (
           <div key={group} className="nav-group" role="group" aria-labelledby={`nav-group-${group}`}>
             <p className="nav-group-title" id={`nav-group-${group}`}>{t(GROUP_TITLES[group])}</p>
-            {SECTIONS.filter((section) => section.group === group).map(navItem)}
+            {SECTIONS.filter((section) => section.group === group && !hiddenSections.includes(section.id)).map(navItem)}
           </div>
         ))}
 

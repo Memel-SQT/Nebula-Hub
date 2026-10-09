@@ -36,6 +36,8 @@ import { HomeScreen } from './screens/HomeScreen';
 import { IntegrationsScreen } from './screens/IntegrationsScreen';
 import { MyAppsScreen } from './screens/MyAppsScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
+import { NewsScreen } from './screens/NewsScreen';
+import { NEWS_APP_ID } from '@shared/news-tab';
 
 /** Every panel opts into the liquid glass treatment with this class (see effects.ts). */
 const GLASS_SURFACES = '.nebula-surface';
@@ -319,6 +321,10 @@ export function App() {
     void bridge.openDeepLink(url);
   }, [bridge]);
 
+  // The "Nebula News" tab exists only with Nebula News installed (ADR-036).
+  const newsInstalled = installed.apps.some((record) => record.appId === NEWS_APP_ID && record.exeFound);
+  const loadNews = useCallback(() => bridge.getNewsArticles(), [bridge]);
+
   const refreshWidget = useCallback((capability: string) => {
     void bridge.refreshWidget(capability);
   }, [bridge]);
@@ -535,7 +541,7 @@ export function App() {
       {background}
       <div className="titlebar-drag" aria-hidden="true" />
       <main className="app-shell">
-        <Sidebar active={sectionOf(route)} version={initial.appVersion} launcher={familyEntries(shownCatalog)} installed={installed} downloads={downloads} link={link} hubUpdate={hubUpdate} onNavigate={setRoute} onLaunch={launchApp} onHubUpdate={requestHubUpdate} onCancelHubUpdate={cancelHubUpdate} onQuitNebula={requestQuitNebula} />
+        <Sidebar active={sectionOf(route)} version={initial.appVersion} launcher={familyEntries(shownCatalog)} installed={installed} downloads={downloads} link={link} hubUpdate={hubUpdate} onNavigate={setRoute} onLaunch={launchApp} onHubUpdate={requestHubUpdate} onCancelHubUpdate={cancelHubUpdate} onQuitNebula={requestQuitNebula} hiddenSections={newsInstalled ? [] : ['news']} />
         <div className="workspace-column">
           {saveError ? <ErrorState message={t('error.saveSettings')} /> : null}
           {launchError ? <ErrorState message={launchError} onRetry={() => setLaunchError(null)} /> : null}
@@ -556,6 +562,7 @@ export function App() {
               onOpenActivity={openActivity}
             />
           ) : null}
+          {route.screen === 'news' && newsInstalled ? <NewsScreen load={loadNews} onOpenLink={openDeepLink} /> : null}
           {route.screen === 'discover' ? <DiscoverScreen {...catalogProps} /> : null}
           {route.screen === 'docked' ? <DockedScreen key={route.appId} appId={route.appId} catalog={named} dock={dock} covered={dialog !== null || onboarding || quitting} onShow={showDocked} onRelease={releaseDocked} onNavigate={setRoute} onArea={setDockArea} /> : null}
           {route.screen === 'app' ? <AppDetailScreen key={route.appId} {...catalogProps} appId={route.appId} loadAsset={loadAsset} onOpenLink={openLink} /> : null}

@@ -1,4 +1,5 @@
 import type { NebulaAppearance } from '@nebula/design';
+import type { NewsTabView } from './news-tab';
 import type { PackView } from './packs';
 import type { CatalogView } from './catalog-view';
 import type { DownloadsView, EnqueueResult, OperationKind, OperationPlan } from './install-state';
@@ -51,6 +52,7 @@ export const CHANNELS = {
   widgetsGet: 'widgets:get',
   widgetsChanged: 'widgets:changed',
   widgetRefresh: 'widgets:refresh',
+  newsArticles: 'news:articles',
   activityGet: 'activity:get',
   activityChanged: 'activity:changed',
   activityClear: 'activity:clear',
@@ -161,6 +163,8 @@ export interface NebulaHubBridge {
   onWidgetsChanged(callback: (widgets: WidgetView[]) => void): () => void;
   /** Reads one widget now. */
   refreshWidget(capabilityId: string): Promise<boolean>;
+  /** The "Nebula News" tab: today's tech articles from Nebula News (ADR-036). */
+  getNewsArticles(): Promise<NewsTabView>;
   /** Activity center (I5): the last 30 days, newest first. */
   getActivity(): Promise<ActivityItem[]>;
   onActivityChanged(callback: (items: ActivityItem[]) => void): () => void;

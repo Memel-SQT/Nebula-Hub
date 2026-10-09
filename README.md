@@ -25,6 +25,9 @@ Windows, sans compte et sans télémétrie.
 - **Nebula News, extension de vos apps** : tant que le Hub est ouvert, Nebula News tourne en
   arrière-plan, sans fenêtre (réglage dans Réglages → Comportement), pour que ses articles
   apparaissent dans le Hub, Nebula Finterest et Nebula Clock. L'ouvrir l'affiche dans le Hub.
+- **Onglet « Nebula News »** : le Hub a son onglet avec les actus tech du jour, comme Nebula
+  Finterest (finance) et Nebula Clock (développement personnel). Un clic ouvre l'article dans
+  Nebula News.
 - **Vos apps restent autonomes** : chacune s'installe, fonctionne et se met à jour seule. Le Hub
   est un plus, jamais une obligation, et vous pouvez passer de l'un à l'autre sans perdre vos
   données.

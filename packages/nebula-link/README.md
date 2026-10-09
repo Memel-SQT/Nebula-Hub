@@ -62,3 +62,9 @@ const chosen = findPackTheme(packs, appearance.theme);  // thème du pack reçu 
 
 L'app propriétaire publie le sien avec `writeAppearancePack(pack)` à chaque démarrage et le
 retire avec `removeAppearancePack(id)`.
+
+## Articles (1.2.0)
+
+Le schéma `ArticlesV1` sert à l'onglet « Nebula News » de chaque app : jusqu'à 20 articles (titre,
+source, date, résumé facultatif, lien `nebula://news/article?id=…`). L'app le demande sans paramètre
+(`link.query('news.finance.articles')`) et vérifie la réponse avec `validateSchema('ArticlesV1', …)`.

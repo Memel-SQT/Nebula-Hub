@@ -4,7 +4,7 @@
  * value of the wrong shape, and texts are bounded so a buggy app cannot flood a screen.
  * A breaking change makes a new name (`…V2`).
  */
-export const SCHEMA_NAMES = ['AppearanceV1', 'WidgetV1', 'NotificationV1', 'HeadlinesV1', 'FocusTodayV1', 'BreakStartedV1', 'PresenceV1', 'EmptyV1', 'DockV1'] as const;
+export const SCHEMA_NAMES = ['AppearanceV1', 'WidgetV1', 'NotificationV1', 'HeadlinesV1', 'FocusTodayV1', 'BreakStartedV1', 'PresenceV1', 'EmptyV1', 'DockV1', 'ArticlesV1'] as const;
 export type SchemaName = (typeof SCHEMA_NAMES)[number];
 
 export function isSchemaName(value: unknown): value is SchemaName {
@@ -65,6 +65,13 @@ const CHECKS: Record<SchemaName, Check> = {
   BreakStartedV1: shape({ kind: (value) => value === 'short' || value === 'long', durationMin: integer(1, 240) }),
   PresenceV1: shape({ hubVersion: text(40), protocol: text(40), managesUpdates: (value) => typeof value === 'boolean' }),
   EmptyV1: shape({}),
+  // A list of articles (§ 10, I3b): what an app shows in its own "Nebula News" tab. Plain bounded
+  // texts and a nebula:// link only (opens the article in Nebula News): no URL, no HTML, no image.
+  ArticlesV1: shape({
+    title: text(80),
+    updatedAt: isoTime,
+    items: list(shape({ title: text(200), source: text(80), publishedAt: isoTime, summary: text(400, true), deepLink: deepLink(false) }), 20),
+  }),
   // Hub mode (§ 17): where the app window goes, in screen DIPs, or back to standalone.
   DockV1: (value) => shape({ state: (state) => state === 'released' })(value)
     || shape({
