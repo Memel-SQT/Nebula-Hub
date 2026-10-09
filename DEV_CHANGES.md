@@ -14,6 +14,7 @@ Technical log, newest session first. Release notes live only in the GitHub relea
   - renderer: pack themes listed after the built-in ones in Settings (accent colors hidden with a note), names and logos through the named catalog, `PackBrandContext` renames the apps inside every translated sentence, `HubLogo` shows the pack's mark, the window title follows.
 - Tests: SDK pack parser and folder round trip, `shared/packs`, `AppearancePacks`, App (offered only with a pack, applied, names and logos, back to a built-in theme, saved pack theme ignored when the pack is gone). 1021 tests pass. Checked live on a throwaway profile.
 - Spec: NEBULA_LINK.md § 18.
+- **Version 0.2.6** (released at the user's request 2026-10-09): the 25 s widget start grace (session #22) and this session. The apps showing News articles on their own shipped the same day (Finterest 0.1.42, Clock 1.6.0).
 
 ## [2026-10-05] - Nebula Hub Session #22 — Widgets: 25 s start grace
 
