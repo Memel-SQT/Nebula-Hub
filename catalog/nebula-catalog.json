@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "generatedAt": "2026-10-04T20:00:00Z",
+  "generatedAt": "2026-10-09T20:00:00Z",
   "apps": [
     {
       "id": "nebula.finterest",
@@ -95,7 +95,7 @@
       },
       "link": { "manifest": "nebula.app.json", "minProtocol": 1 },
       "extension": { "backgroundArgument": "--background", "minVersion": "0.5.0" },
-      "minHubVersion": "0.1.0"
+      "minHubVersion": "0.2.7"
     },
     {
       "id": "nebula.finance-enterprise",
