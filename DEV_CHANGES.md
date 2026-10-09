@@ -9,6 +9,8 @@ Technical log, newest session first. Release notes live only in the GitHub relea
 - **Hub**: `shared/news-tab.ts` (`newsTabOf`: ready / empty / unavailable, only links into Nebula News kept), `LinkHub.newsArticles()` (`queryAs(nebula.hub, news.tech.articles)`), IPC `news:articles`, bridge `getNewsArticles`; route `news`, sidebar section "Nebula News" (group "Votre espace", icon `newspaper` added to `@nebula/design`), hidden while Nebula News is not installed; `NewsScreen` asks on open, every minute and when the window comes back; an article opens through `openDeepLink` (News, docked). Styles in `styles/news.css` (tokens only, transform/opacity, reduced motion).
 - Tests: `shared/news-tab.test.ts`, App (tab hidden without News, articles listed, click opens the article, "not ready" state). 1032 tests pass.
 - Spec: NEBULA_LINK.md § 8 (schema) and § 10 (I3b).
+- Catalog: Nebula News needs Hub 0.2.7 (`minHubVersion`), re-signed.
+- **Version 0.2.7** (released at the user's request 2026-10-09), with SDK link-v1.2.0, News 0.6.0, Finterest 0.1.43 and Clock 1.7.0.
 
 ## [2026-10-05] - Nebula Hub Session #23 — Appearance packs (ADR-035)
 
