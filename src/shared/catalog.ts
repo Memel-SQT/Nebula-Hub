@@ -1,5 +1,6 @@
 import { isSafeFileName } from './latest-yml';
 import { isSemver } from './semver';
+import { ALLOWED_HOSTS } from './net-policy';
 
 /**
  * Catalog format, schema 1 (brief §6.2, documented in docs/CATALOG.md). The catalog is signed
@@ -45,6 +46,11 @@ export interface CatalogApp {
   icon: string;
   screenshots: string[];
   source: { provider: 'github'; owner: string; repo: string };
+  /**
+   * ADR-038: the releases come from a Gitea server of the allowlist instead of `source`, optionally
+   * pre-releases only (an app that ships beta builds) with their own update feed. Ignored by older Hubs.
+   */
+  releases?: { provider: 'gitea'; host: string; owner: string; repo: string; prereleases: boolean; updateFeed: string };
   windows: {
     productName: string;
     appId: string;
@@ -181,6 +187,23 @@ function validateApp(value: unknown, path: string, check: Checker): CatalogApp |
     check.pattern(source.repo, `${path}.source.repo`, /^(?!\.\.?$)[A-Za-z0-9._-]{1,100}$/, 'a GitHub repository');
   }
 
+  const releases = app.releases === undefined ? null : asRecord(app.releases);
+  if (app.releases !== undefined) {
+    if (
+      !releases
+      || releases.provider !== 'gitea'
+      || typeof releases.host !== 'string'
+      || !(ALLOWED_HOSTS as readonly string[]).includes(releases.host)
+      || !/^[A-Za-z0-9](?:[A-Za-z0-9._-]{0,38})$/.test(String(releases.owner))
+      || !/^(?!\.\.?$)[A-Za-z0-9._-]{1,100}$/.test(String(releases.repo))
+      || typeof releases.prereleases !== 'boolean'
+      || !isSafeFileName(releases.updateFeed)
+      || !/\.ya?ml$/i.test(String(releases.updateFeed))
+    ) {
+      check.fail(`${path}.releases`, 'expected { provider: "gitea", host (allowlisted), owner, repo, prereleases, updateFeed }');
+    }
+  }
+
   const windows = asRecord(app.windows);
   let backup: PreOperationBackup | undefined;
   if (!windows) {
@@ -241,6 +264,7 @@ function validateApp(value: unknown, path: string, check: Checker): CatalogApp |
     icon: String(app.icon),
     screenshots: (app.screenshots as string[]).slice(),
     source: { provider: 'github', owner: String(source.owner), repo: String(source.repo) },
+    ...(releases ? { releases: { provider: 'gitea' as const, host: String(releases.host), owner: String(releases.owner), repo: String(releases.repo), prereleases: Boolean(releases.prereleases), updateFeed: String(releases.updateFeed) } } : {}),
     windows: {
       productName: String(windows.productName),
       appId: String(windows.appId),

@@ -28,6 +28,31 @@ describe('validateCatalog', () => {
     }
   });
 
+  it('reads Nebula Finance Enterprise releases from its Gitea server, pre-releases and beta.yml (ADR-038)', () => {
+    const result = validateCatalog(SOURCE);
+    expect(result.ok && result.catalog.apps.find((app) => app.id === 'nebula.finance-enterprise')?.releases).toEqual({
+      provider: 'gitea',
+      host: 'git.rodriguesnoa.fr',
+      owner: 'noa',
+      repo: 'Nebula-Finance-Enterprise',
+      prereleases: true,
+      updateFeed: 'beta.yml',
+    });
+  });
+
+  it.each([
+    ['a host outside the allowlist', { host: 'example.com' }],
+    ['another provider', { provider: 'gitlab' }],
+    ['a feed that is not a .yml file', { updateFeed: 'beta.exe' }],
+    ['a path in the repository name', { repo: '../x' }],
+    ['prereleases not a boolean', { prereleases: 'yes' }],
+  ])('rejects releases with %s', (_label, patch) => {
+    const value = clone();
+    const app = value.apps.find((candidate: Json) => candidate.id === 'nebula.finance-enterprise');
+    app.releases = { ...app.releases, ...patch };
+    expect(errorsOf(value).some((error) => error.includes('releases'))).toBe(true);
+  });
+
   it('every icon and screenshot it references exists', () => {
     for (const app of SOURCE.apps) {
       for (const asset of [app.icon, ...app.screenshots]) {

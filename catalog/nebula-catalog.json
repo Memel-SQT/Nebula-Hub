@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "generatedAt": "2026-10-09T20:00:00Z",
+  "generatedAt": "2026-10-10T18:00:00Z",
   "apps": [
     {
       "id": "nebula.finterest",
@@ -124,6 +124,7 @@
         "en": "The company’s encrypted vault stays on this computer. Uninstalling deletes the app’s data: make a backup from Nebula Finance Enterprise first."
       },
       "link": { "manifest": "nebula.app.json", "minProtocol": 1 },
+      "releases": { "provider": "gitea", "host": "git.rodriguesnoa.fr", "owner": "noa", "repo": "Nebula-Finance-Enterprise", "prereleases": true, "updateFeed": "beta.yml" },
       "visibility": "installed-only",
       "minHubVersion": "0.2.3"
     },

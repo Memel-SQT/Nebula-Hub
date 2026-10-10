@@ -2,6 +2,15 @@
 
 Technical log, newest session first. Release notes live only in the GitHub release body.
 
+## [2026-10-10] - Nebula Hub Session #26 — Nebula Finance Enterprise updates from Gitea (ADR-038); 0.2.9
+
+- **User request**: Nebula Finance Enterprise, once installed, must be handled by the Hub like the other apps (updates, opening inside the Hub).
+- **Finding**: detection, Hub mode and Link already worked; its releases live on the publisher's Gitea (`git.rodriguesnoa.fr`, allowlisted), pre-releases only, with `beta.yml`: the Hub only read GitHub and stable releases, so no update showed.
+- `shared/catalog.ts`: optional `releases` (`provider: "gitea"`, allowlisted `host`, `owner`, `repo`, `prereleases`, `updateFeed`), validated; older Hubs ignore it. `shared/release-source.ts`: `releasesRequest` (Gitea `/api/v1/repos/…/releases?draft=false&limit=20`, or GitHub as before), `releaseChannel` (pre-releases followed when declared), `updateFeedOf`. `CatalogService.fetchRelease` uses them; the parser, the feed and the installer checks are unchanged (R02, R05).
+- Catalog: Enterprise gets `releases` (Gitea, pre-releases, `beta.yml`); re-signed.
+- Tests: catalog `releases` accepted and rejected (host outside the allowlist, other provider, feed, path in repo, non-boolean), `release-source`. 1042 tests pass. Checked against the real Gitea releases and with a throwaway Hub and the installed Enterprise (installed, update 0.7.0-beta.1 found, dockable, connected).
+- **Version 0.2.9**.
+
 ## [2026-10-10] - Nebula Hub Session #25 — Automatic updates of background extensions (ADR-037); 0.2.8
 
 - **User report**: the "Nebula News" tabs stayed empty. The registry showed Nebula News still at 0.5.0: `InstallManager.autoUpdate` skips running apps, and since ADR-034 News always runs in the background, so it was never updated (Finterest and Clock were).

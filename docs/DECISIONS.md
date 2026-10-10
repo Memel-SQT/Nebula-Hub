@@ -930,3 +930,17 @@ Les constats qui fondent ces décisions sont détaillés dans [DISCOVERY.md](DIS
 - **Constat** : Nebula News était restée en 0.5.0 alors que la 0.6.0 était publiée et sa mise à jour automatique activée. La mise à jour automatique saute toute app ouverte (brief § 7.5), or depuis ADR-034 le Hub garde News ouverte en arrière-plan en permanence : elle n'était donc jamais mise à jour.
 - **Décision** : une extension qui tourne **seulement en arrière-plan** (lancée par le Hub, sans fenêtre, pas affichée dans le Hub) compte comme fermée pour sa mise à jour automatique. Le Hub l'arrête (`taskkill /F /T`, elle n'a pas de fenêtre à qui demander poliment), attend qu'elle soit sortie (10 s au plus), installe, puis la relance en arrière-plan (`ExtensionKeeper`, bloqué pendant l'opération).
 - **Limites** : jamais si l'utilisateur l'a ouverte dans le Hub ; jamais pour une app qui n'est pas une extension ; si elle ne s'arrête pas, l'essai échoue comme une app ouverte et sera repris. La mise à jour automatique reste un choix de l'utilisateur par app (R08 : ce choix vaut accord pour fermer l'instance d'arrière-plan qu'il ne voit pas).
+
+## ADR-038 — Releases lues sur Gitea (Nebula Finance Enterprise)
+
+- **Statut** : Accepté (demande de l'utilisateur du 2026-10-10 : « fais en sorte que Nebula Hub voie l'app et que, seulement si Enterprise est installée, elle ait sa propre intégration au niveau des mises à jour et de l'ouverture dans le Hub ; on doit pouvoir se servir du Hub pour celle-ci comme pour les autres apps »).
+- **Constat** :
+  - Nebula Finance Enterprise est déjà détectée (ADR-033, visible seulement installée), ouvrable dans le Hub (elle s'abonne à `nebula.hub.dock`) et connectée à Nebula Link.
+  - Ses releases, en revanche, sont publiées sur le Gitea de l'éditeur (`git.rodriguesnoa.fr`, déjà dans la liste autorisée R05), uniquement en préversions (`0.x.0-beta.1`) avec un fichier `beta.yml`. Le Hub ne lisait que GitHub et les versions stables : aucune mise à jour n'apparaissait.
+- **Décision** :
+  - nouveau champ facultatif de catalogue `releases: { provider: "gitea", host, owner, repo, prereleases, updateFeed }` ;
+  - le serveur doit être dans la liste autorisée. L'API des releases de Gitea a la même forme que celle de GitHub : le même analyseur sert, et chaque fichier reste vérifié (taille, SHA-512, R02) ;
+  - `prereleases: true` suit les préversions quel que soit le canal du Hub ;
+  - `updateFeed` remplace `windows.updateFeed` ;
+  - les Hubs plus anciens ignorent ce champ (le catalogue reste accepté) et gardent `source`.
+- **Vérifié** : sur les vraies releases Gitea, le Hub choisit 0.7.0-beta.1 sur le canal stable, lit `beta.yml`, trouve l'installeur à la bonne taille, et toutes les adresses restent dans la liste autorisée. Avec Enterprise installée, un Hub de test la voit installée, propose la mise à jour, la compte parmi les apps ouvrables dans le Hub et la voit connectée.

@@ -1,4 +1,5 @@
 import fs from 'node:fs/promises';
+import { releaseChannel, releasesRequest, updateFeedOf } from '../../shared/release-source';
 import path from 'node:path';
 import { isSafeAssetPath, validateCatalog, type Catalog, type CatalogApp } from '../../shared/catalog';
 import type { CatalogEntry, CatalogSourceId, CatalogView, ReleaseInfo, ReleaseIssue } from '../../shared/catalog-view';
@@ -328,14 +329,15 @@ export class CatalogService {
     const checkedAt = this.now().toISOString();
     let result: StoredRelease;
     try {
-      const url = `https://api.github.com/repos/${app.source.owner}/${app.source.repo}/releases?per_page=20`;
-      const body = await this.cachedGet(url, RELEASES_MAX_BYTES, { accept: 'application/vnd.github+json', 'x-github-api-version': '2022-11-28' });
-      const release = pickRelease(parseReleases(JSON.parse(body.toString('utf8'))), channel);
+      // GitHub by default; a Gitea server of the allowlist when the catalog says so (ADR-038).
+      const request = releasesRequest(app);
+      const body = await this.cachedGet(request.url, RELEASES_MAX_BYTES, request.headers);
+      const release = pickRelease(parseReleases(JSON.parse(body.toString('utf8'))), releaseChannel(app, channel));
       if (!release) {
         result = { channel, release: null, issue: 'no-release', checkedAt };
       } else {
         const info: ReleaseInfo = { version: release.version, tag: release.tag, name: release.name, publishedAt: release.publishedAt, notes: release.notes, prerelease: release.prerelease, installer: null };
-        const feedAsset = release.assets.find((asset) => asset.name === app.windows.updateFeed);
+        const feedAsset = release.assets.find((asset) => asset.name === updateFeedOf(app));
         if (!feedAsset) {
           result = { channel, release: info, issue: 'no-feed', checkedAt };
         } else {

@@ -58,6 +58,7 @@ erreur rejette le catalogue entier.
       "dataNotice": { "fr": "…", "en": "…" },          // affiché avant désinstallation ou réparation
       "link": { "manifest": "nebula.app.json", "minProtocol": 1 },
       "visibility": "installed-only",   // facultatif (ADR-033) : visible seulement si l'app est détectée
+      "releases": { "provider": "gitea", "host": "git.rodriguesnoa.fr", "owner": "noa", "repo": "…", "prereleases": true, "updateFeed": "beta.yml" },   // facultatif (ADR-038) : releases lues sur un serveur Gitea de la liste autorisée (R05), préversions suivies, fichier de mise à jour propre ; ignoré par les Hubs plus anciens
       "extension": { "backgroundArgument": "--background", "minVersion": "0.5.0" },  // facultatif (ADR-034) : gardée en arrière-plan, ouverte dans le Hub
       "minHubVersion": "0.1.0"
     }
