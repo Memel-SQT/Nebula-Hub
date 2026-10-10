@@ -944,3 +944,14 @@ Les constats qui fondent ces décisions sont détaillés dans [DISCOVERY.md](DIS
   - `updateFeed` remplace `windows.updateFeed` ;
   - les Hubs plus anciens ignorent ce champ (le catalogue reste accepté) et gardent `source`.
 - **Vérifié** : sur les vraies releases Gitea, le Hub choisit 0.7.0-beta.1 sur le canal stable, lit `beta.yml`, trouve l'installeur à la bonne taille, et toutes les adresses restent dans la liste autorisée. Avec Enterprise installée, un Hub de test la voit installée, propose la mise à jour, la compte parmi les apps ouvrables dans le Hub et la voit connectée.
+
+## ADR-039 — Fermer Nebula News pour une opération (mise à jour bloquée)
+
+- **Statut** : Accepté (demande de l'utilisateur du 2026-10-10 : « permets à l'app de fermer de force News : comme elle ne s'ouvre que dans le Hub, parfois la mise à jour est bloquée »).
+- **Constat** :
+  - Une mise à jour, réparation ou désinstallation lancée à la main attend que l'app soit fermée (R08). Le bouton « Fermer » envoie une demande polie, que Windows adresse aux fenêtres de l'app.
+  - Nebula News n'a pas de fenêtre à elle : elle tourne en arrière-plan ou dans le Hub (ADR-034). La demande ne lui parvient pas, et l'opération attendait sans fin.
+- **Décision** :
+  - une extension qui tourne **seulement en arrière-plan** est arrêtée par le Hub avant toute opération, manuelle comme automatique (ADR-037 étendu aux opérations manuelles), puis relancée après ;
+  - si l'utilisateur l'a ouverte dans le Hub, l'opération attend comme pour les autres apps, mais « Fermer Nebula News » l'**arrête** (`taskkill /F /T`) au lieu de la demande polie. News ne contient rien en cours d'édition ;
+  - rien ne change pour les autres apps : demande polie seulement (R08).

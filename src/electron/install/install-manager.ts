@@ -67,6 +67,10 @@ export interface InstallManagerDeps {
   mayStopForUpdate?(appId: string): boolean;
   /** Stops that background instance; resolves once it has exited (false if it did not). */
   stopForUpdate?(appId: string): Promise<boolean>;
+  /** ADR-039: an extension (Nebula News), which has no window of its own to close politely. */
+  isExtension?(appId: string): boolean;
+  /** Stops an extension the user asked the Hub to close, wherever it is shown (Hub mode too). */
+  forceCloseExtension?(appId: string): Promise<boolean>;
   download: Downloader;
   verify(filePath: string, size: number, sha512: string): Promise<void>;
   runner: InstallerRunner;
@@ -275,12 +279,20 @@ export class InstallManager {
     return true;
   }
 
-  /** R08: the user asked the Hub to close the app it is waiting for — one polite request. */
+  /**
+   * R08: the user asked the Hub to close the app it is waiting for — one polite request. An
+   * extension (ADR-039) has no window of its own to receive it (it runs in the background or
+   * inside the Hub, with nothing being edited): it is stopped instead, or the wait never ends.
+   */
   requestClose(operationId: string): boolean {
     const operation = this.find(operationId);
     if (!operation || operation.view.phase !== 'waiting-for-app-exit' || operation.view.closeRequested) return false;
     operation.view.closeRequested = true;
-    void this.deps.requestClose(operation.entry.app.windows.exeName).catch(() => undefined);
+    const appId = operation.entry.app.id;
+    const close = this.deps.forceCloseExtension && this.deps.isExtension?.(appId)
+      ? this.deps.forceCloseExtension(appId)
+      : this.deps.requestClose(operation.entry.app.windows.exeName);
+    void close.catch(() => undefined);
     this.emit();
     return true;
   }
@@ -431,11 +443,12 @@ export class InstallManager {
     await fs.rename(part, file);
     this.move(operation, 'ready');
 
-    if (operation.view.auto && (await this.appIsRunning(operation))) {
-      // ADR-037: only an extension running in the background is stopped, never an app in use.
+    if (await this.appIsRunning(operation)) {
+      // ADR-037 / ADR-039: an extension running only in the background (nobody sees it) is stopped
+      // by the Hub, for an automatic operation as for one the user started; never an app in use.
       const appId = operation.entry.app.id;
-      const stopped = Boolean(this.deps.mayStopForUpdate?.(appId)) && (await this.deps.stopForUpdate?.(appId).catch(() => false));
-      if (!stopped || (await this.appIsRunning(operation))) throw new Failure('app-running');
+      if (this.deps.mayStopForUpdate?.(appId)) await this.deps.stopForUpdate?.(appId).catch(() => false);
+      if (operation.view.auto && (await this.appIsRunning(operation))) throw new Failure('app-running');
     }
     if (await this.appIsRunning(operation)) {
       this.move(operation, 'waiting-for-app-exit');

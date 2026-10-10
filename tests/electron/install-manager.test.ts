@@ -347,6 +347,47 @@ describe('InstallManager', () => {
     expect(h.phases.get('nebula.finterest')).toEqual(['queued', 'downloading', 'verifying', 'ready', 'waiting-for-app-exit', 'installing', 'verifying-install', 'installed']);
   });
 
+  it('updates an extension running in the background at once when the user asks: the Hub stops it (ADR-039)', async () => {
+    const stopped: string[] = [];
+    const h = harness(undefined, {
+      mayStopForUpdate: () => true,
+      stopForUpdate: async (appId) => {
+        stopped.push(appId);
+        h.running.clear();
+        return true;
+      },
+    });
+    h.running.add('nebula finterest.exe');
+    h.backupContent = JSON.stringify({ app: 'Finterest', version: 1, exportedAt: 'x', accounts: [] });
+    h.manager.enqueue('nebula.finterest', 'install');
+    await h.manager.idle();
+    expect(stopped).toEqual(['nebula.finterest']);
+    expect(h.phases.get('nebula.finterest')).not.toContain('waiting-for-app-exit');
+    expect(operationOf(h, 'nebula.finterest').phase).toBe('installed');
+  });
+
+  it('"Close" stops an extension shown inside the Hub (no window to ask), and only asks the other apps (ADR-039)', async () => {
+    const forced: string[] = [];
+    const h = harness(undefined, {
+      isExtension: (appId) => appId === 'nebula.finterest',
+      forceCloseExtension: async (appId) => {
+        forced.push(appId);
+        h.running.clear();
+        return true;
+      },
+    });
+    h.running.add('nebula finterest.exe');
+    h.manager.enqueue('nebula.finterest');
+    for (let i = 0; i < 100 && operationOf(h, 'nebula.finterest').phase !== 'waiting-for-app-exit'; i += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 5));
+    }
+    expect(h.manager.requestClose(operationOf(h, 'nebula.finterest').id)).toBe(true);
+    await h.manager.idle();
+    expect(forced).toEqual(['nebula.finterest']);
+    expect(h.closeRequests).toEqual([]);
+    expect(operationOf(h, 'nebula.finterest').phase).toBe('installed');
+  });
+
   it('cancels while waiting for the app to close', async () => {
     const h = harness();
     h.running.add('nebula finterest.exe');

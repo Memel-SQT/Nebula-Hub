@@ -2,6 +2,14 @@
 
 Technical log, newest session first. Release notes live only in the GitHub release body.
 
+## [2026-10-10] - Nebula Hub Session #27 — Close Nebula News for an operation (ADR-039); 0.2.10
+
+- **User report**: updating Nebula News from the Hub sometimes stayed blocked. The polite close request (`taskkill /IM`) reaches windows, and News has none of its own: it runs in the background or inside the Hub.
+- `InstallManager`: a running extension that may be stopped (background only) is stopped before any operation, manual as well as automatic; an automatic one still fails with `app-running` if it is still there. `requestClose` calls the new `forceCloseExtension` for an extension (`isExtension`), the polite request for the other apps.
+- `main.ts`: `stopExtension(appId, askedByUser)` also stops an extension shown inside the Hub when the user asked; the keeper restarts it after the operation.
+- Tests: a manual operation on a background extension does not wait; "Close" on an extension stops it and sends no polite request. 1044 tests pass.
+- **Version 0.2.10**.
+
 ## [2026-10-10] - Nebula Hub Session #26 — Nebula Finance Enterprise updates from Gitea (ADR-038); 0.2.9
 
 - **User request**: Nebula Finance Enterprise, once installed, must be handled by the Hub like the other apps (updates, opening inside the Hub).

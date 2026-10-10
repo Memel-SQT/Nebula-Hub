@@ -120,6 +120,9 @@ if (!app.requestSingleInstanceLock()) {
       // ADR-037: the extensions the Hub keeps in the background are updated automatically too.
       mayStopForUpdate: (appId) => extensionInBackground(appId),
       stopForUpdate: (appId) => stopExtension(appId),
+      // ADR-039: "Close" on an extension stops it, even shown inside the Hub (no window to ask).
+      isExtension: (appId) => isExtension(catalog?.catalogApps().find((candidate) => candidate.id === appId)),
+      forceCloseExtension: (appId) => stopExtension(appId, true),
       entry: (appId) => catalog?.getView().entries.find((entry) => entry.app.id === appId),
       installedView: () => installed?.getView() ?? { state: 'loading', apps: [], detectedAt: null },
       record: (appId) => installed?.record(appId),
@@ -288,10 +291,13 @@ function extensionInBackground(appId: string): boolean {
   return !(link?.dock.view().open ?? []).some((entry) => entry.appId === appId);
 }
 
-/** Stops a background extension for its update and waits (up to 10 s) until it has exited. */
-async function stopExtension(appId: string): Promise<boolean> {
+/**
+ * Stops an extension and waits (up to 10 s) until it has exited: only one running in the
+ * background for an update (ADR-037), or wherever it is shown when the user asked (ADR-039).
+ */
+async function stopExtension(appId: string, askedByUser = false): Promise<boolean> {
   const app = catalog?.catalogApps().find((candidate) => candidate.id === appId);
-  if (!app || !extensionInBackground(appId)) return false;
+  if (!app || !isExtension(app) || (!askedByUser && !extensionInBackground(appId))) return false;
   await windowsProbe.forceClose(app.windows.exeName);
   for (let attempt = 0; attempt < 20; attempt += 1) {
     const running = await windowsProbe.runningProcesses().catch(() => new Set<string>());
