@@ -15,6 +15,7 @@ import { windowsProbe } from './apps/system-probe';
 import { closeNebulaApps } from './apps/quit-nebula';
 import { ExtensionKeeper } from './apps/extension-keeper';
 import { isExtension } from '../shared/extensions';
+import { isRunning } from '../shared/tasklist';
 import { CatalogService } from './catalog/catalog-service';
 import { CATALOG_PUBLIC_KEY } from './catalog-key';
 import { HubDatabase } from './db';
@@ -116,6 +117,9 @@ if (!app.requestSingleInstanceLock()) {
       scheduleAutoUpdates();
     });
     installs = new InstallManager({
+      // ADR-037: the extensions the Hub keeps in the background are updated automatically too.
+      mayStopForUpdate: (appId) => extensionInBackground(appId),
+      stopForUpdate: (appId) => stopExtension(appId),
       entry: (appId) => catalog?.getView().entries.find((entry) => entry.app.id === appId),
       installedView: () => installed?.getView() ?? { state: 'loading', apps: [], detectedAt: null },
       record: (appId) => installed?.record(appId),
@@ -273,6 +277,29 @@ async function launchApp(appId: string, args: string[] = []): Promise<LaunchResu
 }
 
 let lastConnected = '';
+
+/**
+ * An extension running only in the background (ADR-034): the Hub started it, it has no window
+ * and is not shown inside the Hub, so nobody is using it. ADR-037: it may be stopped for an update.
+ */
+function extensionInBackground(appId: string): boolean {
+  const app = catalog?.catalogApps().find((candidate) => candidate.id === appId);
+  if (!isExtension(app)) return false;
+  return !(link?.dock.view().open ?? []).some((entry) => entry.appId === appId);
+}
+
+/** Stops a background extension for its update and waits (up to 10 s) until it has exited. */
+async function stopExtension(appId: string): Promise<boolean> {
+  const app = catalog?.catalogApps().find((candidate) => candidate.id === appId);
+  if (!app || !extensionInBackground(appId)) return false;
+  await windowsProbe.forceClose(app.windows.exeName);
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    const running = await windowsProbe.runningProcesses().catch(() => new Set<string>());
+    if (!isRunning(running, app.windows.exeName)) return true;
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+  return false;
+}
 
 /** The background switch of an extension (ADR-034), or no argument for any other app. */
 function backgroundArgs(appId: string): string[] {

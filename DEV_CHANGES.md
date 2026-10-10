@@ -2,6 +2,14 @@
 
 Technical log, newest session first. Release notes live only in the GitHub release body.
 
+## [2026-10-10] - Nebula Hub Session #25 — Automatic updates of background extensions (ADR-037); 0.2.8
+
+- **User report**: the "Nebula News" tabs stayed empty. The registry showed Nebula News still at 0.5.0: `InstallManager.autoUpdate` skips running apps, and since ADR-034 News always runs in the background, so it was never updated (Finterest and Clock were).
+- `InstallManager`: optional dependencies `mayStopForUpdate(appId)` and `stopForUpdate(appId)`; `autoUpdate` queues a running app when it may be stopped; before installing, an automatic operation stops it and fails with `app-running` if it is still there.
+- `main.ts`: `extensionInBackground` (an extension not open inside the Hub) and `stopExtension` (`forceClose`, then waits up to 10 s for the process to exit); the keeper restarts it after the update (it is blocked while the operation runs).
+- Tests: background extension stopped then updated; an app in use is never queued; an extension that does not stop fails without running the installer.
+- **Version 0.2.8**.
+
 ## [2026-10-09] - Nebula Hub Session #24 — "Nebula News" tab in each app (ADR-036)
 
 - **User request**: a "Nebula News" tab in each app showing that app's news.

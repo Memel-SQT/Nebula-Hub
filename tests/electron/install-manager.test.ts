@@ -647,6 +647,40 @@ describe('InstallManager: automatic updates', () => {
     expect(h.manager.autoUpdate(() => false)).toEqual([]);
   });
 
+  it('updates an extension running only in the background: the Hub stops it first (ADR-037)', async () => {
+    const stopped: string[] = [];
+    const h = harness(undefined, {
+      mayStopForUpdate: (appId) => appId === 'nebula.finterest',
+      stopForUpdate: async (appId) => {
+        stopped.push(appId);
+        h.running.delete('nebula finterest.exe');
+        return true;
+      },
+    });
+    h.installed.push(installedApp('nebula.finterest', '0.1.35', true));
+    h.running.add('nebula finterest.exe');
+    h.backupContent = JSON.stringify({ app: 'Finterest', version: 1, exportedAt: 'x', accounts: [] });
+    expect(h.manager.autoUpdate(() => true)).toEqual(['nebula.finterest']);
+    await h.manager.idle();
+    expect(stopped).toEqual(['nebula.finterest']);
+    expect(operationOf(h, 'nebula.finterest').phase).toBe('installed');
+  });
+
+  it('never stops an app in use, and gives up when the extension does not stop', async () => {
+    const h = harness(undefined, { mayStopForUpdate: () => false });
+    h.installed.push(installedApp('nebula.finterest', '0.1.35', true));
+    expect(h.manager.autoUpdate(() => true)).toEqual([]);
+
+    const stubborn = harness(undefined, { mayStopForUpdate: () => true, stopForUpdate: async () => false });
+    stubborn.installed.push(installedApp('nebula.finterest', '0.1.35', true));
+    stubborn.running.add('nebula finterest.exe');
+    stubborn.backupContent = JSON.stringify({ app: 'Finterest', version: 1, exportedAt: 'x', accounts: [] });
+    stubborn.manager.autoUpdate(() => true);
+    await stubborn.manager.idle();
+    expect(operationOf(stubborn, 'nebula.finterest')).toMatchObject({ phase: 'failed', failure: 'app-running' });
+    expect(stubborn.runs).toEqual([]);
+  });
+
   it('gives up on a failed backup instead of blocking, and does not retry that version', async () => {
     const h = harness();
     h.installed.push(installedApp('nebula.finterest', '0.1.35'));

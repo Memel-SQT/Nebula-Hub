@@ -923,3 +923,10 @@ Les constats qui fondent ces décisions sont détaillés dans [DISCOVERY.md](DIS
   - chaque app a un onglet « Nebula News » qui affiche les articles de son thème ; un clic ouvre l'article dans Nebula News, donc dans le Hub (ADR-034) ;
   - dans le Hub, l'onglet n'apparaît que si Nebula News est installée ; il lit comme `nebula.hub`, comme les widgets, et ne garde que les liens vers Nebula News.
 - **Ordre de publication** : le SDK 1.2.0 et le Hub 0.2.7 d'abord (le Hub doit connaître `ArticlesV1` pour accepter le manifeste de News 0.6.0), puis News 0.6.0, puis les apps.
+
+## ADR-037 — Mise à jour automatique des extensions en arrière-plan
+
+- **Statut** : Accepté (signalement de l'utilisateur du 2026-10-10 : l'onglet « Nebula News » restait vide).
+- **Constat** : Nebula News était restée en 0.5.0 alors que la 0.6.0 était publiée et sa mise à jour automatique activée. La mise à jour automatique saute toute app ouverte (brief § 7.5), or depuis ADR-034 le Hub garde News ouverte en arrière-plan en permanence : elle n'était donc jamais mise à jour.
+- **Décision** : une extension qui tourne **seulement en arrière-plan** (lancée par le Hub, sans fenêtre, pas affichée dans le Hub) compte comme fermée pour sa mise à jour automatique. Le Hub l'arrête (`taskkill /F /T`, elle n'a pas de fenêtre à qui demander poliment), attend qu'elle soit sortie (10 s au plus), installe, puis la relance en arrière-plan (`ExtensionKeeper`, bloqué pendant l'opération).
+- **Limites** : jamais si l'utilisateur l'a ouverte dans le Hub ; jamais pour une app qui n'est pas une extension ; si elle ne s'arrête pas, l'essai échoue comme une app ouverte et sera repris. La mise à jour automatique reste un choix de l'utilisateur par app (R08 : ce choix vaut accord pour fermer l'instance d'arrière-plan qu'il ne voit pas).

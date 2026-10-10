@@ -60,6 +60,13 @@ export interface InstallManagerDeps {
   runningProcesses(): Promise<Set<string>>;
   /** One polite close request (no force), sent only after the user asked for it (R08). */
   requestClose(exeName: string): Promise<void>;
+  /**
+   * ADR-037: an extension the Hub itself keeps running in the background (no window, not shown
+   * inside the Hub) may be stopped for its automatic update; the Hub starts it again afterwards.
+   */
+  mayStopForUpdate?(appId: string): boolean;
+  /** Stops that background instance; resolves once it has exited (false if it did not). */
+  stopForUpdate?(appId: string): Promise<boolean>;
   download: Downloader;
   verify(filePath: string, size: number, sha512: string): Promise<void>;
   runner: InstallerRunner;
@@ -298,12 +305,14 @@ export class InstallManager {
   /**
    * Automatic updates (brief §7.5): apps the user opted in, with an update, closed, and idle.
    * Never waits for the user: an open app or a failed backup ends the attempt (next check retries).
+   * An extension running only in the background counts as closed (ADR-037): the Hub stops it.
    */
   autoUpdate(optedIn: (appId: string) => boolean): string[] {
     const queued: string[] = [];
     for (const app of this.deps.installedView().apps) {
       const version = this.deps.entry(app.appId)?.release?.version;
-      if (!optedIn(app.appId) || app.running || this.autoFailed.has(`${app.appId}@${version}`)) continue;
+      if (!optedIn(app.appId) || this.autoFailed.has(`${app.appId}@${version}`)) continue;
+      if (app.running && !this.deps.mayStopForUpdate?.(app.appId)) continue;
       if (this.enqueue(app.appId, 'update', { confirmed: true, auto: true }) === 'queued') queued.push(app.appId);
     }
     return queued;
@@ -422,8 +431,13 @@ export class InstallManager {
     await fs.rename(part, file);
     this.move(operation, 'ready');
 
+    if (operation.view.auto && (await this.appIsRunning(operation))) {
+      // ADR-037: only an extension running in the background is stopped, never an app in use.
+      const appId = operation.entry.app.id;
+      const stopped = Boolean(this.deps.mayStopForUpdate?.(appId)) && (await this.deps.stopForUpdate?.(appId).catch(() => false));
+      if (!stopped || (await this.appIsRunning(operation))) throw new Failure('app-running');
+    }
     if (await this.appIsRunning(operation)) {
-      if (operation.view.auto) throw new Failure('app-running');
       this.move(operation, 'waiting-for-app-exit');
       await this.waitForAppExit(operation);
       // ADR-004: once the app is closed, its own updater may have installed the update already.
