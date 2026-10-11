@@ -29,6 +29,11 @@ export interface PreOperationBackup {
   /** Known content format the Hub can check after the backup ran. */
   format: 'finterest-backup-v1';
   /**
+   * ADR-040: the first version of the app that reads sealed saves. The Hub seals the app's older
+   * plain backups only once that version (or a newer one) is installed. Ignored by older Hubs.
+   */
+  sealedSince?: string;
+  /**
    * Optional switch that opens the app's import screen on a backup file (`--import-backup=`),
    * the user still confirming in the app. Without it, the Hub shows the file and the steps.
    */
@@ -230,6 +235,10 @@ function validateApp(value: unknown, path: string, check: Checker): CatalogApp |
         check.fail(`${path}.windows.preOperationBackup`, 'expected { argument: "--x=", documentsFolder, filePrefix, format }');
       } else {
         backup = { argument: String(raw.argument), documentsFolder: String(raw.documentsFolder), filePrefix: String(raw.filePrefix), format: 'finterest-backup-v1' };
+        if (raw.sealedSince !== undefined) {
+          if (isSemver(raw.sealedSince)) backup.sealedSince = String(raw.sealedSince);
+          else check.fail(`${path}.windows.preOperationBackup.sealedSince`, 'expected a semantic version');
+        }
         if (raw.importArgument !== undefined) {
           if (/^--[a-z][a-z-]{1,40}=$/.test(String(raw.importArgument))) backup.importArgument = String(raw.importArgument);
           else check.fail(`${path}.windows.preOperationBackup.importArgument`, 'expected "--x="');

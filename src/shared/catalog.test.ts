@@ -103,6 +103,15 @@ describe('validateCatalog', () => {
     expect(result.ok && result.catalog.apps[0].windows.preOperationBackup?.importArgument).toBe('--import-backup=');
   });
 
+  it('keeps the version from which an app reads sealed saves (ADR-040)', () => {
+    const value = clone();
+    value.apps[0].windows.preOperationBackup.sealedSince = '0.1.45';
+    const result = validateCatalog(value);
+    expect(result.ok && result.catalog.apps[0].windows.preOperationBackup?.sealedSince).toBe('0.1.45');
+    value.apps[0].windows.preOperationBackup.sealedSince = 'soon';
+    expect(errorsOf(value).some((error) => error.startsWith('$.apps[0].windows.preOperationBackup.sealedSince'))).toBe(true);
+  });
+
   it('validates an extension: a background switch and a minimum version (ADR-034)', () => {
     const news = SOURCE.apps.find((candidate: { id: string }) => candidate.id === 'nebula.news');
     for (const extension of [{ backgroundArgument: 'background', minVersion: '0.5.0' }, { backgroundArgument: '--delete-app-data', minVersion: '0.5.0' }, { backgroundArgument: '--background', minVersion: 'soon' }, 'yes']) {

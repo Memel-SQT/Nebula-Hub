@@ -28,7 +28,8 @@
           "documentsFolder": "Nebula Finterest",
           "filePrefix": "finterest-store-backup",
           "format": "finterest-backup-v1",
-          "importArgument": "--import-backup="
+          "importArgument": "--import-backup=",
+          "sealedSince": "0.1.45"
         }
       },
       "dataNotice": {
@@ -36,7 +37,7 @@
         "en": "Your accounts are backed up automatically to Documents\\Nebula Finterest before any update, repair or uninstall. Uninstalling then deletes the app’s data."
       },
       "link": { "manifest": "nebula.app.json", "minProtocol": 1 },
-      "minHubVersion": "0.1.0"
+      "minHubVersion": "0.2.11"
     },
     {
       "id": "nebula.clock",

@@ -677,6 +677,26 @@ describe('InstallManager: the app backup (brief §7.6)', () => {
   });
 });
 
+describe('InstallManager: sealed backups (ADR-040)', () => {
+  it('opens a sealed backup before checking it', async () => {
+    const h = harness(undefined, { readSaveText: async (file) => (await fs.readFile(file, 'utf8')).replace(/^SEALED:/, '') });
+    h.installed.push(installedApp('nebula.finterest', '0.1.35'));
+    h.backupContent = `SEALED:${GOOD_BACKUP}`;
+    h.manager.enqueue('nebula.finterest', 'update', { confirmed: true });
+    await h.manager.idle();
+    expect(operationOf(h, 'nebula.finterest')).toMatchObject({ phase: 'installed', backup: { state: 'ok', accounts: 1 } });
+  });
+
+  it('blocks on a sealed backup it cannot open', async () => {
+    const h = harness(undefined, { readSaveText: async () => { throw new Error('ERR_SAVE_KEY_UNKNOWN'); } });
+    h.installed.push(installedApp('nebula.finterest', '0.1.35'));
+    h.manager.enqueue('nebula.finterest', 'update', { confirmed: true });
+    await until(h, 'nebula.finterest', 'backup-failed');
+    expect(operationOf(h, 'nebula.finterest').backup).toMatchObject({ state: 'failed', problem: 'invalid' });
+    expect(h.runs).toEqual([]);
+  });
+});
+
 describe('InstallManager: automatic updates', () => {
   it('updates the opted-in apps that are closed, and never waits for the user', async () => {
     const h = harness();

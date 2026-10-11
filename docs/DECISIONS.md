@@ -955,3 +955,20 @@ Les constats qui fondent ces décisions sont détaillés dans [DISCOVERY.md](DIS
   - une extension qui tourne **seulement en arrière-plan** est arrêtée par le Hub avant toute opération, manuelle comme automatique (ADR-037 étendu aux opérations manuelles), puis relancée après ;
   - si l'utilisateur l'a ouverte dans le Hub, l'opération attend comme pour les autres apps, mais « Fermer Nebula News » l'**arrête** (`taskkill /F /T`) au lieu de la demande polie. News ne contient rien en cours d'édition ;
   - rien ne change pour les autres apps : demande polie seulement (R08).
+
+## ADR-040 — Sauvegardes chiffrées dans toute la famille
+
+- **Statut** : Accepté (demande de l'utilisateur du 2026-10-11 : « je n'aime pas du tout que toutes les infos de sauvegarde soient en clair ; sécurise cela et ajoute cette règle à toutes les apps » ; puis : « je veux que les fichiers de sauvegarde ne soient plus en clair et que la mise à jour rectifie cela de manière rétroactive », périmètre : les fichiers de sauvegarde seulement).
+- **Constat** : les sauvegardes de Finterest (avant opération, automatiques, exportées, copies du dossier de synchronisation) et les exports de Clock sont du JSON en clair dans `Documents`, lisibles par n'importe quel programme ou par quiconque récupère le fichier. Enterprise chiffre déjà les siennes.
+- **Décision** :
+  - **clé de sauvegarde de la famille** : 32 octets aléatoires, créés par la première app qui en a besoin et gardés dans `%LOCALAPPDATA%\Nebula Link\save-key.json`, protégés par Windows pour le compte courant (DPAPI, avec une entropie propre à Nebula) ; rien à saisir, lisible par toutes les apps Nebula de ce compte Windows, conservée à la désinstallation d'une app ;
+  - **format** (SDK `@nebula/link` 1.3.0, `sealSave` / `openSave`) : `NEBULA-SAVE/1`, une ligne d'en-tête JSON (app, nature, identifiant de clé, IV, date), puis AES-256-GCM ; l'en-tête est authentifié ; tout fichier modifié ou ouvert avec une autre clé est refusé ;
+  - **règle pour toutes les apps** : toute sauvegarde écrite hors des données de l'app (sauvegardes, exports, copies) est chiffrée ; à la lecture, une sauvegarde en clair plus ancienne reste acceptée ;
+  - **rétroactif** : au démarrage de la version qui sait les lire, chaque app chiffre sur place ses anciennes sauvegardes en clair (fichier temporaire puis renommage atomique, la date est conservée) ; le Hub fait de même pour les sauvegardes avant opération qu'il connaît (`Documents\<app>` et le dossier de copie), seulement pour une app dont la version installée sait les relire (`preOperationBackup.sealedSince` du catalogue) ;
+  - **le Hub** ouvre la sauvegarde chiffrée avant de la vérifier (R04) ; une sauvegarde qu'il ne peut pas ouvrir compte comme invalide et bloque l'opération comme avant ;
+  - **clé de récupération** : les Réglages du Hub l'affichent sur demande (64 caractères hexadécimaux) pour relire ses sauvegardes sur un autre ordinateur ; y ajouter la clé d'un autre ordinateur garde les clés existantes.
+- **Limites** :
+  - ce n'est pas une protection contre un programme qui tourne déjà sous le compte de l'utilisateur ; c'est une protection des fichiers eux-mêmes (copie, cloud, autre compte, autre ordinateur) ;
+  - sans la clé de récupération, une sauvegarde chiffrée ne peut pas être relue après une réinstallation de Windows : les Réglages le disent ;
+  - la version web de Clock (PWA) n'a pas accès à Windows : ses exports restent en clair, et elle le dit.
+- **Ordre de publication** : SDK 1.3.0, puis le Hub 0.2.11 (il lit les sauvegardes chiffrées ; Finterest exige désormais ce Hub, `minHubVersion`), puis Finterest 0.1.45, puis Clock.

@@ -68,3 +68,20 @@ retire avec `removeAppearancePack(id)`.
 Le schéma `ArticlesV1` sert à l'onglet « Nebula News » de chaque app : jusqu'à 20 articles (titre,
 source, date, résumé facultatif, lien `nebula://news/article?id=…`). L'app le demande sans paramètre
 (`link.query('news.finance.articles')`) et vérifie la réponse avec `validateSchema('ArticlesV1', …)`.
+
+## Sauvegardes chiffrées (1.3.0)
+
+Toute sauvegarde écrite hors des données de l'app (sauvegardes, exports, copies) est chiffrée avec
+la clé de sauvegarde de la famille, protégée par Windows pour l'utilisateur (spécification § 19) :
+
+```ts
+import { loadSaveKeyring, readSave, sealFileInPlace, sealSave } from '@nebula/link';
+
+const keyring = await loadSaveKeyring();                                // crée la clé au premier appel
+await fs.writeFile(file, sealSave(Buffer.from(json), keyring, { app: 'nebula.sample', kind: 'backup' }));
+const text = readSave(await fs.readFile(file), keyring).toString('utf8'); // chiffrée ou ancienne en clair
+sealFileInPlace(oldFile, keyring, { app: 'nebula.sample', kind: 'backup' }); // rétroactif
+```
+
+`openSave` lève `SealedSaveError` pour une sauvegarde altérée ou chiffrée avec une clé inconnue ;
+jamais de contenu partiel.

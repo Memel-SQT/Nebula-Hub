@@ -40,6 +40,7 @@ import { shownOnHome } from '../shared/widgets';
 import { readAppearancePacks } from '@nebula/link';
 import { activePack, displayName, renameIn, renamePairs } from '../shared/packs';
 import { AppearancePacks } from './appearance-packs';
+import { appsReadingSealedSaves, importSaveRecoveryCode, readSaveText, saveKeyFile, saveRecoveryCode, sealKnownBackups } from './saves';
 
 // Pinned explicitly (ADR-007, ADR-013): a future product rename must never orphan the
 // consents and history. NEBULA_HUB_USER_DATA_DIR points manual tests at a throwaway folder; it
@@ -48,6 +49,8 @@ app.setPath('userData', process.env.NEBULA_HUB_USER_DATA_DIR || path.join(app.ge
 app.setAppUserModelId('hub.nebula.desktop');
 
 /** Passed by the login item: start in the tray, without window, splash or sound. */
+/** The family's save key (ADR-040): a throwaway data folder gets its own. */
+const SAVE_KEY_FILE = saveKeyFile(process.env, app.getPath('userData'));
 const startedHidden = process.argv.includes('--hidden');
 const settingsStore = SettingsStore.inDirectory(app.getPath('userData'));
 const database = HubDatabase.inDirectory(app.getPath('userData'));
@@ -122,6 +125,8 @@ if (!app.requestSingleInstanceLock()) {
       stopForUpdate: (appId) => stopExtension(appId),
       // ADR-039: "Close" on an extension stops it, even shown inside the Hub (no window to ask).
       isExtension: (appId) => isExtension(catalog?.catalogApps().find((candidate) => candidate.id === appId)),
+      // ADR-040: backups are sealed with the family's save key.
+      readSaveText: (file) => readSaveText(file, SAVE_KEY_FILE),
       forceCloseExtension: (appId) => stopExtension(appId, true),
       entry: (appId) => catalog?.getView().entries.find((entry) => entry.app.id === appId),
       installedView: () => installed?.getView() ?? { state: 'loading', apps: [], detectedAt: null },
@@ -213,6 +218,12 @@ if (!app.requestSingleInstanceLock()) {
     registerIpcHandlers();
     await createMainWindow(windowOptions(startedHidden));
     void installed.detect();
+    // ADR-040: after each detection, the plain backups of apps that read sealed saves are sealed.
+    installed.onChange((view) => {
+      if (view.state !== 'ready' || !catalog) return;
+      const apps = appsReadingSealedSaves(catalog.catalogApps(), view);
+      if (apps.length > 0) void sealKnownBackups(apps, { documents: app.getPath('documents'), copy: settingsStore.get().backupCopyDirectory }, SAVE_KEY_FILE).catch(() => 0);
+    });
     createTray(trayOptions());
     // 'system' follows Windows: keep the native controls in step when the OS theme flips.
     nativeTheme.on('updated', () => applyWindowTheme(settingsStore.get()));
@@ -558,7 +569,7 @@ function registerIpcHandlers(): void {
     let check: ReturnType<typeof validateBackup>;
     try {
       const stat = await fs.stat(file);
-      check = stat.size > MAX_BACKUP_BYTES ? { ok: false, reason: 'too-large' } : validateBackup(spec.format, await fs.readFile(file, 'utf8'));
+      check = stat.size > MAX_BACKUP_BYTES ? { ok: false, reason: 'too-large' } : validateBackup(spec.format, await readSaveText(file, SAVE_KEY_FILE));
     } catch {
       return { mode: 'invalid', reason: 'missing' };
     }
@@ -694,6 +705,16 @@ function registerIpcHandlers(): void {
   ipcMain.handle(CHANNELS.widgetsGet, (event) => {
     if (!isTrustedSender(event) || !link) throw new Error('ERR_UNTRUSTED_SENDER');
     return link.widgets.views();
+  });
+
+  // ADR-040: the recovery code is only sent to the window on request, never logged.
+  ipcMain.handle(CHANNELS.saveKeyRecovery, async (event) => {
+    if (!isTrustedSender(event)) throw new Error('ERR_UNTRUSTED_SENDER');
+    return saveRecoveryCode(SAVE_KEY_FILE).catch(() => null);
+  });
+  ipcMain.handle(CHANNELS.saveKeyImport, async (event, code: unknown) => {
+    if (!isTrustedSender(event) || typeof code !== 'string' || code.length > 200) return false;
+    return importSaveRecoveryCode(code, SAVE_KEY_FILE);
   });
 
   ipcMain.handle(CHANNELS.newsArticles, async (event) => {

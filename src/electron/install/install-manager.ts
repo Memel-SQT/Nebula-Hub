@@ -67,6 +67,8 @@ export interface InstallManagerDeps {
   mayStopForUpdate?(appId: string): boolean;
   /** Stops that background instance; resolves once it has exited (false if it did not). */
   stopForUpdate?(appId: string): Promise<boolean>;
+  /** ADR-040: the text of a save, opened with the family's save key when it is sealed. */
+  readSaveText?(file: string): Promise<string>;
   /** ADR-039: an extension (Nebula News), which has no window of its own to close politely. */
   isExtension?(appId: string): boolean;
   /** Stops an extension the user asked the Hub to close, wherever it is shown (Hub mode too). */
@@ -626,7 +628,14 @@ export class InstallManager {
       return { ok: false, reason: 'missing' };
     }
     if (size > MAX_BACKUP_BYTES) return { ok: false, reason: 'too-large' };
-    return validateBackup(spec.format, await fs.readFile(file, 'utf8'));
+    // ADR-040: the backup is sealed with the family's save key; an older app writes it plain.
+    let text: string;
+    try {
+      text = this.deps.readSaveText ? await this.deps.readSaveText(file) : await fs.readFile(file, 'utf8');
+    } catch {
+      return { ok: false, reason: 'invalid' };
+    }
+    return validateBackup(spec.format, text);
   }
 
   private async appIsRunning(operation: Operation): Promise<boolean> {

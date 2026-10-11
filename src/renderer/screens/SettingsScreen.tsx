@@ -22,6 +22,7 @@ import { HUB_ID } from '@shared/consent';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { familyEntries } from '../catalog';
 import { HubUpdatePanel } from '../components/HubUpdate';
+import { SaveKeyPanel } from '../components/SaveKeyPanel';
 import type { HubUpdateView } from '@shared/hub-update';
 import type { HubSettings, SettingsPatch } from '@shared/settings';
 import { activePack, packLabel, type PackView } from '@shared/packs';
@@ -46,7 +47,7 @@ const LANGUAGE_LABELS: Record<Language, string> = { fr: 'Français', en: 'Englis
  * fingerprint) arrives with M2; start with Windows, notifications and the Advanced section
  * (erase the activity history, ADR-023; show the welcome screens again) with M7.
  */
-export function SettingsScreen({ settings, resolvedTheme, version, catalog, activity = [], onAppearanceChange, onSettingsChange, onRefreshCatalog, onPickInstallDirectory, onPickBackupCopyDirectory, onClearActivity, onReplayOnboarding, hubUpdate, onHubUpdate, onCancelHubUpdate, packs = [] }: {
+export function SettingsScreen({ settings, resolvedTheme, version, catalog, activity = [], onAppearanceChange, onSettingsChange, onRefreshCatalog, onPickInstallDirectory, onPickBackupCopyDirectory, onClearActivity, onReplayOnboarding, hubUpdate, onHubUpdate, onCancelHubUpdate, packs = [], onRevealSaveKey, onImportSaveKey }: {
   settings: HubSettings;
   resolvedTheme: ResolvedTheme;
   version: string;
@@ -61,6 +62,9 @@ export function SettingsScreen({ settings, resolvedTheme, version, catalog, acti
   onReplayOnboarding?: () => void;
   /** Themes shared by installed family apps (docs/NEBULA_LINK.md § 18), listed after the built-in ones. */
   packs?: PackView[];
+  /** The family's save key (ADR-040). */
+  onRevealSaveKey?: () => Promise<string | null>;
+  onImportSaveKey?: (code: string) => Promise<boolean>;
   /** The Hub's own update (ADR-029): first section, so the button is always at hand. */
   hubUpdate?: HubUpdateView;
   onHubUpdate?: () => void;
@@ -327,6 +331,7 @@ export function SettingsScreen({ settings, resolvedTheme, version, catalog, acti
             </div>
           </div>
           <small className="path-note">{t('settings.backupCopy.hint')}</small>
+          {onRevealSaveKey && onImportSaveKey ? <SaveKeyPanel onReveal={onRevealSaveKey} onImport={onImportSaveKey} /> : null}
         </div>
 
         <div className="settings-section">

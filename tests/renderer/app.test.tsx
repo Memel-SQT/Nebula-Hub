@@ -93,6 +93,8 @@ function installBridge(overrides: Partial<HubSettings> = {}, startedHidden = tru
     onInstalledChanged: () => () => undefined,
     onPacksChanged: () => () => undefined,
     getNewsArticles: jest.fn(async () => news),
+    getSaveRecoveryCode: jest.fn(async () => 'AAAAAAAA-BBBBBBBB-CCCCCCCC-DDDDDDDD-EEEEEEEE-FFFFFFFF-00000000-11111111'),
+    importSaveRecoveryCode: jest.fn(async (code: string) => /^[0-9A-F-]{71}$/.test(code)),
     launchApp: jest.fn(async () => 'launched' as const),
     showAppFolder: jest.fn(async () => true),
     installApp: jest.fn(async () => 'queued' as const),
@@ -254,6 +256,27 @@ describe('App', () => {
     expect(screen.queryByRole('radio', { name: 'Exemple nuit' })).not.toBeInTheDocument();
     expect(document.documentElement.dataset.packTheme).toBeUndefined();
     expect(document.documentElement.dataset.theme).toBe('nebula-dark');
+  });
+
+  it('shows the backup recovery key only on request, and adds another computer key (ADR-040)', async () => {
+    const { bridge } = installBridge();
+    await render(<App />);
+    await userEvent.click(screen.getByRole('button', { name: 'Réglages' }));
+    expect(screen.queryByText(/AAAAAAAA-BBBBBBBB/)).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Afficher la clé de récupération' }));
+    expect(await screen.findByText(/AAAAAAAA-BBBBBBBB/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Masquer la clé' }));
+    expect(screen.queryByText(/AAAAAAAA-BBBBBBBB/)).not.toBeInTheDocument();
+
+    const input = screen.getByRole('textbox', { name: 'Ajouter la clé d’un autre ordinateur' });
+    await userEvent.type(input, 'pas une clé');
+    await userEvent.click(screen.getByRole('button', { name: 'Ajouter' }));
+    expect(await screen.findByText(/pas une clé de récupération valide/)).toBeInTheDocument();
+    await userEvent.clear(input);
+    await userEvent.type(input, '00000000-11111111-22222222-33333333-44444444-55555555-66666666-77777777');
+    await userEvent.click(screen.getByRole('button', { name: 'Ajouter' }));
+    expect(await screen.findByText(/Clé ajoutée/)).toBeInTheDocument();
+    expect(bridge.importSaveRecoveryCode).toHaveBeenLastCalledWith('00000000-11111111-22222222-33333333-44444444-55555555-66666666-77777777');
   });
 
   it('hides the "Nebula News" tab while Nebula News is not installed (ADR-036)', async () => {

@@ -53,6 +53,8 @@ export const CHANNELS = {
   widgetsChanged: 'widgets:changed',
   widgetRefresh: 'widgets:refresh',
   newsArticles: 'news:articles',
+  saveKeyRecovery: 'save-key:recovery',
+  saveKeyImport: 'save-key:import',
   activityGet: 'activity:get',
   activityChanged: 'activity:changed',
   activityClear: 'activity:clear',
@@ -165,6 +167,9 @@ export interface NebulaHubBridge {
   refreshWidget(capabilityId: string): Promise<boolean>;
   /** The "Nebula News" tab: today's tech articles from Nebula News (ADR-036). */
   getNewsArticles(): Promise<NewsTabView>;
+  /** The family's save key (ADR-040): its recovery code, shown on request, and adding another computer's. */
+  getSaveRecoveryCode(): Promise<string | null>;
+  importSaveRecoveryCode(code: string): Promise<boolean>;
   /** Activity center (I5): the last 30 days, newest first. */
   getActivity(): Promise<ActivityItem[]>;
   onActivityChanged(callback: (items: ActivityItem[]) => void): () => void;

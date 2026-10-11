@@ -2,6 +2,17 @@
 
 Technical log, newest session first. Release notes live only in the GitHub release body.
 
+## [2026-10-11] - Nebula Hub Session #28 — Sealed saves across the family (ADR-040); 0.2.11
+
+- **User request**: no save file of the family may stay in clear text, and the update must fix the older ones retroactively (save files only).
+- `@nebula/link` 1.3.0, `sealed-save.ts`: the family save key (random, `%LOCALAPPDATA%\Nebula Link\save-key.json`, DPAPI CurrentUser through PowerShell, data on stdin), `sealSave` / `openSave` / `readSave` (AES-256-GCM, authenticated header), `sealFileInPlace` (temp file + atomic rename, mtime kept), `recoveryCode` / `importRecoveryCode`. NEBULA_LINK.md § 19.
+- `electron/saves.ts`: the key file (throwaway data folder: its own), `readSaveText` (sealed or plain), `appsReadingSealedSaves` (catalog `preOperationBackup.sealedSince` against the installed version), `sealKnownBackups` (Documents and the copy folder, on each detection).
+- `InstallManager`: the pre-operation backup is opened with `readSaveText` before its check (R04); one that cannot be opened counts as invalid.
+- Settings: "Backup key" panel (recovery key shown on request, another computer's key added), IPC `save-key:recovery` and `save-key:import` (trusted sender, bounded input).
+- Catalog: Finterest `sealedSince` 0.1.45 and `minHubVersion` 0.2.11 (an older Hub could not read its sealed backups); re-signed.
+- Tests: SDK seal/open/tamper/unknown key/in-place/real DPAPI round trip; Hub sealing and reading, catalog field, install manager with a sealed and an unreadable backup, Settings panel.
+- **Version 0.2.11**.
+
 ## [2026-10-10] - Nebula Hub Session #27 — Close Nebula News for an operation (ADR-039); 0.2.10
 
 - **User report**: updating Nebula News from the Hub sometimes stayed blocked. The polite close request (`taskkill /IM`) reaches windows, and News has none of its own: it runs in the background or inside the Hub.

@@ -88,3 +88,9 @@
 /* Page titles receive focus programmatically after each navigation (screen readers land on
    them); they are not interactive, so no focus ring. */
 .topbar h1:focus { outline: none; }
+
+/* The family's save key (ADR-040). */
+.save-key-code { display: grid; gap: 0.4rem; margin: 0.4rem 0 0.2rem; }
+.save-key-code code { word-break: break-all; letter-spacing: 0.04em; }
+.save-key-input { flex: 1 1 280px; min-width: 0; font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; }
+.warning-note { color: var(--warning); }

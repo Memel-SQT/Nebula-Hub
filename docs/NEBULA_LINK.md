@@ -500,3 +500,30 @@ autres, avec ou sans le Hub (une app standalone les voit aussi).
 - **Diffusion** : I1 (`nebula.appearance.changed`) envoie l'identifiant du thème du pack dans
   `theme`. Une app qui le connaît par le dossier l'applique ; une app qui ne le connaît pas garde
   sa règle habituelle (thème inconnu → défaut).
+
+## 19. Sauvegardes chiffrées (amendement, ADR-040)
+
+Toute sauvegarde qu'une app de la famille écrit **hors de ses propres données** (sauvegarde avant
+opération, sauvegarde automatique, export, copie dans un dossier de synchronisation) est chiffrée.
+Rien ne passe par le tube : la clé est un fichier commun, utilisable avec ou sans le Hub.
+
+- **Clé** : 32 octets aléatoires dans `%LOCALAPPDATA%\Nebula Link\save-key.json`, protégés par
+  DPAPI pour l'utilisateur courant (entropie `nebula-save-key/1`), appelé par PowerShell avec des
+  tableaux d'arguments et les données sur l'entrée standard (R11). La première app qui en a besoin
+  la crée (`loadSaveKeyring`) ; le fichier garde aussi les clés importées d'autres ordinateurs.
+- **Format** : `NEBULA-SAVE/1\n`, une ligne d'en-tête JSON
+  `{ app, kind, createdAt, keyId, iv }` suivie de `\n`, puis l'étiquette GCM (16 octets) et le texte
+  chiffré (AES-256-GCM). Le préfixe et l'en-tête sont authentifiés (données associées).
+  `keyId` = 16 premiers caractères hexadécimaux du SHA-256 de la clé.
+- **Lecture** : `readSave` rend le contenu d'une sauvegarde chiffrée, ou le fichier tel quel s'il
+  ne commence pas par le préfixe (sauvegardes plus anciennes). Une sauvegarde altérée, tronquée
+  ou chiffrée avec une clé inconnue lève `SealedSaveError` (`ERR_SAVE_DAMAGED`,
+  `ERR_SAVE_KEY_UNKNOWN`) : jamais de contenu partiel.
+- **Rétroactif** : `sealFileInPlace` chiffre une sauvegarde en clair sur place (fichier
+  `.sealing` puis renommage atomique, date conservée) ; chaque app le fait pour ses anciennes
+  sauvegardes au démarrage de la version qui sait les relire.
+- **Récupération** : `recoveryCode` donne la clé courante (8 groupes de 8 caractères
+  hexadécimaux) ; `importRecoveryCode` l'ajoute sur un autre ordinateur sans retirer les autres.
+- **Hub** : il ouvre la sauvegarde avant opération avant de la vérifier (R04), et ne chiffre les
+  sauvegardes d'une app que si sa version installée atteint `preOperationBackup.sealedSince` du
+  catalogue.

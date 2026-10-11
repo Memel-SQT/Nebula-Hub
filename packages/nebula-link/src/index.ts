@@ -13,6 +13,22 @@ export {
   MAX_PACK_BYTES,
 } from './appearance-pack';
 export type { AppearancePack, PackLabel, PackTheme, ReadPacksOptions } from './appearance-pack';
+export {
+  defaultSaveKeyFile,
+  importRecoveryCode,
+  isSealedSave,
+  keyId,
+  loadSaveKeyring,
+  openSave,
+  readSave,
+  recoveryCode,
+  sealFileInPlace,
+  sealSave,
+  SealedSaveError,
+  SEAL_MAGIC,
+  windowsProtector,
+} from './sealed-save';
+export type { KeyProtector, SaveKeyring, SaveMeta } from './sealed-save';
 export { NebulaLink, defaultSessionFile } from './client';
 export type { CreateOptions, LinkResult, LinkStatus, NotificationInput, QueryContext } from './client';
 export { encodeIntentArg, intentFromArgv, isDeclaredIntent, parseDeepLink, INTENT_ARG, MAX_LINK_LENGTH } from './deeplink';

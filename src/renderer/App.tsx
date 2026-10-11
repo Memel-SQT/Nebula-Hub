@@ -587,6 +587,8 @@ export function App() {
               onHubUpdate={requestHubUpdate}
               onCancelHubUpdate={cancelHubUpdate}
               packs={packs}
+              onRevealSaveKey={() => bridge.getSaveRecoveryCode()}
+              onImportSaveKey={(code) => bridge.importSaveRecoveryCode(code)}
             />
           ) : null}
         </div>
