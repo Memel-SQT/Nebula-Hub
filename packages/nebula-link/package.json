@@ -2,7 +2,7 @@
   "name": "@nebula/link",
   "version": "1.3.0",
   "description": "Nebula Link client SDK: local, consented integrations between the Nebula apps through Nebula Hub (protocol nebula-link/1).",
-  "license": "MIT",
+  "license": "PolyForm-Strict-1.0.0",
   "main": "dist/index.cjs",
   "module": "dist/index.mjs",
   "types": "dist/index.d.ts",

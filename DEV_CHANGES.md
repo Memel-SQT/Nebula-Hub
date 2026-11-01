@@ -2,6 +2,10 @@
 
 Technical log, newest session first. Release notes live only in the GitHub release body.
 
+## [2026-11-01] - Licence: PolyForm Strict 1.0.0
+
+- **User request**: the Nebula apps may be downloaded and used, but not modified or redistributed. `LICENSE` (PolyForm Strict 1.0.0, replacing the MIT declaration that had no file), the `license` field of the root and workspace `package.json` set to the SPDX id `PolyForm-Strict-1.0.0`, and a "Licence" section in the README. No code change, no version.
+
 ## [2026-10-11] - Nebula Hub Session #28 — Sealed saves across the family (ADR-040); 0.2.11
 
 - **User request**: no save file of the family may stay in clear text, and the update must fix the older ones retroactively (save files only).

@@ -114,3 +114,11 @@ La spécification du protocole est dans [`docs/NEBULA_LINK.md`](docs/NEBULA_LINK
 apps dans [`packages/nebula-link`](packages/nebula-link) (voir son README). Le banc d’essai se
 lance avec `npm run link:demo`. Le SDK se publie par un tag `link-vX.Y.Z` (workflow
 `link-release.yml`), en release non marquée « latest » pour ne pas gêner les mises à jour du Hub.
+
+## Licence
+
+Nebula Hub est distribué sous la licence [PolyForm Strict 1.0.0](LICENSE).
+
+- Vous pouvez télécharger et utiliser l'application, et lire le code, pour un usage **non commercial** (personnel, études, associations, établissements d'enseignement…).
+- Vous ne pouvez **ni modifier ni redistribuer** le logiciel, ni créer d'œuvres dérivées.
+- Le code est public pour la transparence : ce n'est pas un projet open source au sens de l'OSI.

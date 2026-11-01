@@ -4,7 +4,7 @@
   "private": true,
   "author": "Nebula Hub",
   "description": "Nebula Hub launches, installs, updates and connects the Nebula desktop apps, locally and without any account.",
-  "license": "MIT",
+  "license": "PolyForm-Strict-1.0.0",
   "main": "dist/electron/main.js",
   "engines": {
     "node": ">=22.12.0"
