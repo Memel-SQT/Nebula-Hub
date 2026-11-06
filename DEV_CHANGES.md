@@ -2,6 +2,20 @@
 
 Technical log, newest session first. Release notes live only in the GitHub release body.
 
+## [2026-11-06] - Recovery key offered where a sealed backup cannot be opened (ADR-040 follow-up)
+
+- **User report**: no field appears to enter the key that unlocks a backup. Settings → Backups did render the "Add another computer's key" field (checked in the four themes), but the place where the key is actually needed did not: importing a backup sealed on another computer (app page → "Import a backup") failed in the `catch` of the `data:import` handler, which reported `{ mode: 'invalid', reason: 'missing' }`, i.e. "the app wrote no file", with no way to add the key.
+- `src/shared/backup.ts`: new `BackupProblem` `key-unknown` and the pure `saveReadProblem(error)` (`ERR_SAVE_KEY_UNKNOWN` → `key-unknown`, `ENOENT` → `missing`, anything else → `invalid`). Used by the `data:import` handler (`main.ts`) and by the pre-operation backup check (`install-manager.ts`, which said `invalid`).
+- `SaveKeyPanel.tsx`: the "add another computer's key" part extracted as `SaveKeyImportField` (same markup, label id from `useId`). `AppData.tsx` shows it under the import error when the problem is `key-unknown` (`DataActions.importSaveKey`, wired in `App.tsx` to `importSaveRecoveryCode`), then an "Import again" button once the key is added.
+- `install-dir-actions` (a class with no CSS, so the input and the Add button stacked oddly) replaced by `settings-actions save-key-actions`; `.save-key-input` gets `width: auto` so its `flex: 1 1 280px` applies.
+- i18n fr/en: `backup.problem.key-unknown`, `data.retryImport`.
+- Tests: `tests/electron/backup-read-problem.test.ts`, the install-manager case now expects `key-unknown`, and an App test covers import → key field → retry.
+- **Audit cleanups (approved by the user)**:
+  - Removed `EMPTY_ACTIVITY_VIEW` (`shared/activity.ts`) and `EMPTY_DOWNLOADS_VIEW` (`shared/install-state.ts`), referenced nowhere.
+  - `.operation-row.operation-failed` (red border, `operations.css`) existed but no row ever got the class: `DownloadsScreen` now sets it on `failed` and `backup-failed` operations (screens test added).
+  - `backupPath` / `backupCopyPath` (`shared/backup.ts`) always joined with `\`, so off Windows they produced one file name full of backslashes. That made 3 ADR-026 tests in `install-manager.test.ts` fail on Linux, and it is one of the problems in `bug-reports/macos/2026-10-03_v0.2.1_macos.md`. They now keep the separator of the base folder (`separatorOf`: drive letter, UNC or any `\` → `\`, else `/`). Windows output is byte-for-byte unchanged (existing test), and a POSIX case was added.
+- Checks: typecheck, lint, build pass; jest 52/52 suites, 1059 passed, 2 skipped (Windows-only). No version bump.
+
 ## [2026-11-01] - Licence: PolyForm Strict 1.0.0
 
 - **User request**: the Nebula apps may be downloaded and used, but not modified or redistributed. `LICENSE` (PolyForm Strict 1.0.0, replacing the MIT declaration that had no file), the `license` field of the root and workspace `package.json` set to the SPDX id `PolyForm-Strict-1.0.0`, and a "Licence" section in the README. No code change, no version.

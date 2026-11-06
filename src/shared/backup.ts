@@ -12,7 +12,18 @@ import type { PreOperationBackup } from './catalog';
 export const MAX_BACKUP_BYTES = 50 * 1024 * 1024;
 
 export type BackupCheck = { ok: true; accounts: number } | { ok: false; reason: BackupProblem };
-export type BackupProblem = 'missing' | 'empty' | 'too-large' | 'invalid' | 'unknown-format' | 'timeout' | 'not-started';
+export type BackupProblem = 'missing' | 'empty' | 'too-large' | 'invalid' | 'unknown-format' | 'timeout' | 'not-started' | 'key-unknown';
+
+/**
+ * Why a backup file could not be read (ADR-040): a save sealed on another computer needs that
+ * computer's recovery key (`key-unknown`, the user can add it), a file that vanished is `missing`,
+ * anything else (damaged seal, unreadable bytes) is `invalid`.
+ */
+export function saveReadProblem(error: unknown): BackupProblem {
+  if (error instanceof Error && error.message === 'ERR_SAVE_KEY_UNKNOWN') return 'key-unknown';
+  if ((error as { code?: unknown } | null)?.code === 'ENOENT') return 'missing';
+  return 'invalid';
+}
 
 const pad = (value: number) => String(value).padStart(2, '0');
 
@@ -26,7 +37,17 @@ export function backupFileName(prefix: string, now: Date): string {
 /** `<Documents>\<folder>\<file>`: every part was validated with the catalog. */
 export function backupPath(documentsDir: string, backup: PreOperationBackup, now: Date): string {
   const base = documentsDir.replace(/[\\/]+$/, '');
-  return `${base}\\${backup.documentsFolder}\\${backupFileName(backup.filePrefix, now)}`;
+  const sep = separatorOf(base);
+  return `${base}${sep}${backup.documentsFolder}${sep}${backupFileName(backup.filePrefix, now)}`;
+}
+
+/**
+ * The separator of the folder a path is built in: `\` for a Windows path (drive letter, UNC or any
+ * backslash), `/` otherwise, so the same pure helpers give real paths in the tests on Linux and on
+ * macOS instead of file names full of backslashes. Windows paths are unchanged.
+ */
+function separatorOf(dir: string): '\\' | '/' {
+  return /^[A-Za-z]:|\\/.test(dir) ? '\\' : '/';
 }
 
 /**
@@ -36,7 +57,8 @@ export function backupPath(documentsDir: string, backup: PreOperationBackup, now
 export function backupCopyPath(copyDir: string, backup: PreOperationBackup, file: string): string {
   const base = copyDir.replace(/[\\/]+$/, '');
   const name = file.split(/[\\/]/).pop() ?? file;
-  return `${base}\\${backup.documentsFolder}\\${name}`;
+  const sep = separatorOf(base);
+  return `${base}${sep}${backup.documentsFolder}${sep}${name}`;
 }
 
 /** Outcome of "Export my data" (a backup outside of any operation). */

@@ -1,6 +1,6 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { backupArgument, backupCopyPath, backupPath, MAX_BACKUP_BYTES, validateBackup, type BackupProblem, type ExportDataResult } from '../../shared/backup';
+import { backupArgument, backupCopyPath, backupPath, MAX_BACKUP_BYTES, saveReadProblem, validateBackup, type BackupProblem, type ExportDataResult } from '../../shared/backup';
 import type { CatalogEntry } from '../../shared/catalog-view';
 import {
   isActive,
@@ -632,8 +632,8 @@ export class InstallManager {
     let text: string;
     try {
       text = this.deps.readSaveText ? await this.deps.readSaveText(file) : await fs.readFile(file, 'utf8');
-    } catch {
-      return { ok: false, reason: 'invalid' };
+    } catch (error) {
+      return { ok: false, reason: saveReadProblem(error) };
     }
     return validateBackup(spec.format, text);
   }

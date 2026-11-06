@@ -4,6 +4,7 @@ import type { ExportDataResult, ImportDataResult, InstallerSaveProgress, SaveIns
 import type { CatalogEntry } from '@shared/catalog-view';
 import { progressRatio } from '@shared/progress';
 import { formatPercent, useLanguage, useT } from '../i18n';
+import { SaveKeyImportField } from './SaveKeyPanel';
 
 /** What the screens need for the data actions (ADR-026), provided by App. */
 export interface DataActions {
@@ -11,6 +12,8 @@ export interface DataActions {
   exportData(appId: string): Promise<ExportDataResult>;
   importData(appId: string): Promise<ImportDataResult>;
   reveal(filePath: string): void;
+  /** Adds another computer's recovery key (ADR-040), offered when a backup sealed there cannot be opened. */
+  importSaveKey?(code: string): Promise<boolean>;
 }
 
 /** "Download the installer": progress pushed by the main process, and the last result. */
@@ -63,13 +66,20 @@ export function DataActionsPanel({ entry, installed, actions }: { entry: Catalog
           <Icon name="download" size={15} />{busy === 'import' ? t('data.importing') : t('data.import')}
         </button>
       </div>
-      <div role="status" aria-live="polite">{outcome ? <DataOutcome outcome={outcome} name={name} onReveal={actions.reveal} /> : null}</div>
+      <div role="status" aria-live="polite">{outcome ? <DataOutcome outcome={outcome} name={name} onReveal={actions.reveal} onImportSaveKey={actions.importSaveKey} onRetryImport={() => run('import')} /> : null}</div>
     </div>
   );
 }
 
-function DataOutcome({ outcome, name, onReveal }: { outcome: NonNullable<Outcome>; name: string; onReveal: (file: string) => void }) {
+function DataOutcome({ outcome, name, onReveal, onImportSaveKey, onRetryImport }: {
+  outcome: NonNullable<Outcome>;
+  name: string;
+  onReveal: (file: string) => void;
+  onImportSaveKey?: (code: string) => Promise<boolean>;
+  onRetryImport: () => void;
+}) {
   const t = useT();
+  const [keyAdded, setKeyAdded] = useState(false);
   const reveal = (file: string) => (
     <button type="button" className="ghost small" onClick={() => onReveal(file)}><Icon name="external" size={14} />{t('data.reveal')}</button>
   );
@@ -102,7 +112,15 @@ function DataOutcome({ outcome, name, onReveal }: { outcome: NonNullable<Outcome
         </div>
       );
     case 'invalid':
-      return <p className="operation-note error"><Icon name="alert" size={15} />{t('data.importInvalid', { problem: t(`backup.problem.${result.reason}`) })}</p>;
+      return (
+        <div className="data-result">
+          <p className="operation-note error"><Icon name="alert" size={15} />{t('data.importInvalid', { problem: t(`backup.problem.${result.reason}`) })}</p>
+          {result.reason === 'key-unknown' && onImportSaveKey ? <SaveKeyImportField onImport={onImportSaveKey} onAdded={() => setKeyAdded(true)} /> : null}
+          {result.reason === 'key-unknown' && keyAdded ? (
+            <button type="button" className="ghost small" onClick={onRetryImport}><Icon name="download" size={15} />{t('data.retryImport')}</button>
+          ) : null}
+        </div>
+      );
     default:
       return <p className="operation-note error"><Icon name="alert" size={15} />{t(`data.error.${result.mode}`)}</p>;
   }

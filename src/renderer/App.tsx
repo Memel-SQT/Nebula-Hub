@@ -452,6 +452,7 @@ export function App() {
     exportData: (appId) => bridge.exportAppData(appId),
     importData: (appId) => bridge.importAppData(appId),
     reveal: (filePath) => void bridge.revealFile(filePath),
+    importSaveKey: (code) => bridge.importSaveRecoveryCode(code),
   }), [bridge, settings.backupCopyDirectory]);
 
   const toggleOpenInHub = useCallback((appId: string, enabled: boolean) => {

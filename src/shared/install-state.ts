@@ -220,8 +220,6 @@ export interface DownloadsView {
   history: HistoryEntry[];
 }
 
-export const EMPTY_DOWNLOADS_VIEW: DownloadsView = { operations: [], history: [] };
-
 /** Answer to an install request, before anything is queued. */
 export type EnqueueResult =
   | 'queued'

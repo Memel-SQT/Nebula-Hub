@@ -22,8 +22,6 @@ export interface ActivityView {
   unread: number;
 }
 
-export const EMPTY_ACTIVITY_VIEW: ActivityView = { items: [], unread: 0 };
-
 /** Entries received after the user last opened the activity center. */
 export function unreadCount(items: readonly ActivityItem[], seenAt: string | null): number {
   return seenAt ? items.filter((item) => item.receivedAt > seenAt).length : items.length;
