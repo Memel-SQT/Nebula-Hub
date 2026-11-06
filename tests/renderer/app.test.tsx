@@ -578,6 +578,22 @@ describe('App: data and installers (ADR-026)', () => {
     expect(await screen.findByText(/Réglages → Sauvegarde → Importer/)).toBeInTheDocument();
   });
 
+  it('offers the recovery key field when an imported backup was sealed on another computer', async () => {
+    const { bridge } = installBridge();
+    (bridge.importAppData as jest.Mock).mockResolvedValueOnce({ mode: 'invalid', reason: 'key-unknown' });
+    await render(<App />);
+    await userEvent.click(screen.getByRole('button', { name: 'Voir la fiche de Nebula Finterest' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Importer une sauvegarde' }));
+    expect(await screen.findByText(/chiffrée sur un autre ordinateur/)).toBeInTheDocument();
+    const code = '00000000-11111111-22222222-33333333-44444444-55555555-66666666-77777777';
+    await userEvent.type(screen.getByRole('textbox', { name: 'Ajouter la clé d’un autre ordinateur' }), code);
+    await userEvent.click(screen.getByRole('button', { name: 'Ajouter' }));
+    expect(bridge.importSaveRecoveryCode).toHaveBeenLastCalledWith(code);
+    await userEvent.click(await screen.findByRole('button', { name: 'Importer de nouveau' }));
+    expect(bridge.importAppData).toHaveBeenCalledTimes(2);
+    expect(await screen.findByText(/Réglages → Sauvegarde → Importer/)).toBeInTheDocument();
+  });
+
   it('downloads the verified installer to Downloads', async () => {
     const { bridge } = installBridge();
     await render(<App />);

@@ -141,6 +141,7 @@ export const install = {
   'backup.problem.unknown-format': 'le fichier n’est pas une sauvegarde reconnue.',
   'backup.problem.timeout': 'l’app n’a pas répondu à temps.',
   'backup.problem.not-started': 'l’app n’a pas pu être lancée (installation incomplète ?).',
+  'backup.problem.key-unknown': 'elle a été chiffrée sur un autre ordinateur. Ajoutez la clé de récupération de cet ordinateur pour l’ouvrir.',
   'downloads.kind.uninstall': 'Désinstallation',
   'app.action.update': 'Mettre à jour',
   'app.action.updateNamed': 'Mettre à jour {name}',

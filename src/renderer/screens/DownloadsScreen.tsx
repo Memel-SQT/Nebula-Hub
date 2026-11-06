@@ -56,7 +56,7 @@ export function DownloadsScreen({ catalog, downloads, onNavigate, onInstall, onL
         >
           <ul className="operation-list">
             {operations.map((operation) => (
-              <li key={operation.id} className="operation-row">
+              <li key={operation.id} className={`operation-row ${operation.phase === 'failed' || operation.phase === 'backup-failed' ? 'operation-failed' : ''}`}>
                 <AppIcon src={icon(operation.appId)} size={42} />
                 <div className="operation-body">
                   <strong>{name(operation.appId)}</strong>

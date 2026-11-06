@@ -26,6 +26,7 @@ export const data: Record<keyof typeof fr, string> = {
   'data.importManual': 'File checked ({count} account(s)). {name} opens: in the app, go to Settings → Backup → Import, then pick this file (shown in File Explorer):',
   'data.importInvalid': 'This file cannot be imported: {problem}',
   'data.reveal': 'Show the file',
+  'data.retryImport': 'Import again',
   'data.error.unsupported': 'This app has no backup.',
   'data.error.not-installed': 'The app is not installed.',
   'data.error.busy': 'An operation is running on this app: try again when it is over.',

@@ -143,6 +143,7 @@ export const install: Record<keyof typeof fr, string> = {
   'backup.problem.unknown-format': 'the file is not a known backup.',
   'backup.problem.timeout': 'the app did not answer in time.',
   'backup.problem.not-started': 'the app could not be started (incomplete install?).',
+  'backup.problem.key-unknown': 'it was encrypted on another computer. Add that computer’s recovery key to open it.',
   'downloads.kind.uninstall': 'Uninstall',
   'app.action.update': 'Update',
   'app.action.updateNamed': 'Update {name}',

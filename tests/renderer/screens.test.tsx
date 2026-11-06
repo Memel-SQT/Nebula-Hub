@@ -437,6 +437,14 @@ describe('Downloads', () => {
     expect(props.onNavigate).toHaveBeenCalledWith({ screen: 'discover' });
   });
 
+  it('marks the failed operations of the queue, and only them', () => {
+    renderDownloads({ downloads: downloadsView({ operations: [operation({ phase: 'failed', failure: 'hash-mismatch' }), operation({ id: 'op-2', appId: 'nebula.clock', phase: 'downloading' })] }) });
+    const rows = document.querySelectorAll('.operation-row');
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toHaveClass('operation-failed');
+    expect(rows[1]).not.toHaveClass('operation-failed');
+  });
+
   it('shows the queue with its progress and counts', () => {
     renderDownloads({ downloads: downloadsView({ operations: [operation(), operation({ id: 'op-2', appId: 'nebula.news', phase: 'queued', received: 0 })] }) });
     const card = (label: string) => within(screen.getAllByText(label).map((element) => element.closest('article.summary-card')).find(Boolean) as HTMLElement);

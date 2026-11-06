@@ -1,4 +1,4 @@
-import { backupArgument, backupFileName, backupPath, validateBackup } from './backup';
+import { backupArgument, backupCopyPath, backupFileName, backupPath, validateBackup } from './backup';
 import type { PreOperationBackup } from './catalog';
 
 const FINTEREST: PreOperationBackup = { argument: '--backup-before-uninstall=', documentsFolder: 'Nebula Finterest', filePrefix: 'finterest-store-backup', format: 'finterest-backup-v1' };
@@ -11,6 +11,12 @@ describe('backup file', () => {
 
   it('goes into the app folder of Documents', () => {
     expect(backupPath('C:\\Users\\Noé\\Documents\\', FINTEREST, NOW)).toBe('C:\\Users\\Noé\\Documents\\Nebula Finterest\\finterest-store-backup-2026-10-01_21-05-03.json');
+  });
+
+  it('keeps the separator of the folder it is built in (Windows unchanged, POSIX for tests and macOS)', () => {
+    expect(backupCopyPath('\\\\nas\\copies', FINTEREST, 'C:\\Docs\\b.json')).toBe('\\\\nas\\copies\\Nebula Finterest\\b.json');
+    expect(backupPath('/Users/noe/Documents/', FINTEREST, NOW)).toBe('/Users/noe/Documents/Nebula Finterest/finterest-store-backup-2026-10-01_21-05-03.json');
+    expect(backupCopyPath('/media/copies', FINTEREST, 'C:\\Docs\\b.json')).toBe('/media/copies/Nebula Finterest/b.json');
   });
 
   it('is passed as a single argument', () => {

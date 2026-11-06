@@ -692,7 +692,7 @@ describe('InstallManager: sealed backups (ADR-040)', () => {
     h.installed.push(installedApp('nebula.finterest', '0.1.35'));
     h.manager.enqueue('nebula.finterest', 'update', { confirmed: true });
     await until(h, 'nebula.finterest', 'backup-failed');
-    expect(operationOf(h, 'nebula.finterest').backup).toMatchObject({ state: 'failed', problem: 'invalid' });
+    expect(operationOf(h, 'nebula.finterest').backup).toMatchObject({ state: 'failed', problem: 'key-unknown' });
     expect(h.runs).toEqual([]);
   });
 });

@@ -9,7 +9,7 @@ import { updateAvailable, type LaunchResult } from '../shared/installed-view';
 import { mainString, operationEntry } from '../shared/main-strings';
 import type { HubSettings } from '../shared/settings';
 import { isSafeExternalUrl } from '../shared/url';
-import { backupArgument, MAX_BACKUP_BYTES, validateBackup, type ImportDataResult, type SaveInstallerResult } from '../shared/backup';
+import { backupArgument, MAX_BACKUP_BYTES, saveReadProblem, validateBackup, type ImportDataResult, type SaveInstallerResult } from '../shared/backup';
 import { InstalledAppsService } from './apps/installed-apps';
 import { windowsProbe } from './apps/system-probe';
 import { closeNebulaApps } from './apps/quit-nebula';
@@ -570,8 +570,8 @@ function registerIpcHandlers(): void {
     try {
       const stat = await fs.stat(file);
       check = stat.size > MAX_BACKUP_BYTES ? { ok: false, reason: 'too-large' } : validateBackup(spec.format, await readSaveText(file, SAVE_KEY_FILE));
-    } catch {
-      return { mode: 'invalid', reason: 'missing' };
+    } catch (error) {
+      return { mode: 'invalid', reason: saveReadProblem(error) };
     }
     if (!check.ok) return { mode: 'invalid', reason: check.reason };
     writtenFiles.add(file);

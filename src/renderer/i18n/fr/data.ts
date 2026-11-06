@@ -25,6 +25,7 @@ export const data = {
   'data.importManual': 'Fichier vérifié ({count} compte(s)). {name} s’ouvre : dans l’app, allez dans Réglages → Sauvegarde → Importer, puis choisissez ce fichier (affiché dans l’Explorateur) :',
   'data.importInvalid': 'Ce fichier ne peut pas être importé : {problem}',
   'data.reveal': 'Afficher le fichier',
+  'data.retryImport': 'Importer de nouveau',
   'data.error.unsupported': 'Cette app ne propose pas de sauvegarde.',
   'data.error.not-installed': 'L’app n’est pas installée.',
   'data.error.busy': 'Une opération est en cours sur cette app : réessayez quand elle sera finie.',
